@@ -1,0 +1,244 @@
+:root{
+  --bg:#080b14;
+  --bg-panel:#10162a;
+  --bg-panel-2:#161d38;
+  --border:#232c4d;
+  --cyan:#4fd8e0;
+  --violet:#a78bfa;
+  --amber:#f5b342;
+  --rose:#ef5a7d;
+  --green:#6ee7a0;
+  --text:#eef1fb;
+  --text-dim:#8791b3;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+body{
+  background:
+    radial-gradient(ellipse 800px 500px at 15% -10%, rgba(79,216,224,0.10), transparent),
+    radial-gradient(ellipse 700px 500px at 100% 10%, rgba(167,139,250,0.10), transparent),
+    var(--bg);
+  min-height:100vh;
+}
+h1,h2,h3,.display{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:0.02em;}
+#app{max-width:1180px;margin:0 auto;padding:20px 16px 60px;}
+
+.hud-panel{
+  background:var(--bg-panel);
+  border:1px solid var(--border);
+  clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  position:relative;
+}
+.hud-panel::before{
+  content:'';position:absolute;top:0;right:0;width:14px;height:14px;
+  background:linear-gradient(135deg, transparent 48%, var(--border) 49%, var(--border) 51%, transparent 52%);
+}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;margin-bottom:18px;}
+.topbar .title{display:flex;align-items:center;gap:12px;}
+.topbar .title .glyph{width:34px;height:34px;border-radius:50%;background:conic-gradient(var(--cyan),var(--violet),var(--amber),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:16px;}
+.topbar h1{font-size:22px;margin:0;color:var(--text);}
+.topbar .sub{font-size:12px;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;}
+.topbar .stats{display:flex;gap:22px;font-family:'Rajdhani';font-weight:600;}
+.topbar .stat{text-align:right;}
+.topbar .stat .val{font-size:19px;color:var(--amber);}
+.topbar .stat .lbl{font-size:10px;color:var(--text-dim);letter-spacing:0.1em;text-transform:uppercase;}
+
+/* Buttons */
+button{font-family:'Rajdhani',sans-serif;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg-panel-2);color:var(--text);border-radius:6px;padding:9px 16px;font-size:14px;letter-spacing:0.03em;transition:all .15s ease;}
+button:hover:not(:disabled){border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset;transform:translateY(-1px);}
+button:disabled{opacity:0.35;cursor:not-allowed;}
+button.primary{background:linear-gradient(135deg, rgba(79,216,224,0.18), rgba(167,139,250,0.14));border-color:var(--cyan);}
+button.danger{border-color:var(--rose);}
+button.ghost{background:transparent;}
+button.small{padding:5px 10px;font-size:12px;}
+
+/* Screens */
+.screen-title{display:flex;align-items:baseline;gap:10px;margin-bottom:16px;}
+.screen-title h2{margin:0;font-size:24px;}
+.screen-title .eyebrow{font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--cyan);}
+
+/* Home */
+.home-hero{padding:60px 40px;text-align:center;margin-bottom:20px;}
+.home-hero .eyebrow{color:var(--violet);font-size:12px;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:10px;}
+.home-hero h1{font-size:44px;margin:0 0 14px;background:linear-gradient(120deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.home-hero p{color:var(--text-dim);max-width:520px;margin:0 auto 26px;line-height:1.5;font-size:15px;}
+
+/* Tabs */
+.tab-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:12px;}
+.tab-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:8px 16px;font-size:13px;}
+.tab-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(79,216,224,0.08);}
+.subtab-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.subtab-btn{padding:6px 12px;font-size:12px;border-radius:5px;}
+.subtab-btn.active{border-color:var(--violet);color:var(--violet);background:rgba(167,139,250,0.1);}
+
+/* Roster grid */
+.roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-bottom:20px;}
+.hero-card{padding:16px;cursor:pointer;position:relative;}
+.hero-card.selected{border-color:var(--cyan);}
+.hero-card.selected::after{content:'IN SQUADRA';position:absolute;top:10px;right:16px;font-size:9px;letter-spacing:0.1em;color:var(--cyan);font-family:'Rajdhani';font-weight:700;}
+.hero-head{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.hero-portrait{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:'Rajdhani';font-size:17px;color:#0a0e18;flex-shrink:0;}
+.hero-name{font-size:16px;font-weight:700;font-family:'Rajdhani';}
+.hero-title{font-size:11px;color:var(--text-dim);}
+.hero-role{display:inline-block;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--violet);margin-top:2px;}
+.hero-stars{font-size:11px;letter-spacing:2px;margin-top:3px;display:flex;}
+.stat-row{display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);padding:2px 0;}
+.stat-row b{color:var(--text);font-weight:600;}
+.equip-row{display:flex;gap:5px;margin-top:10px;}
+.equip-slot{width:26px;height:26px;border:1px dashed var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.equip-slot.filled{border-style:solid;}
+.hero-card.locked-card{opacity:0.7;}
+.locked-tag{margin-top:14px;text-align:center;font-size:11px;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;padding:8px;border:1px dashed var(--border);border-radius:6px;}
+
+.section{margin-bottom:26px;}
+.empty-slot-msg{padding:30px;text-align:center;color:var(--text-dim);border:1px dashed var(--border);border-radius:8px;}
+
+/* Inventory */
+.inv-list{display:flex;flex-wrap:wrap;gap:8px;}
+.item-chip{padding:6px 10px;border-radius:5px;font-size:12px;border:1px solid var(--border);background:var(--bg-panel-2);cursor:pointer;font-family:'Rajdhani';font-weight:600;}
+.item-chip:hover{border-color:var(--cyan);}
+.item-chip.rarity-comune{color:var(--text-dim);}
+.item-chip.rarity-rara{color:var(--cyan);}
+.item-chip.rarity-epica{color:var(--amber);}
+
+/* Ability tab */
+.ability-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;}
+.ability-card{padding:16px;}
+.ability-card .tag{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;font-family:'Rajdhani';padding:2px 8px;border-radius:3px;display:inline-block;margin-bottom:8px;}
+.ability-card .tag.basic{color:var(--cyan);background:rgba(79,216,224,0.12);}
+.ability-card .tag.skill{color:var(--violet);background:rgba(167,139,250,0.12);}
+.ability-card .tag.ult{color:var(--amber);background:rgba(245,179,66,0.12);}
+.ability-card .aname{font-size:17px;font-weight:700;font-family:'Rajdhani';margin-bottom:6px;}
+.ability-card .adesc{font-size:13px;color:var(--text-dim);line-height:1.5;margin-bottom:10px;}
+.ability-card .anumbers{font-size:11.5px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;border-top:1px dashed var(--border);padding-top:8px;}
+.ability-card .anumbers b{color:var(--text);}
+
+/* Tower / stage select */
+.tower-scroller{display:flex;gap:10px;flex-wrap:wrap;}
+.stage-card{padding:14px 16px;min-width:140px;text-align:center;}
+.stage-card .num{font-size:26px;font-family:'Rajdhani';font-weight:700;}
+.stage-card .lbl{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;}
+.stage-card.locked{opacity:0.35;}
+.stage-card.boss{border-color:var(--rose);}
+.stage-card.cleared .num{color:var(--green);}
+.stage-card.current{border-color:var(--cyan);}
+
+/* Battle */
+.battle-wrap{display:flex;flex-direction:column;gap:14px;}
+.enemy-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:18px 10px;min-height:150px;}
+.enemy-card{padding:12px;width:150px;text-align:center;cursor:default;transition:transform .15s;}
+.enemy-card.targetable{cursor:pointer;}
+.enemy-card.targetable:hover{transform:translateY(-4px);border-color:var(--rose);}
+.enemy-card.dead{opacity:0.25;filter:grayscale(1);}
+.enemy-card .portrait{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#3a1f2c,#1c1128);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;}
+.enemy-card .name{font-family:'Rajdhani';font-weight:700;font-size:13px;margin-bottom:6px;}
+.bar-track{height:6px;background:#1c2338;border-radius:3px;overflow:hidden;margin-top:3px;}
+.bar-fill{height:100%;border-radius:3px;transition:width .25s ease;}
+.hp-fill{background:linear-gradient(90deg,var(--rose),#ff8fa8);}
+.burn-tag{font-size:9px;color:var(--amber);margin-top:4px;letter-spacing:0.05em;}
+
+.log-panel{padding:12px 16px;height:110px;overflow-y:auto;font-size:12.5px;color:var(--text-dim);display:flex;flex-direction:column-reverse;}
+.log-panel .entry{padding:2px 0;border-bottom:1px dashed rgba(255,255,255,0.04);}
+.log-panel .entry:first-child{color:var(--text);}
+
+.sp-row{display:flex;align-items:center;gap:10px;padding:10px 16px;}
+.sp-row .lbl{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);}
+.sp-pip{width:16px;height:16px;border-radius:3px;border:1px solid var(--violet);transform:rotate(45deg);}
+.sp-pip.filled{background:var(--violet);}
+
+.ally-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.ally-card{padding:12px;position:relative;}
+.ally-card.active-turn{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset;}
+.ally-card.dead{opacity:0.3;filter:grayscale(1);}
+.ally-card.selectable-target{cursor:pointer;}
+.ally-card.selectable-target:hover{border-color:var(--green);}
+.ally-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.ally-portrait{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:'Rajdhani';font-size:13px;color:#0a0e18;flex-shrink:0;}
+.ally-name{font-size:13px;font-weight:700;font-family:'Rajdhani';}
+.mini-lbl{font-size:9px;color:var(--text-dim);letter-spacing:0.06em;display:flex;justify-content:space-between;}
+.energy-fill{background:linear-gradient(90deg,var(--amber),#ffd98a);}
+.shield-tag{font-size:9px;color:var(--cyan);margin-top:3px;}
+.buff-tag{font-size:9px;color:var(--green);margin-top:2px;}
+
+.action-bar{display:flex;gap:10px;flex-wrap:wrap;padding:14px 16px;align-items:center;}
+.action-bar .who{font-family:'Rajdhani';font-weight:700;font-size:14px;margin-right:6px;color:var(--amber);}
+.ability-btn{display:flex;flex-direction:column;align-items:flex-start;min-width:150px;}
+.ability-btn .aname{font-size:13.5px;}
+.ability-btn .adesc{font-size:10px;color:var(--text-dim);font-weight:400;font-family:'Inter';margin-top:2px;text-align:left;}
+
+.center-msg{text-align:center;padding:50px 20px;}
+.center-msg h2{font-size:30px;margin-bottom:8px;}
+.center-msg.win h2{color:var(--green);}
+.center-msg.lose h2{color:var(--rose);}
+.loot-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:18px 0;}
+
+.hint{font-size:11.5px;color:var(--text-dim);text-align:center;margin-top:4px;}
+.flexbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+
+/* Artifact / weapon cards (no hover needed — everything shown inline) */
+.artifact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;}
+.artifact-card{padding:12px;}
+.artifact-card .ac-head{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;}
+.artifact-card .ac-icon{font-size:18px;line-height:1;}
+.artifact-card .ac-name{font-size:14px;font-weight:700;font-family:'Rajdhani';}
+.artifact-card .ac-level{font-size:10px;font-weight:600;color:var(--text-dim);margin-left:4px;}
+.artifact-card .ac-setname{font-size:10px;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;}
+.artifact-card .ac-main{font-size:13px;margin:6px 0 6px;padding:5px 8px;border-radius:4px;background:rgba(255,255,255,0.05);}
+.artifact-card .ac-subs{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--text-dim);margin-bottom:8px;}
+.artifact-card .ac-setbonus{font-size:10.5px;color:var(--violet);border-top:1px dashed var(--border);padding-top:6px;margin-top:2px;line-height:1.6;}
+
+.weapon-slot{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;border:1px dashed var(--border);border-radius:6px;cursor:pointer;}
+.weapon-slot.filled{border-style:solid;}
+.weapon-slot .wicon{font-size:16px;}
+.weapon-slot .wtext{font-size:11.5px;color:var(--text-dim);}
+.weapon-slot .wtext b{color:var(--text);}
+
+.battle-mid-row{display:grid;grid-template-columns:1fr 200px;gap:12px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(3,5,12,0.7);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+.modal-box{padding:20px;max-width:420px;width:100%;max-height:70vh;overflow-y:auto;}
+
+/* ============ MOBILE / PHONE FRIENDLY ============ */
+@media (max-width:640px){
+  #app{padding:10px 8px 40px;}
+  .topbar{padding:10px 12px;flex-wrap:wrap;gap:8px;}
+  .topbar h1{font-size:17px;}
+  .topbar .sub{font-size:10px;}
+  .topbar .stats{gap:12px;}
+  .topbar .stat .val{font-size:15px;}
+  .topbar .stat .lbl{font-size:9px;}
+
+  .home-hero{padding:30px 16px;}
+  .home-hero h1{font-size:26px;}
+  .home-hero p{font-size:13px;}
+
+  .screen-title h2{font-size:19px;}
+
+  .tab-bar{gap:5px;padding-bottom:10px;}
+  .tab-btn{padding:7px 10px;font-size:11.5px;}
+  .subtab-bar{gap:5px;}
+  .subtab-btn{padding:5px 9px;font-size:10.5px;}
+
+  .roster-grid{grid-template-columns:1fr;}
+  .ability-cards{grid-template-columns:1fr;}
+  .artifact-grid{grid-template-columns:1fr;}
+
+  .stage-card{min-width:88px;padding:9px 10px;}
+  .stage-card .num{font-size:20px;}
+
+  .ally-row{grid-template-columns:repeat(2,1fr);}
+  .enemy-card{width:118px;padding:9px;}
+  .enemy-card .name{font-size:11.5px;}
+
+  .battle-mid-row{grid-template-columns:1fr;}
+  .log-panel{height:90px;}
+
+  .action-bar{padding:10px 12px;gap:8px;}
+  .ability-btn{min-width:0;flex:1 1 100%;}
+  .action-bar .who{width:100%;margin-right:0;margin-bottom:2px;}
+  .auto-toggle{margin-left:0;width:100%;}
+
+  .modal-box{padding:14px;max-height:80vh;}
+  button{font-size:13px;padding:8px 14px;}
+}
