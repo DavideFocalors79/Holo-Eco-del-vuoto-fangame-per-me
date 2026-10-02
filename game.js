@@ -1,44 +1,87 @@
 /* ============ CHARACTERS ============ */
+const ELEMENT_DATA = {
+  physical: {label:'Physical', strongAgainst:'dendro'},
+  hydro: {label:'Hydro', strongAgainst:'physical'},
+  ether: {label:'Ether', strongAgainst:'hydro'},
+  imaginary: {label:'Imaginary', strongAgainst:'ether'},
+  quantum: {label:'Quantum', strongAgainst:'imaginary'},
+  electro: {label:'Electro', strongAgainst:'quantum'},
+  dendro: {label:'Dendro', strongAgainst:'electro'},
+};
+const ELEMENT_RELATION = {
+  electro:'quantum',
+  quantum:'imaginary',
+  imaginary:'ether',
+  ether:'hydro',
+  hydro:'physical',
+  physical:'dendro',
+  dendro:'electro',
+};
+
 const CHAR_DB = {
-  kaelaKolvalskia: { name:'Kaela kolvalskia', title:'Baluardo di Ferro', role:'Tank', color:'#4fd8e0', glyph:'K', rarity:4,
-    base:{hp:1450, atk:92, def:150, energyMax:120},
+  kaelaKolvalskia: { name:'Kaela kolvalskia', title:'Baluardo di Ferro', role:'Tank', color:'#4fd8e0', glyph:'K', rarity:4, element:'physical', animStyle:'heavy',
+    base:{hp:1450, atk:92, def:150, speed:100, energyMax:120},
     basic:{name:'Colpo di Scudo', desc:'Danno fisico a un bersaglio.', mult:1.0, target:'enemy', effect:null, energyGain:20},
     skill:{name:'Presa Ferrea', desc:'Danno e si scherma per 2 turni.', mult:1.2, target:'enemy', effect:'shield_self', shieldPct:0.18, energyGain:30},
     ult:{name:'Muro Indistruttibile', desc:'Scherma tutta la squadra per 2 turni.', mult:0, target:'allies_all', effect:'shield_all', shieldPct:0.22} },
-  ceciliaImmergreen: { name:'Cecilia Immergreen', title:"Luce dell'Aurora", role:'Supporto Curativo', color:'#6ee7a0', glyph:'C', rarity:4,
-    base:{hp:980, atk:76, def:75, energyMax:110},
+  ceciliaImmergreen: { name:'Cecilia Immergreen', title:"Luce dell'Aurora", role:'Supporto Curativo', color:'#6ee7a0', glyph:'C', rarity:4, element:'dendro', animStyle:'radiant-soft',
+    base:{hp:980, atk:76, def:75, speed:100, energyMax:110},
     basic:{name:'Raggio Guida', desc:'Danno leggero a un nemico.', mult:0.75, target:'enemy', effect:null, energyGain:20},
     skill:{name:'Benedizione', desc:'Cura un alleato.', mult:1.4, target:'ally', effect:'heal', energyGain:30},
     ult:{name:"Grazia dell'Alba", desc:'Cura tutta la squadra.', mult:1.9, target:'allies_all', effect:'heal_all'} },
-  monaHoshinova: { name:'Mona Hoshinova', title:'Frattura Stellare', role:'DPS Arcano', color:'#a78bfa', glyph:'M', rarity:4,
-    base:{hp:1000, atk:132, def:68, energyMax:130},
+  monaHoshinova: { name:'Mona Hoshinova', title:'Frattura Stellare', role:'DPS Arcano', color:'#a78bfa', glyph:'M', rarity:4, element:'quantum', animStyle:'arcane',
+    base:{hp:1000, atk:132, def:68, speed:100, energyMax:130},
     basic:{name:'Scheggia Arcana', desc:'Danno magico a un bersaglio.', mult:0.95, target:'enemy', effect:null, energyGain:20},
     skill:{name:'Implosione', desc:'Danno magico elevato.', mult:1.7, target:'enemy', effect:null, energyGain:30},
     ult:{name:'Collasso Stellare', desc:'Danno devastante a un bersaglio.', mult:2.8, target:'enemy', effect:null} },
-  mumeiNanashi: { name:'Mumei Nanashi', title:'Lama Silente', role:'DPS Rapido', color:'#ef5a7d', glyph:'M', rarity:4, skillFreeUses:2,
-    base:{hp:1050, atk:106, def:64, energyMax:115},
+  mumeiNanashi: { name:'Mumei Nanashi', title:'Lama Silente', role:'DPS Rapido', color:'#ef5a7d', glyph:'M', rarity:4, element:'dendro', animStyle:'swift', skillFreeUses:2,
+    base:{hp:1050, atk:106, def:64, speed:100, energyMax:115},
     basic:{name:'Doppio Taglio', desc:'Colpi rapidi su un bersaglio (i colpi aumentano usando la Skill).', mult:0.55, hits:2, target:'enemy', effect:null, energyGain:20},
     skill:{name:'Danza di Lame', desc:'Aumenta di 1 il numero di colpi dell\'Attacco Base, fino a un massimo di 10. Non conclude il turno: puoi usarla più volte finché hai Punti Abilità, poi chiudi con l\'Attacco Base. Le prime 2 volte a battaglia non costa Punti Abilità.', mult:0, target:'self', effect:'boost_basic_hits', energyGain:5},
     ult:{name:'Tempesta di Fendenti', desc:'5 colpi su un bersaglio.', mult:0.5, hits:5, target:'enemy', effect:null} },
-  vestiaZeta: { name:'Vestia Zeta', title:'Lama Spezzata', role:'DPS Fisico', color:'#c23b52', glyph:'V', rarity:4, dotName:'Sanguinamento',
-    base:{hp:1080, atk:116, def:70, energyMax:120},
+  vestiaZeta: { name:'Vestia Zeta', title:'Lama Spezzata', role:'DPS Fisico', color:'#c23b52', glyph:'V', rarity:4, element:'physical', animStyle:'bleed', dotName:'Sanguinamento',
+    base:{hp:1080, atk:116, def:70, speed:100, energyMax:120},
     basic:{name:'Sparo', desc:'Danno e applica Sanguinamento.', mult:0.85, target:'enemy', effect:'burn', burnStacks:1, energyGain:20},
     skill:{name:'Fendente', desc:'Danno maggiore, Sanguinamento x2.', mult:1.35, target:'enemy', effect:'burn', burnStacks:2, energyGain:30},
     ult:{name:'Attacco Aereo', desc:'Danno ad area, Sanguinamento su tutti.', mult:1.6, target:'enemies_all', effect:'burn_all', burnStacks:2} },
-  IRyS: { name:'IRyS', title:'Voce del Comando', role:'Supporto Buff', color:'#7dd3fc', glyph:'I', rarity:4,
-    base:{hp:1000, atk:86, def:80, energyMax:125},
+  IRyS: { name:'IRyS', title:'Voce del Comando', role:'Supporto Buff', color:'#7dd3fc', glyph:'I', rarity:4, element:'ether', animStyle:'surge',
+    base:{hp:1000, atk:86, def:80, speed:100, energyMax:125},
     basic:{name:'Colpo Tattico', desc:'Danno leggero a un bersaglio.', mult:0.7, target:'enemy', effect:null, energyGain:20},
     skill:{name:'Coordinazione', desc:'Un alleato attacca una volta in più e ottiene +20% ATK.', mult:0, target:'ally', effect:'extra_attack_buff', buffPct:0.20, energyGain:30},
     ult:{name:'Grido di Guerra', desc:'Grande +ATK e energia alla squadra.', mult:0, target:'allies_all', effect:'buff_atk_energy', buffPct:0.4, energyGainAll:25} },
-  ouroKronii: { name:'Ouro Kronii', title:'Architetta del Tempo', role:'Supporto Punti Abilità', color:'#ffd700', glyph:'O', rarity:5, passiveSpCapBonus:2,
-    base:{hp:1150, atk:118, def:78, energyMax:140},
+  ouroKronii: { name:'Ouro Kronii', title:'Architetta del Tempo', role:'Supporto Punti Abilità', color:'#ffd700', glyph:'O', rarity:5, element:'imaginary', animStyle:'celestial', passiveSpCapBonus:2,
+    base:{hp:1150, atk:118, def:78, speed:100, energyMax:140},
     basic:{name:'Impulso Armonico', desc:'Danno a un bersaglio. Genera 2 Punti Abilità invece di 1.', mult:0.8, target:'enemy', effect:null, energyGain:20, spGain:2},
     skill:{name:'Dono del Tempo', desc:'Non infligge danno: dona 3 Punti Abilità alla squadra.', mult:0, target:'team', effect:'grant_sp', spGrant:3, energyGain:25},
     ult:{name:'Convergenza Assoluta', desc:'Dona 3 Punti Abilità e +25% ATK alla squadra per 2 turni.', mult:0, target:'team', effect:'grant_sp_and_buff', spGrant:3, buffPct:0.25} },
+  hakosBaels: { name:'Hakos Baels', title:'Arbitra del Caos', role:'DPS Trasformazione', color:'#ef5a7d', glyph:'H', rarity:5, element:'ether', animStyle:'swift',
+    base:{hp:1220, atk:142, def:86, speed:100, energyMax:150},
+    basic:{name:'Dado Impazzito', desc:'Infligge danno normale a un nemico.', mult:1.0, target:'enemy', effect:null, energyGain:20},
+    skill:{name:'Caos Concentrato', desc:'Infligge danno maggiore a un nemico.', mult:1.35, target:'enemy', effect:null, energyGain:30},
+    ult:{name:'Rovina del Caos', desc:'Assorbe i parametri degli alleati e li richiama dopo cinque azioni di Hakos.', mult:0, target:'self', effect:'hakos_ultimate'} },
 };
 
 const ENEMY_NAMES = ['Larva del Vuoto','Sentinella Corrotta','Sciame Spinato','Costrutto Infranto','Ombra Vagante'];
 const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra'];
+const MAX_ENEMIES_IN_BATTLE = 5;
+const BOSS_MECHANICS = {
+  'Custode di Cristallo':{phase1:'shield',phase2:'area'},
+  'Araldo del Vuoto':{phase1:'summon',phase2:'summon'},
+  'Colosso Corroso':{phase1:'heal',phase2:'area'},
+  'Regina Ombra':{phase1:'shield',phase2:'heal'},
+};
+const BOSS_MECHANIC_LABELS = {shield:'Scudo',summon:'Evoca rinforzi',heal:'Cura',area:'Attacco ad area'};
+const ENEMY_ELEMENT_SETS = {
+  'Larva del Vuoto':['quantum','hydro','dendro'],
+  'Sentinella Corrotta':['physical','electro','imaginary'],
+  'Sciame Spinato':['ether','quantum','electro'],
+  'Costrutto Infranto':['hydro','imaginary','physical'],
+  'Ombra Vagante':['dendro','ether','quantum'],
+  'Custode di Cristallo':['physical','quantum','hydro'],
+  'Araldo del Vuoto':['electro','ether','imaginary'],
+  'Colosso Corroso':['dendro','physical','ether'],
+  'Regina Ombra':['quantum','hydro','electro'],
+};
 
 /* ============ ARTIFACT / STAT SYSTEM ============ */
 // Each stat key is either a flat bonus, a percentage bonus to a base stat, or a bonus to energy gain.
@@ -46,14 +89,15 @@ const STAT_KEYS = {
   atk:        {label:'ATK',      kind:'flat',   flatKey:'atk'},
   hp:         {label:'PV',       kind:'flat',   flatKey:'hp'},
   def:        {label:'DEF',      kind:'flat',   flatKey:'def'},
+  speed:      {label:'VEL',      kind:'flat',   flatKey:'speed'},
   atk_pct:    {label:'ATK%',     kind:'pct',    target:'atk'},
   hp_pct:     {label:'PV%',      kind:'pct',    target:'hp'},
   def_pct:    {label:'DEF%',     kind:'pct',    target:'def'},
   energy_pct: {label:'Energia%', kind:'energy'},
 };
 const RARITY_ORDER = ['comune','rara','epica'];
-const RARITY_COLOR = {comune:'#8791b3', rara:'#4fd8e0', epica:'#f5b342'};
-const RARITY_LABEL = {comune:'Comune', rara:'Rara', epica:'Epica'};
+const RARITY_COLOR = {comune:'#8791b3', rara:'#4fd8e0', epica:'#f5b342', leggendaria:'#ffd700'};
+const RARITY_LABEL = {comune:'Comune', rara:'Rara', epica:'Epica', leggendaria:'5 stelle'};
 
 const MAIN_VALUES = {
   flat:   {comune:{atk:20,hp:200,def:24}, rara:{atk:36,hp:360,def:42}, epica:{atk:60,hp:600,def:70}},
@@ -99,6 +143,7 @@ function shuffleArr(arr){
 
 function valueForRarity(kind, meta, rarity, tier, stageLevel){
   if(kind==='flat'){
+    if(meta.flatKey==='speed') return 1+Math.floor(Math.random()*4);
     const table = tier==='main' ? MAIN_VALUES.flat[rarity] : SUB_VALUES.flat[rarity];
     const base = table[meta.flatKey];
     const growth = 1 + Math.min(1.5, stageLevel*0.03);
@@ -129,38 +174,132 @@ function generateArtifact(stageLevel){
 // Each hero has one weapon slot (separate from the 5 artifact slots). Simpler than artifacts:
 // 1 flat ATK main stat + 1 secondary stat rolled from the same STAT_KEYS pool.
 const WEAPON_NAMES = ['Lama del Crepuscolo','Bastone Runico','Arco Siderale','Falce Infranta','Martello Sismico','Pugnale Ombra','Tomo Ancestrale','Baluardo Vivente','Frusta di Vento','Rostro d\'Acciaio'];
-const WEAPON_MAIN_VALUES = {
-  flat:{comune:{atk:40}, rara:{atk:75}, epica:{atk:130}},
+const WEAPON_FIXED_STATS = {
+  'Lama del Crepuscolo':{rarity:'comune',atk:48,subStat:{key:'hp',value:180}},
+  'Bastone Runico':{rarity:'comune',atk:42,subStat:{key:'energy_pct',value:0.04}},
+  'Arco Siderale':{rarity:'rara',atk:82,subStat:{key:'atk_pct',value:0.05}},
+  'Falce Infranta':{rarity:'rara',atk:88,subStat:{key:'def_pct',value:0.06}},
+  'Martello Sismico':{rarity:'rara',atk:76,subStat:{key:'hp_pct',value:0.07}},
+  'Pugnale Ombra':{rarity:'rara',atk:94,subStat:{key:'speed',value:2}},
+  'Tomo Ancestrale':{rarity:'epica',atk:132,subStat:{key:'energy_pct',value:0.09}},
+  'Baluardo Vivente':{rarity:'epica',atk:126,subStat:{key:'def_pct',value:0.12}},
+  'Frusta di Vento':{rarity:'epica',atk:145,subStat:{key:'speed',value:4}},
+  'Rostro d\'Acciaio':{rarity:'epica',atk:154,subStat:{key:'atk_pct',value:0.09}},
 };
-function generateWeapon(stageLevel){
-  const rarityRoll = Math.random() + stageLevel*0.012;
-  const rarity = rarityRoll>0.93 ? 'epica' : rarityRoll>0.65 ? 'rara' : 'comune';
-  const growth = 1 + Math.min(1.5, stageLevel*0.03);
-  const mainValue = Math.round(WEAPON_MAIN_VALUES.flat[rarity].atk*growth);
-  const subKeys = Object.keys(STAT_KEYS).filter(k=>k!=='atk');
-  const subKey = pick(subKeys);
-  const subMeta = STAT_KEYS[subKey];
-  const subValue = valueForRarity(subMeta.kind, subMeta, rarity, 'sub', stageLevel);
-  const name = pick(WEAPON_NAMES);
-  return {uid:'wp'+(state.weaponUidCounter++), name, rarity, mainStat:{key:'atk',value:mainValue}, subStat:{key:subKey,value:subValue}};
+const WEAPON_DEFINITIONS = {
+  'Lama del Crepuscolo': {effect:{stat:'damageMult', base:0.06, perAscension:0.02, describe:value=>`Danni inflitti +${Math.round(value*100)}%.`}},
+  'Bastone Runico': {effect:{stat:'healMult', base:0.10, perAscension:0.02, describe:value=>`Cure effettuate +${Math.round(value*100)}%.`}},
+  'Arco Siderale': {effect:{stat:'weaknessBonus', base:0.10, perAscension:0.02, describe:value=>`Danno contro debolezze +${Math.round(value*100)}%.`}},
+  'Falce Infranta': {effect:{stat:'burnMult', base:0.20, perAscension:0.03, describe:value=>`Danni da Sanguinamento +${Math.round(value*100)}%.`}},
+  'Martello Sismico': {effect:{stat:'shieldMult', base:0.15, perAscension:0.03, describe:value=>`Scudi generati +${Math.round(value*100)}%.`}},
+  'Pugnale Ombra': {effect:{stat:'sameElementBonus', base:0.10, perAscension:0.02, describe:value=>`Riduce la penalità contro lo stesso elemento: danno x${(0.5+value).toFixed(2)}.`}},
+  'Tomo Ancestrale': {effect:{stat:'energyGainMult', base:0.15, perAscension:0.025, describe:value=>`Energia ottenuta +${Math.round(value*100)}%.`}},
+  'Baluardo Vivente': {effect:{stat:'defPct', base:0.10, perAscension:0.02, describe:value=>`DIF +${Math.round(value*100)}%.`}},
+  'Frusta di Vento': {effect:{stat:'speed', base:5, perAscension:1, describe:value=>`VEL +${value}.`}},
+  'Rostro d\'Acciaio': {effect:{stat:'atkPct', base:0.10, perAscension:0.02, describe:value=>`ATK +${Math.round(value*100)}%.`}},
+  'Aegis dell\'Ultima Alba': {ownerId:'kaelaKolvalskia', effect:{stat:'shieldMult', base:0.25, perAscension:0.04, describe:value=>`Scudi generati +${Math.round(value*100)}%.`}},
+  'Grazia dell\'Aurora': {ownerId:'ceciliaImmergreen', effect:{stat:'healMult', base:0.25, perAscension:0.04, describe:value=>`Cure effettuate +${Math.round(value*100)}%.`}},
+  'Orizzonte degli Eventi': {ownerId:'monaHoshinova', effect:{stat:'weaknessBonus', base:0.20, perAscension:0.03, describe:value=>`Danno contro debolezze +${Math.round(value*100)}%.`}},
+  'Mille Tagli Silenziosi': {ownerId:'mumeiNanashi', effect:{stat:'basicDamageMult', base:0.12, perAscension:0.025, describe:value=>`Danno degli Attacchi Base +${Math.round(value*100)}%.`}},
+  'Giuramento Cremisi': {ownerId:'vestiaZeta', effect:{stat:'burnMult', base:0.35, perAscension:0.05, describe:value=>`Danni da Sanguinamento +${Math.round(value*100)}%.`}},
+  'Voce della Speranza': {ownerId:'IRyS', effect:{stat:'buffPctBonus', base:0.10, perAscension:0.02, describe:value=>`Efficacia dei buff ATK +${Math.round(value*100)}%.`}},
+  'Eternita Meccanica': {ownerId:'ouroKronii', effect:{stat:'spGrantBonus', base:1, perAscension:1, ascensionStep:3, describe:value=>`Le Skill che donano PA ne forniscono ${value} in piu.`}},
+  'Caos Inevitabile': {ownerId:'hakosBaels', effect:{stat:'formDamageMult', base:0.15, perAscension:0.03, describe:value=>`Durante la Rovina del Caos, danni inflitti +${Math.round(value*100)}%.`}},
+};
+const SIGNATURE_WEAPONS = [
+  {name:'Aegis dell\'Ultima Alba', ownerId:'kaelaKolvalskia', atk:165, subStat:{key:'def_pct',value:0.16}},
+  {name:'Grazia dell\'Aurora', ownerId:'ceciliaImmergreen', atk:140, subStat:{key:'energy_pct',value:0.14}},
+  {name:'Orizzonte degli Eventi', ownerId:'monaHoshinova', atk:190, subStat:{key:'atk_pct',value:0.14}},
+  {name:'Mille Tagli Silenziosi', ownerId:'mumeiNanashi', atk:175, subStat:{key:'speed',value:8}},
+  {name:'Giuramento Cremisi', ownerId:'vestiaZeta', atk:185, subStat:{key:'atk_pct',value:0.12}},
+  {name:'Voce della Speranza', ownerId:'IRyS', atk:145, subStat:{key:'energy_pct',value:0.16}},
+  {name:'Eternita Meccanica', ownerId:'ouroKronii', atk:170, subStat:{key:'speed',value:7}},
+  {name:'Caos Inevitabile', ownerId:'hakosBaels', atk:188, subStat:{key:'atk_pct',value:0.14}},
+];
+
+function normalizeWeapon(weapon){
+  if(!weapon) return weapon;
+  weapon.level = clamp(Number(weapon.level)||0,0,20);
+  weapon.ascension = clamp(Number(weapon.ascension)||0,0,5);
+  const signature=SIGNATURE_WEAPONS.find(item=>item.name===weapon.name);
+  const fixed=signature||WEAPON_FIXED_STATS[weapon.name];
+  if(fixed){
+    weapon.rarity=signature?'leggendaria':fixed.rarity;
+    weapon.baseAtk=fixed.atk;
+    weapon.mainStat={key:'atk',value:fixed.atk+weapon.level*Math.max(1,Math.round(fixed.atk*0.04))};
+    weapon.subStat={...fixed.subStat};
+    weapon.ownerId=signature?.ownerId||null;
+  } else {
+    weapon.baseAtk = Number(weapon.baseAtk)||Number(weapon.mainStat?.value)||0;
+  }
+  weapon.effectId = weapon.effectId || weapon.name;
+  return weapon;
+}
+
+function getWeaponDefinition(weapon){
+  return WEAPON_DEFINITIONS[weapon?.name] || null;
+}
+
+function getWeaponEffect(weapon,charId){
+  const definition = getWeaponDefinition(weapon);
+  if(!definition || (definition.ownerId && definition.ownerId!==charId)) return null;
+  return definition.effect;
+}
+
+function getWeaponEffectValue(weapon,charId){
+  const effect = getWeaponEffect(weapon,charId);
+  if(!effect) return 0;
+  const ascension = weapon.ascension||0;
+  const ranks = effect.ascensionStep ? Math.floor(ascension/effect.ascensionStep) : ascension;
+  return effect.base + effect.perAscension*ranks;
+}
+
+function getWeaponEffectDescription(weapon,charId){
+  const definition=getWeaponDefinition(weapon);
+  if(!definition) return 'Nessun effetto speciale.';
+  const effect=definition.effect;
+  const description=effect.describe(getWeaponEffectValue(weapon,definition.ownerId?definition.ownerId:charId));
+  if(definition.ownerId && charId && definition.ownerId!==charId) return `Richiede ${CHAR_DB[definition.ownerId].name}: ${description}`;
+  if(definition.ownerId && !charId) return `Solo ${CHAR_DB[definition.ownerId].name}: ${description}`;
+  return description;
+}
+
+function createWeapon(name){
+  const signature=SIGNATURE_WEAPONS.find(weapon=>weapon.name===name);
+  const stats=signature||WEAPON_FIXED_STATS[name];
+  const rarity=signature?'leggendaria':stats.rarity;
+  const atk=stats.atk;
+  return {uid:'wp'+(state.weaponUidCounter++),name,rarity,level:0,ascension:0,baseAtk:atk,effectId:name,ownerId:signature?.ownerId||null,mainStat:{key:'atk',value:atk},subStat:{...stats.subStat}};
+}
+function generateWeapon(){
+  return createWeapon(pick(WEAPON_NAMES));
 }
 function renderWeaponCard(w, opts){
   opts = opts||{};
+  normalizeWeapon(w);
+  const level = w.level||0;
+  const ascension = w.ascension||0;
   const card = el(`<div class="hud-panel artifact-card" style="border-color:${RARITY_COLOR[w.rarity]}">
     <div class="ac-head">
       <span class="ac-icon">⚔</span>
       <div>
-        <div class="ac-name">${w.name}</div>
-        <div class="ac-setname" style="color:${RARITY_COLOR[w.rarity]}">${RARITY_LABEL[w.rarity]} · Arma</div>
+        <div class="ac-name">${w.name} <span class="ac-level">Lv.${level}/20 · Asc. ${ascension}/5</span></div>
+        <div class="ac-setname" style="color:${RARITY_COLOR[w.rarity]}">${RARITY_LABEL[w.rarity]||'Arma'} · Arma${w.unavailable?' · Inottenibile per ora':''}</div>
       </div>
     </div>
     <div class="ac-main">${statKeyLabel(w.mainStat.key)} <b>${formatStatValue(w.mainStat)}</b></div>
     <div class="ac-subs"><span>· ${statKeyLabel(w.subStat.key)} ${formatStatValue(w.subStat)}</span></div>
+    <div class="ac-setbonus">${getWeaponEffectDescription(w,opts.charId)}</div>
   </div>`);
-  if(opts.actionLabel){
-    const btn = el(`<button class="small" style="margin-top:8px;width:100%;">${opts.actionLabel}</button>`);
-    btn.onclick=(ev)=>{ ev.stopPropagation(); opts.onAction && opts.onAction(); };
-    card.appendChild(btn);
+  const actions = opts.actions || (opts.actionLabel ? [{label:opts.actionLabel, onClick:opts.onAction}] : []);
+  if(actions.length>0){
+    const actRow = el(`<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>`);
+    actions.forEach(action=>{
+      const btn = el(`<button class="small" ${action.disabled?'disabled':''} style="width:100%;">${action.label}</button>`);
+      btn.onclick=(ev)=>{ ev.stopPropagation(); if(!action.disabled) action.onClick(); };
+      actRow.appendChild(btn);
+    });
+    card.appendChild(actRow);
   }
   return card;
 }
@@ -238,7 +377,7 @@ function getEffectiveStats(charId){
   const base = CHAR_DB[charId].base;
   const eq = state.roster[charId].equipment;
   const acc = {
-    flatBonus:{atk:0,hp:0,def:0}, pctBonus:{atk:0,hp:0,def:0},
+    flatBonus:{atk:0,hp:0,def:0,speed:0}, pctBonus:{atk:0,hp:0,def:0},
     energyGainMult:1, healMult:1, burnMult:1, shieldMult:1, startEnergyBonus:0,
   };
   const setCounts = {};
@@ -250,8 +389,18 @@ function getEffectiveStats(charId){
   });
   const weapon = state.roster[charId].weapon;
   if(weapon){
+    normalizeWeapon(weapon);
     applyStatToAcc(acc, weapon.mainStat.key, weapon.mainStat.value);
     applyStatToAcc(acc, weapon.subStat.key, weapon.subStat.value);
+    const effect = getWeaponEffect(weapon,charId);
+    if(effect){
+      const value = getWeaponEffectValue(weapon,charId);
+      if(effect.stat==='atkPct') acc.pctBonus.atk+=value;
+      else if(effect.stat==='defPct') acc.pctBonus.def+=value;
+      else if(effect.stat==='speed') acc.flatBonus.speed+=value;
+      else if(['healMult','burnMult','shieldMult','energyGainMult'].includes(effect.stat)) acc[effect.stat]+=value;
+      else acc[effect.stat]=value;
+    }
   }
   Object.keys(setCounts).forEach(setId=>{
     const cnt = setCounts[setId];
@@ -263,9 +412,13 @@ function getEffectiveStats(charId){
   const atk = Math.round((base.atk + acc.flatBonus.atk) * (1+acc.pctBonus.atk));
   const def = Math.round((base.def + acc.flatBonus.def) * (1+acc.pctBonus.def));
   return {
-    hp, atk, def, energyMax:base.energyMax,
+    hp, atk, def, speed:base.speed+acc.flatBonus.speed, energyMax:base.energyMax,
     energyGainMult:acc.energyGainMult, healMult:acc.healMult,
     burnMult:acc.burnMult, shieldMult:acc.shieldMult, startEnergyBonus:acc.startEnergyBonus,
+    damageMult:1+(acc.damageMult||0), weaknessBonus:acc.weaknessBonus||0,
+    sameElementBonus:acc.sameElementBonus||0, basicDamageMult:1+(acc.basicDamageMult||0),
+    buffPctBonus:acc.buffPctBonus||0, spGrantBonus:acc.spGrantBonus||0,
+    formDamageMult:1+(acc.formDamageMult||0),
   };
 }
 
@@ -284,11 +437,17 @@ let state = {
   weaponUidCounter:1,
   pityCounter:0, // pulls since the last character obtained (4★ pity)
   pity5Counter:0, // pulls since the last 5★ obtained
+  weaponBannerPulls:0,
+  bannerType:'personaggi',
+  lastPullBanner:'personaggi',
   lastPullResults:[],
-  townTab:'squadra', // squadra | personaggi | abilita | inventario | torre | banner | missioni
+  townTab:'squadra', // squadra | personaggi | abilita | inventario | indice | torre | banner | missioni
   abilityTabChar: 'kaelaKolvalskia',
+  indexCategory:'tutto',
   autoBattle:false,
-  claimedQuests:{}, // questId -> true
+  claimedQuests:{}, // questId -> true (one-off milestones)
+  questTiers:{}, // trackId -> how many times claimed (drives scaling target/reward)
+  questExhausted:{}, // trackId -> true once a capped track has hit its max tier
   totalPullsDone:0,
   totalArtifactsSold:0,
 };
@@ -316,7 +475,10 @@ function getSaveData(){
     weaponUidCounter: state.weaponUidCounter,
     pityCounter: state.pityCounter,
     pity5Counter: state.pity5Counter,
+    weaponBannerPulls: state.weaponBannerPulls,
     claimedQuests: state.claimedQuests,
+    questTiers: state.questTiers,
+    questExhausted: state.questExhausted,
     totalPullsDone: state.totalPullsDone,
     totalArtifactsSold: state.totalArtifactsSold,
   };
@@ -372,10 +534,15 @@ function loadGame(){
     state.weaponUidCounter = data.weaponUidCounter || 1;
     state.pityCounter = data.pityCounter || 0;
     state.pity5Counter = data.pity5Counter || 0;
+    state.weaponBannerPulls = data.weaponBannerPulls || 0;
     state.claimedQuests = data.claimedQuests || {};
+    state.questTiers = data.questTiers || {};
+    state.questExhausted = data.questExhausted || {};
     state.totalPullsDone = data.totalPullsDone || 0;
     state.totalArtifactsSold = data.totalArtifactsSold || 0;
     ensureRosterIntegrity();
+    state.weaponInventory.forEach(normalizeWeapon);
+    Object.values(state.roster).forEach(entry=>normalizeWeapon(entry.weapon));
     return true;
   } catch(e){ console.error('Caricamento fallito', e); return false; }
 }
@@ -383,7 +550,8 @@ function resetSave(){
   try{ localStorage.removeItem(SAVE_KEY); } catch(e){}
   state.gold=0; state.stage=1; state.maxStageReached=1; state.inventory=[]; state.itemUidCounter=1;
   state.weaponInventory=[]; state.weaponUidCounter=1; state.pityCounter=0; state.pity5Counter=0; state.lastPullResults=[];
-  state.claimedQuests={}; state.totalPullsDone=0; state.totalArtifactsSold=0;
+  state.weaponBannerPulls=0; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
+  state.claimedQuests={}; state.questTiers={}; state.questExhausted={}; state.totalPullsDone=0; state.totalArtifactsSold=0;
   initRoster();
   state.party=['kaelaKolvalskia'];
   state.battle=null;
@@ -394,13 +562,27 @@ function resetSave(){
 function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
 function rnd(a,b){return Math.random()*(b-a)+a;}
 function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function getElementMultiplier(attackerElement, targetElements, weaknessBonus=0, sameElementBonus=0){
+  const attack = (attackerElement || '').toLowerCase();
+  const targets = Array.isArray(targetElements) ? targetElements.map(e => String(e).toLowerCase()) : [String(targetElements || '').toLowerCase()];
+  if(!attack || targets.length===0 || targets.every(t => !t)) return 1;
+  if(targets.includes(attack)) return Math.min(1,0.5+sameElementBonus);
+  if(ELEMENT_RELATION[attack] && targets.includes(ELEMENT_RELATION[attack])) return 2*(1+weaknessBonus);
+  return 1;
+}
+function hexToRgba(hex, alpha){
+  const h = (hex||'#888888').replace('#','');
+  const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function sleepMs(ms){ return new Promise(resolve=>setTimeout(resolve, ms)); }
 
 /* ============ TOWER (INFINITE) ============ */
 function isBossStage(n){return n%5===0;}
 function generateEnemies(stageNum){
   const n = stageNum;
   const boss = isBossStage(n);
-  const count = boss ? 1 : Math.min(5, 1+Math.floor((n-1)/2));
+  const count = boss ? 1 : Math.min(MAX_ENEMIES_IN_BATTLE, 1+Math.floor((n-1)/2));
   const enemies=[];
   for(let i=0;i<count;i++){
     // Enemies hit hard and scale quadratically so the tower keeps getting tougher forever.
@@ -408,41 +590,66 @@ function generateEnemies(stageNum){
     const atk = boss ? Math.round(150  + n*24  + n*n*0.22) : Math.round(95  + n*17  + n*n*0.14);
     const def = boss ? Math.round(35   + n*6   + n*n*0.05) : Math.round(10  + n*2.6  + n*n*0.02);
     const name = boss ? BOSS_NAMES[(Math.floor(n/5)-1) % BOSS_NAMES.length] : ENEMY_NAMES[i % ENEMY_NAMES.length];
-    enemies.push({id:'e'+i, name, hp, maxHp:hp, atk, def, shield:0, burnStacks:0, burnRounds:0, burnSourceMult:1, isBoss:boss});
+    const elements = ENEMY_ELEMENT_SETS[name].slice();
+    const speed = 90+Math.floor(Math.random()*31);
+    enemies.push({id:'e'+i, name, hp, maxHp:hp, atk, def, speed, element:elements[0], elements, shield:0, burnStacks:0, burnRounds:0, burnSourceMult:1, isBoss:boss, phase:boss?1:0, bossTurns:0});
   }
   return enemies;
 }
 
 /* ============ BATTLE SETUP ============ */
+function buildTurnOrder(allies, enemies){
+  return [
+    ...allies.map(actor=>({side:'ally', id:actor.charId, speed:actor.speed})),
+    ...enemies.map(actor=>({side:'enemy', id:actor.id, speed:actor.speed})),
+  ].sort((first,second)=>second.speed-first.speed);
+}
+
+function getTurnActor(b, entry=b.turnOrder[b.turnIndex]){
+  if(!entry) return null;
+  return entry.side==='ally'
+    ? b.allies.find(actor=>actor.charId===entry.id)
+    : b.enemies.find(actor=>actor.id===entry.id);
+}
+
 function startBattle(){
   const allies = state.party.map(id=>{
     const eff = getEffectiveStats(id);
     return {
-      charId:id, name:CHAR_DB[id].name, color:CHAR_DB[id].color, glyph:CHAR_DB[id].glyph,
-      hp:eff.hp, maxHp:eff.hp, atk:eff.atk, def:eff.def,
+      charId:id, name:CHAR_DB[id].name, color:CHAR_DB[id].color, glyph:CHAR_DB[id].glyph, element:CHAR_DB[id].element,
+      hp:eff.hp, maxHp:eff.hp, atk:eff.atk, def:eff.def, speed:eff.speed,
       energy:clamp(eff.startEnergyBonus,0,eff.energyMax), energyMax:eff.energyMax,
       energyGainMult:eff.energyGainMult, healMult:eff.healMult, burnMult:eff.burnMult, shieldMult:eff.shieldMult,
+      damageMult:eff.damageMult, weaknessBonus:eff.weaknessBonus, sameElementBonus:eff.sameElementBonus,
+      basicDamageMult:eff.basicDamageMult, buffPctBonus:eff.buffPctBonus, spGrantBonus:eff.spGrantBonus,
+      formDamageMult:eff.formDamageMult,
       shield:0, shieldRounds:0, atkBuffMult:1, buffRounds:0,
       basicHits: CHAR_DB[id].basic.hits||1,
       skillFreeUses: CHAR_DB[id].skillFreeUses||0,
     };
   });
+  const enemies = generateEnemies(state.stage);
+  const turnOrder = buildTurnOrder(allies,enemies);
   const spMaxBonus = state.party.reduce((sum,id)=>sum+(CHAR_DB[id].passiveSpCapBonus||0),0);
   const spMax = 5+spMaxBonus;
   state.battle = {
-    allies, enemies: generateEnemies(state.stage),
+    allies, enemies, turnOrder,
     sp:Math.min(3,spMax), spMax,
     round:1,
     turnIndex:0,
-    phase:'ally_turn',
+    phase:turnOrder[0].side==='ally'?'ally_turn':'enemy_turn',
     pendingAbility:null,
+    busy:false,
+    screenFx:null,
     log:[],
     loot:[],
   };
   state.autoBattle=false;
-  logMsg(`Piano ${state.stage} — Round 1. Tocca alla squadra.`);
+  const firstActor = getTurnActor(state.battle);
+  logMsg(`Piano ${state.stage} — Round 1. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`);
   state.screen='battle';
   render();
+  if(state.battle.phase==='enemy_turn') setTimeout(runEnemyTurn,450);
 }
 
 function logMsg(msg){
@@ -452,28 +659,59 @@ function logMsg(msg){
 
 function currentAlly(){
   const b = state.battle;
-  return b.allies[b.turnIndex];
+  const entry = b.turnOrder[b.turnIndex];
+  return entry && entry.side==='ally' ? getTurnActor(b,entry) : null;
 }
 
-function advanceAllyTurn(){
+async function advanceTurn(){
   const b = state.battle;
+  if(!b) return;
+  const completedActor=getTurnActor(b);
+  if(completedActor?.hakosForm){
+    if(completedActor.hakosFormFresh) completedActor.hakosFormFresh=false;
+    else {
+      completedActor.hakosFormTurns--;
+      if(completedActor.hakosFormTurns<=0) restoreHakosUltimate(b);
+    }
+  }
   b.pendingAbility=null;
   b.turnIndex++;
-  while(b.turnIndex < b.allies.length && b.allies[b.turnIndex].hp<=0){
-    b.turnIndex++;
+  while(true){
+    while(b.turnIndex<b.turnOrder.length){
+      const actor = getTurnActor(b);
+      if(actor && actor.hp>0) break;
+      b.turnIndex++;
+    }
+    if(b.turnIndex<b.turnOrder.length) break;
+
+    const roundContinues = await finishRound();
+    if(!roundContinues || checkBattleEnd()){
+      render();
+      return;
+    }
+    b.round++;
+    b.turnOrder = buildTurnOrder(b.allies,b.enemies);
+    b.turnIndex=0;
+    logMsg(`— Round ${b.round} —`);
   }
-  if(b.turnIndex >= b.allies.length){
-    b.phase='enemy_turn';
-    runEnemyPhase();
-  }
+
+  b.phase = b.turnOrder[b.turnIndex].side==='ally' ? 'ally_turn' : 'enemy_turn';
+  render();
+  if(b.phase==='enemy_turn') await runEnemyTurn();
+  else if(state.autoBattle) setTimeout(autoPlayTurn,550);
 }
 
 function checkBattleEnd(){
   const b = state.battle;
-  if(b.enemies.every(e=>e.hp<=0)){
+  const bossDefeated=b.enemies.some(enemy=>enemy.isBoss && enemy.hp<=0);
+  if(bossDefeated || b.enemies.every(e=>e.hp<=0)){
     b.phase='resolved';
     onVictory();
     return true;
+  }
+  if(b.allies.every(a=>a.hp<=0) && b.hakosFormState){
+    restoreHakosUltimate(b,'knockout');
+    if(b.allies.some(ally=>ally.hp>0)) return false;
   }
   if(b.allies.every(a=>a.hp<=0)){
     b.phase='resolved';
@@ -484,11 +722,13 @@ function checkBattleEnd(){
 }
 
 /* ============ ABILITY EXECUTION ============ */
-function calcDamage(atk, mult, def){
+function calcDamage(atk, mult, def, attackerElement, targetElement, attackerStats=null, abilityKey=''){
   let raw = atk*mult - def*0.5;
   raw = Math.max(raw, atk*mult*0.2);
   const variance = rnd(0.9,1.1);
-  return Math.max(1, Math.round(raw*variance));
+  const elementMult = getElementMultiplier(attackerElement, targetElement, attackerStats?.weaknessBonus||0, attackerStats?.sameElementBonus||0);
+  const weaponMult = (attackerStats?.damageMult||1)*(abilityKey==='basic'?(attackerStats?.basicDamageMult||1):1)*(attackerStats?.hakosForm?(attackerStats.formDamageMult||1):1);
+  return Math.max(1, Math.round(raw*variance*elementMult*weaponMult));
 }
 
 function dealDamageToEnemy(enemy, dmg){
@@ -498,44 +738,138 @@ function dealDamageToEnemy(enemy, dmg){
     else {applied-=enemy.shield; enemy.shield=0;}
   }
   enemy.hp = clamp(enemy.hp-applied,0,enemy.maxHp);
+  updateBossPhase(enemy);
+  const absorbedE = dmg-applied;
+  enemy._fx = applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbedE};
   return applied;
+}
+
+function updateBossPhase(enemy){
+  if(!enemy.isBoss || enemy.phase>=2 || enemy.hp<=0 || enemy.hp>enemy.maxHp*0.5) return false;
+  enemy.phase=2;
+  enemy.atk=Math.round(enemy.atk*1.2);
+  logMsg(`${enemy.name} entra nella Fase 2! ATK aumentato.`);
+  return true;
 }
 
 function dealDamageToAlly(ally, dmg, giveEnergy){
   let applied = dmg;
+  let absorbed = 0;
   if(ally.shield>0){
-    if(ally.shield>=applied){ally.shield-=applied; applied=0;}
-    else {applied-=ally.shield; ally.shield=0;}
+    if(ally.shield>=applied){ absorbed=applied; ally.shield-=applied; applied=0; }
+    else { absorbed=ally.shield; applied-=ally.shield; ally.shield=0; }
   }
   ally.hp = clamp(ally.hp-applied,0,ally.maxHp);
-  if(giveEnergy) ally.energy = clamp(ally.energy+Math.round(10*(ally.energyGainMult||1)),0,ally.energyMax);
-  return applied;
+  if(giveEnergy && !ally.hakosForm) ally.energy = clamp(ally.energy+Math.round(10*(ally.energyGainMult||1)),0,ally.energyMax);
+  ally._fx = applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbed};
+  return {applied, absorbed};
 }
 
-function executeAbility(actor, abKey, targetId){
+const HAKOS_FORM_ABILITIES={
+  basic:{name:'Dado del Caos',desc:'Attacco Base potenziato.',mult:1.35,target:'enemy',effect:null,energyGain:0},
+  skill:{name:'Crollo Dimensionale',desc:'Danneggia il bersaglio e i nemici adiacenti.',mult:1.8,target:'enemy_adjacent',effect:null,energyGain:0},
+  ult:{name:'Ultimate sigillata',desc:'Non disponibile durante la Rovina del Caos.',mult:0,target:'self',effect:'disabled',energyGain:0},
+};
+
+function getAbilityForActor(actor,abKey){
+  if(actor?.charId==='hakosBaels' && actor.hakosForm) return HAKOS_FORM_ABILITIES[abKey];
+  return CHAR_DB[actor.charId][abKey];
+}
+
+function activateHakosUltimate(actor,b){
+  if(actor.hakosForm) return;
+  const absorbed=b.allies.filter(ally=>ally!==actor && ally.hp>0);
+  const absorbedShield=absorbed.reduce((sum,ally)=>sum+ally.shield,0);
+  actor.hakosBaseSnapshot={
+    atk:actor.atk,def:actor.def,speed:actor.speed,maxHp:actor.maxHp,hp:actor.hp,
+  };
+  actor.hakosFormStartHp=actor.hp+absorbed.reduce((sum,ally)=>sum+ally.hp,0);
+  actor.maxHp+=absorbed.reduce((sum,ally)=>sum+ally.maxHp,0);
+  actor.hp=Math.min(actor.maxHp,actor.hp+absorbed.reduce((sum,ally)=>sum+ally.hp,0));
+  actor.atk=Math.round(actor.atk*(actor.atkBuffMult||1)+absorbed.reduce((sum,ally)=>sum+ally.atk*(ally.atkBuffMult||1),0));
+  actor.def+=absorbed.reduce((sum,ally)=>sum+ally.def,0);
+  actor.speed+=absorbed.reduce((sum,ally)=>sum+ally.speed,0);
+  actor.shield+=absorbedShield;
+  absorbed.forEach(ally=>{ ally.shield=0; ally.shieldRounds=0; });
+  actor.atkBuffMult=1;
+  actor.buffRounds=0;
+  actor.energy=0;
+  actor.hakosForm=true;
+  actor.hakosFormTurns=5;
+  actor.hakosFormFresh=true;
+  b.hakosFormState={allies:b.allies.slice(),turnEntries:b.turnOrder.filter(entry=>entry.side==='ally' && entry.id!==actor.charId)};
+  b.allies=[actor];
+  b.turnOrder=b.turnOrder.filter(entry=>entry.side!=='ally' || entry.id===actor.charId);
+  b.turnIndex=Math.max(0,b.turnOrder.findIndex(entry=>entry.side==='ally' && entry.id===actor.charId));
+  logMsg(`${actor.name} attiva la Rovina del Caos: assorbe le statistiche degli alleati. La forma durerà 5 turni di Hakos.`);
+}
+
+function restoreHakosUltimate(b,reason='expired'){
+  const stateSnapshot=b.hakosFormState;
+  const actor=b.allies.find(ally=>ally.charId==='hakosBaels');
+  if(!stateSnapshot || !actor?.hakosBaseSnapshot) return false;
+  const hpLost=Math.max(0,actor.hakosFormStartHp-actor.hp);
+  const prefix=b.turnOrder.slice(0,b.turnIndex+1);
+  const future=[...b.turnOrder.slice(b.turnIndex+1),...stateSnapshot.turnEntries]
+    .sort((first,second)=>second.speed-first.speed);
+  Object.assign(actor,actor.hakosBaseSnapshot);
+  actor.hp=clamp(actor.hp-hpLost,0,actor.maxHp);
+  actor.energy=0;
+  actor.atkBuffMult=1;
+  actor.buffRounds=0;
+  actor.hakosForm=false;
+  actor.hakosFormTurns=0;
+  actor.hakosFormFresh=false;
+  delete actor.hakosBaseSnapshot;
+  delete actor.hakosFormStartHp;
+  b.allies=stateSnapshot.allies;
+  b.turnOrder=[...prefix,...future];
+  b.turnIndex=Math.max(0,prefix.length-1);
+  b.hakosFormState=null;
+  logMsg(reason==='knockout'
+    ? `${actor.name} perde la forma: gli alleati tornano in campo.`
+    : `${actor.name} termina la Rovina del Caos: gli alleati tornano in campo.`);
+  return true;
+}
+
+async function executeAbility(actor, abKey, targetId){
   const b = state.battle;
-  const ability = CHAR_DB[actor.charId][abKey];
+  const ability = getAbilityForActor(actor,abKey);
+  if(!ability || ability.effect==='disabled') return;
   const effAtk = Math.round(actor.atk*(actor.atkBuffMult||1));
+  const buffPct = (ability.buffPct||0)+(actor.buffPctBonus||0);
+  actor._fxAttack = abKey; // basic | skill | ult — consumed by the next render for a per-character animation
+  if(abKey==='ult') b.screenFx = actor.color||'#f5b342';
 
   const enemyTargets = () => b.enemies.filter(e=>e.hp>0);
   const allyTargets = () => b.allies.filter(a=>a.hp>0);
 
-  if(ability.target==='enemy'){
+  if(ability.target==='enemy' || ability.target==='enemy_adjacent'){
     const t = b.enemies.find(e=>e.id===targetId);
     if(!t || t.hp<=0) return;
+    const livingEnemies=enemyTargets();
+    const targetIndex=livingEnemies.findIndex(enemy=>enemy.id===t.id);
+    const hitTargets=ability.target==='enemy_adjacent'
+      ? livingEnemies.filter((enemy,index)=>Math.abs(index-targetIndex)<=1)
+      : [t];
     const hits = (abKey==='basic' && actor.basicHits) ? actor.basicHits : (ability.hits||1);
-    for(let i=0;i<hits;i++){
-      if(t.hp<=0) break;
-      const dmg = calcDamage(effAtk, ability.mult, t.def);
-      const applied = dealDamageToEnemy(t, dmg);
-      logMsg(`${actor.name} usa ${ability.name}: ${applied} danni a ${t.name}.`);
+    for(const target of hitTargets){
+      for(let i=0;i<hits;i++){
+        if(target.hp<=0) break;
+        const dmg = calcDamage(effAtk, ability.mult, target.def, actor.element, target.elements || target.element, actor, abKey);
+        const applied = dealDamageToEnemy(target, dmg);
+        logMsg(`${actor.name} usa ${ability.name}: ${applied} danni a ${target.name}.`);
+        if(hits>1){ render(); await sleepMs(230); }
+      }
     }
     if(abKey==='basic' && CHAR_DB[actor.charId].skill.effect==='boost_basic_hits'){
       actor.basicHits = CHAR_DB[actor.charId].basic.hits||1; // Danza di Lame si resetta dopo l'Attacco Base
     }
     if(ability.effect==='shield_self'){
-      actor.shield += Math.round(actor.maxHp*ability.shieldPct*(actor.shieldMult||1));
+      const amt = Math.round(actor.maxHp*ability.shieldPct*(actor.shieldMult||1));
+      actor.shield += amt;
       actor.shieldRounds = 2;
+      actor._fx = {variant:'shield', label:'🛡+'+amt};
       logMsg(`${actor.name} ottiene uno scudo.`);
     }
     if(ability.effect==='burn'){
@@ -553,17 +887,19 @@ function executeAbility(actor, abKey, targetId){
     if(ability.effect==='heal'){
       const healAmt = Math.round(effAtk*ability.mult*(actor.healMult||1));
       target.hp = clamp(target.hp+healAmt,0,target.maxHp);
+      target._fx = {variant:'heal', label:'+'+healAmt};
       logMsg(`${actor.name} cura ${target.name} per ${healAmt} PV.`);
     }
     if(ability.effect==='extra_attack_buff'){
-      target.atkBuffMult = 1+ability.buffPct;
+      target.atkBuffMult = 1+buffPct;
       target.buffRounds = Math.max(target.buffRounds, 2);
-      logMsg(`${actor.name} coordina ${target.name}: +${Math.round(ability.buffPct*100)}% ATK.`);
+      target._fx = {variant:'buff', label:'+'+Math.round(buffPct*100)+'% ATK'};
+      logMsg(`${actor.name} coordina ${target.name}: +${Math.round(buffPct*100)}% ATK.`);
       const foes = enemyTargets();
       if(foes.length>0){
         const foe = foes.reduce((a,c)=>c.hp<a.hp?c:a);
         const bonusAtk = Math.round(target.atk*(target.atkBuffMult||1));
-        const dmg = calcDamage(bonusAtk, 1.0, foe.def);
+        const dmg = calcDamage(bonusAtk, 1.0, foe.def, target.element, foe.elements || foe.element, target, 'basic');
         const applied = dealDamageToEnemy(foe, dmg);
         logMsg(`${target.name} attacca una volta in più: ${applied} danni a ${foe.name}.`);
         b.sp = clamp(b.sp+1,0,b.spMax);
@@ -572,14 +908,17 @@ function executeAbility(actor, abKey, targetId){
     }
   }
   else if(ability.target==='self'){
-    if(ability.effect==='boost_basic_hits'){
+    if(ability.effect==='hakos_ultimate'){
+      activateHakosUltimate(actor,b);
+    } else if(ability.effect==='boost_basic_hits'){
       actor.basicHits = Math.min(10, (actor.basicHits||2)+1);
+      actor._fx = {variant:'buff', label:'x'+actor.basicHits+' colpi'};
       logMsg(`${actor.name} affina la lama: l'Attacco Base ora colpisce ${actor.basicHits} volte.`);
     }
   }
   else if(ability.target==='enemies_all'){
-    enemyTargets().forEach(t=>{
-      const dmg = calcDamage(effAtk, ability.mult, t.def);
+    for(const t of enemyTargets()){
+      const dmg = calcDamage(effAtk, ability.mult, t.def, actor.element, t.elements || t.element, actor, abKey);
       const applied = dealDamageToEnemy(t, dmg);
       logMsg(`${actor.name} colpisce ${t.name} per ${applied}.`);
       if(ability.effect==='burn_all'){
@@ -589,34 +928,39 @@ function executeAbility(actor, abKey, targetId){
         t.burnSourceMult = actor.burnMult||1;
         t.dotName = dotName;
       }
-    });
+      render(); await sleepMs(260);
+    }
   }
   else if(ability.target==='team'){
     if(ability.effect==='grant_sp'){
-      b.sp = clamp(b.sp+ability.spGrant,0,b.spMax);
-      logMsg(`${actor.name} dona ${ability.spGrant} Punti Abilità alla squadra.`);
+      const spGrant = ability.spGrant+(actor.spGrantBonus||0);
+      b.sp = clamp(b.sp+spGrant,0,b.spMax);
+      actor._fx = {variant:'spgrant', label:'+'+spGrant+' PA'};
+      logMsg(`${actor.name} dona ${spGrant} Punti Abilità alla squadra.`);
     }
     if(ability.effect==='grant_sp_and_buff'){
-      b.sp = clamp(b.sp+ability.spGrant,0,b.spMax);
-      allyTargets().forEach(a=>{ a.atkBuffMult = 1+ability.buffPct; a.buffRounds = Math.max(a.buffRounds,2); });
-      logMsg(`${actor.name} dona ${ability.spGrant} Punti Abilità e aumenta l'ATK della squadra del ${Math.round(ability.buffPct*100)}%.`);
+      const spGrant = ability.spGrant+(actor.spGrantBonus||0);
+      b.sp = clamp(b.sp+spGrant,0,b.spMax);
+      allyTargets().forEach(a=>{ a.atkBuffMult = 1+buffPct; a.buffRounds = Math.max(a.buffRounds,2); });
+      actor._fx = {variant:'spgrant', label:'+'+spGrant+' PA'};
+      logMsg(`${actor.name} dona ${spGrant} Punti Abilità e aumenta l'ATK della squadra del ${Math.round(buffPct*100)}%.`);
     }
   }
   else if(ability.target==='allies_all'){
     if(ability.effect==='shield_all'){
-      allyTargets().forEach(a=>{ a.shield += Math.round(a.maxHp*ability.shieldPct*(actor.shieldMult||1)); a.shieldRounds=2; });
+      allyTargets().forEach(a=>{ const amt=Math.round(a.maxHp*ability.shieldPct*(actor.shieldMult||1)); a.shield+=amt; a.shieldRounds=2; a._fx={variant:'shield',label:'🛡+'+amt}; });
       logMsg(`${actor.name} scherma tutta la squadra.`);
     }
     if(ability.effect==='heal_all'){
-      allyTargets().forEach(a=>{ const amt=Math.round(effAtk*ability.mult*(actor.healMult||1)); a.hp=clamp(a.hp+amt,0,a.maxHp); });
+      allyTargets().forEach(a=>{ const amt=Math.round(effAtk*ability.mult*(actor.healMult||1)); a.hp=clamp(a.hp+amt,0,a.maxHp); a._fx={variant:'heal',label:'+'+amt}; });
       logMsg(`${actor.name} cura l'intera squadra.`);
     }
     if(ability.effect==='buff_atk'){
-      allyTargets().forEach(a=>{ a.atkBuffMult = 1+ability.buffPct; a.buffRounds=2; });
+      allyTargets().forEach(a=>{ a.atkBuffMult = 1+buffPct; a.buffRounds=2; a._fx={variant:'buff', label:'+'+Math.round(buffPct*100)+'% ATK'}; });
       logMsg(`${actor.name} aumenta l'ATK della squadra.`);
     }
     if(ability.effect==='buff_atk_energy'){
-      allyTargets().forEach(a=>{ a.atkBuffMult = 1+ability.buffPct; a.buffRounds=3; a.energy=clamp(a.energy+Math.round(ability.energyGainAll*(a.energyGainMult||1)),0,a.energyMax); });
+      allyTargets().forEach(a=>{ a.atkBuffMult = 1+buffPct; a.buffRounds=3; a.energy=clamp(a.energy+Math.round(ability.energyGainAll*(a.energyGainMult||1)),0,a.energyMax); a._fx={variant:'buff', label:'+'+Math.round(buffPct*100)+'% ATK'}; });
       logMsg(`${actor.name} scatena un grido di guerra!`);
     }
   }
@@ -624,86 +968,213 @@ function executeAbility(actor, abKey, targetId){
   if(abKey==='basic'){
     const spGain = (ability.spGain!==undefined) ? ability.spGain : 1;
     b.sp = clamp(b.sp+spGain,0,b.spMax);
-    actor.energy = clamp(actor.energy+Math.round(ability.energyGain*(actor.energyGainMult||1)),0,actor.energyMax);
+    if(actor.hakosForm) actor.energy=0;
+    else actor.energy = clamp(actor.energy+Math.round(ability.energyGain*(actor.energyGainMult||1)),0,actor.energyMax);
   } else if(abKey==='skill'){
     if(actor.skillFreeUses>0){ actor.skillFreeUses--; }
     else { b.sp = clamp(b.sp-1,0,b.spMax); }
-    actor.energy = clamp(actor.energy+Math.round(ability.energyGain*(actor.energyGainMult||1)),0,actor.energyMax);
+    if(actor.hakosForm) actor.energy=0;
+    else actor.energy = clamp(actor.energy+Math.round(ability.energyGain*(actor.energyGainMult||1)),0,actor.energyMax);
   } else if(abKey==='ult'){
     actor.energy = 0;
   }
 }
 
-function playerChooseAbility(abKey){
+async function playerChooseAbility(abKey){
   const b = state.battle;
+  if(b.phase!=='ally_turn') return;
   const actor = currentAlly();
-  const ability = CHAR_DB[actor.charId][abKey];
+  const ability = getAbilityForActor(actor,abKey);
+  if(!ability || ability.effect==='disabled') return;
+  if(b.busy) return;
   if(abKey==='skill' && b.sp<1 && actor.skillFreeUses<=0) return;
   if(abKey==='ult' && actor.energy<actor.energyMax) return;
 
-  if(ability.target==='enemy' || ability.target==='ally'){
+  if(ability.target==='enemy' || ability.target==='enemy_adjacent' || ability.target==='ally'){
     b.pendingAbility = {key:abKey};
     render();
     return;
   }
-  executeAbility(actor, abKey, null);
-  if(checkBattleEnd()) { render(); return; }
+  b.busy = true; render();
+  await executeAbility(actor, abKey, null);
+  if(checkBattleEnd()) { b.busy=false; render(); return; }
   const keepsTurn = (abKey==='skill' && ability.effect==='boost_basic_hits');
-  if(!keepsTurn) advanceAllyTurn();
+  if(!keepsTurn) await advanceTurn();
+  if(state.battle) state.battle.busy = false;
   render();
 }
 
-function playerChooseTarget(targetId){
+async function playerChooseTarget(targetId){
   const b = state.battle;
-  if(!b.pendingAbility) return;
+  if(!b.pendingAbility || b.busy || b.phase!=='ally_turn') return;
   const actor = currentAlly();
-  executeAbility(actor, b.pendingAbility.key, targetId);
+  const abKey = b.pendingAbility.key;
   b.pendingAbility=null;
-  if(checkBattleEnd()) { render(); return; }
-  advanceAllyTurn();
+  b.busy = true; render();
+  await executeAbility(actor, abKey, targetId);
+  if(checkBattleEnd()) { b.busy=false; render(); return; }
+  await advanceTurn();
+  if(state.battle) state.battle.busy = false;
   render();
 }
 
-function runEnemyPhase(){
+async function finishRound(){
   const b = state.battle;
-  b.enemies.filter(e=>e.hp>0).forEach(e=>{
-    const livingAllies = b.allies.filter(a=>a.hp>0);
-    if(livingAllies.length===0) return;
-    const target = pick(livingAllies);
-    const dmg = calcDamage(e.atk, 1.0, target.def);
-    const applied = dealDamageToAlly(target, dmg, true);
-    logMsg(`${e.name} attacca ${target.name} per ${applied} danni.`);
-  });
-  if(checkBattleEnd()) return;
-
-  b.enemies.filter(e=>e.hp>0 && e.burnStacks>0).forEach(e=>{
+  for(const e of b.enemies.filter(e=>e.hp>0 && e.burnStacks>0)){
     const dot = Math.round(e.maxHp*0.045*e.burnStacks*(e.burnSourceMult||1));
     e.hp = clamp(e.hp-dot,0,e.maxHp);
+    updateBossPhase(e);
+    e._fx = {variant:'damage', label:'-'+dot};
     logMsg(`${e.name} subisce ${dot} danni da ${e.dotName||'Bruciatura'}.`);
     e.burnRounds--;
     if(e.burnRounds<=0){ e.burnStacks=0; }
-  });
-  if(checkBattleEnd()) return;
+    render();
+    await sleepMs(280);
+  }
+  if(checkBattleEnd()) return false;
 
   b.allies.forEach(a=>{
     if(a.shieldRounds>0){ a.shieldRounds--; if(a.shieldRounds<=0) a.shield=0; }
     if(a.buffRounds>0){ a.buffRounds--; if(a.buffRounds<=0) a.atkBuffMult=1; }
   });
+  return true;
+}
 
-  b.round++;
-  b.turnIndex=0;
-  while(b.turnIndex<b.allies.length && b.allies[b.turnIndex].hp<=0) b.turnIndex++;
-  b.phase='ally_turn';
-  logMsg(`— Round ${b.round} —`);
+function summonBossEnemies(boss,b){
+  const aliveCount=b.enemies.filter(enemy=>enemy.hp>0).length;
+  const slots=Math.max(0,MAX_ENEMIES_IN_BATTLE-aliveCount);
+  const summonCount=Math.min(boss.phase===2?2:1,slots);
+  if(summonCount===0){
+    logMsg(`${boss.name} tenta di evocare rinforzi, ma il campo è pieno.`);
+    return;
+  }
+
+  const summoned=[];
+  for(let i=0;i<summonCount;i++){
+    const name=pick(ENEMY_NAMES);
+    const elements=ENEMY_ELEMENT_SETS[name].slice();
+    const hp=Math.max(1,Math.round(boss.maxHp*(boss.phase===2?0.16:0.12)));
+    const enemy={
+      id:'s'+(b.summonCounter++), name, hp, maxHp:hp,
+      atk:Math.round(boss.atk*(boss.phase===2?0.55:0.45)),
+      def:Math.round(boss.def*0.6), speed:90+Math.floor(Math.random()*31),
+      element:elements[0], elements, shield:0, burnStacks:0, burnRounds:0,
+      burnSourceMult:1, isBoss:false, phase:0, bossTurns:0,
+    };
+    b.enemies.push(enemy);
+    summoned.push(enemy);
+    logMsg(`${boss.name} evoca ${name}.`);
+  }
+
+  const future=b.turnOrder.slice(b.turnIndex+1);
+  future.push(...summoned.map(enemy=>({side:'enemy',id:enemy.id,speed:enemy.speed})));
+  future.sort((first,second)=>second.speed-first.speed);
+  b.turnOrder.splice(b.turnIndex+1,b.turnOrder.length-b.turnIndex-1,...future);
+}
+
+async function runBossMechanic(boss,b){
+  const mechanics=BOSS_MECHANICS[boss.name];
+  if(!mechanics) return;
+  const mechanic=boss.phase===2?mechanics.phase2:mechanics.phase1;
+  const shouldUseSpecial=boss.phase===2 || boss.bossTurns%2===0;
+  boss.bossTurns++;
+  if(!shouldUseSpecial) return;
+
+  if(mechanic==='shield'){
+    const amount=Math.round(boss.maxHp*(boss.phase===2?0.2:0.14));
+    boss.shield+=amount;
+    boss._fx={variant:'shield',label:'🛡+'+amount};
+    logMsg(`${boss.name} si avvolge in uno scudo da ${amount}.`);
+  } else if(mechanic==='heal'){
+    const amount=Math.min(boss.maxHp-boss.hp,Math.round(boss.maxHp*(boss.phase===2?0.16:0.12)));
+    if(amount>0){
+      boss.hp+=amount;
+      boss._fx={variant:'heal',label:'+'+amount};
+      logMsg(`${boss.name} recupera ${amount} PV.`);
+    } else {
+      const shield=Math.round(boss.maxHp*0.1);
+      boss.shield+=shield;
+      boss._fx={variant:'shield',label:'🛡+'+shield};
+      logMsg(`${boss.name} è già al massimo dei PV e si protegge con uno scudo da ${shield}.`);
+    }
+  } else if(mechanic==='summon'){
+    summonBossEnemies(boss,b);
+  } else if(mechanic==='area'){
+    const livingAllies=b.allies.filter(ally=>ally.hp>0);
+    logMsg(`${boss.name} scatena un attacco ad area!`);
+    for(const ally of livingAllies){
+      const dmg=calcDamage(Math.round(boss.atk*(boss.phase===2?0.8:0.65)),1,ally.def,boss.element,ally.element);
+      const result=dealDamageToAlly(ally,dmg,true);
+      logMsg(`${ally.name} subisce ${result.applied} danni dall'onda d'urto.`);
+    }
+  }
+  render();
+  await sleepMs(500);
+}
+
+async function runEnemyTurn(){
+  const b = state.battle;
+  if(!b || b.phase!=='enemy_turn') return;
+  const enemy = getTurnActor(b);
+  if(!enemy || enemy.hp<=0){
+    await advanceTurn();
+    return;
+  }
+  const livingAllies = b.allies.filter(ally=>ally.hp>0);
+  if(livingAllies.length===0){
+    checkBattleEnd();
+    render();
+    return;
+  }
+
+  b.busy=true;
+  render();
+  await sleepMs(360);
+  if(enemy.isBoss){
+    await runBossMechanic(enemy,b);
+    if(checkBattleEnd()){
+      b.busy=false;
+      render();
+      return;
+    }
+  }
+
+  const attackCount=enemy.isBoss?2:1;
+  for(let attackIndex=0;attackIndex<attackCount;attackIndex++){
+    const targets=b.allies.filter(ally=>ally.hp>0);
+    if(targets.length===0) break;
+    const target=pick(targets);
+    enemy._fxAttack='basic';
+    const dmg=calcDamage(enemy.atk,1.0,target.def,enemy.element,target.element);
+    const result=dealDamageToAlly(target,dmg,true);
+    const attackLabel=enemy.isBoss?` (${attackIndex+1}/2)`:'';
+    if(result.applied===0 && result.absorbed>0){
+      logMsg(`${enemy.name}${attackLabel} attacca ${target.name}, ma lo scudo assorbe tutto il colpo (🛡 -${result.absorbed}).`);
+    } else if(result.absorbed>0){
+      logMsg(`${enemy.name}${attackLabel} attacca ${target.name}: lo scudo assorbe ${result.absorbed}, ${result.applied} danni passano.`);
+    } else {
+      logMsg(`${enemy.name}${attackLabel} attacca ${target.name} per ${result.applied} danni.`);
+    }
+    render();
+    await sleepMs(420);
+    if(checkBattleEnd()){
+      b.busy=false;
+      render();
+      return;
+    }
+  }
+
+  b.busy=false;
+  await advanceTurn();
 }
 
 /* ============ AUTO BATTLE ============ */
-function autoPlayTurn(){
+async function autoPlayTurn(){
   if(!state.autoBattle) return;
   const b = state.battle;
-  if(!b || b.phase!=='ally_turn') return;
+  if(!b || b.phase!=='ally_turn' || b.busy) return;
   const actor = currentAlly();
-  const cdb = CHAR_DB[actor.charId];
+  const cdb={basic:getAbilityForActor(actor,'basic'),skill:getAbilityForActor(actor,'skill'),ult:getAbilityForActor(actor,'ult')};
 
   let abKey = 'basic';
   if(actor.energy>=actor.energyMax) abKey='ult';
@@ -714,7 +1185,7 @@ function autoPlayTurn(){
   const ability = cdb[abKey];
 
   let targetId = null;
-  if(ability.target==='enemy'){
+  if(ability.target==='enemy' || ability.target==='enemy_adjacent'){
     const targets = b.enemies.filter(e=>e.hp>0);
     if(targets.length===0) return;
     targetId = targets.reduce((a,c)=>c.hp<a.hp?c:a).id;
@@ -723,12 +1194,12 @@ function autoPlayTurn(){
     targetId = targets.reduce((a,c)=>(c.hp/c.maxHp)<(a.hp/a.maxHp)?c:a).charId;
   }
 
-  executeAbility(actor, abKey, targetId);
+  await executeAbility(actor, abKey, targetId);
   if(checkBattleEnd()){ render(); return; }
   const keepsTurn = (abKey==='skill' && ability.effect==='boost_basic_hits');
-  if(!keepsTurn) advanceAllyTurn();
+  if(!keepsTurn) await advanceTurn();
   render();
-  if(state.battle && state.battle.phase==='ally_turn' && state.autoBattle){
+  if(state.battle && state.battle.phase==='ally_turn' && state.autoBattle && keepsTurn){
     setTimeout(autoPlayTurn, 550);
   }
 }
@@ -825,6 +1296,19 @@ function findArtifactByUid(uid){
   }
   return null;
 }
+function upgradeArtifactMainStat(artifact){
+  const meta=STAT_KEYS[artifact.mainStat.key];
+  if(meta.flatKey==='speed'){
+    artifact.mainStat.value=Math.min(12,artifact.mainStat.value+1);
+  } else if(meta.kind==='flat'){
+    const baseValue=MAIN_VALUES.flat[artifact.rarity][meta.flatKey];
+    artifact.mainStat.value+=Math.max(1,Math.round(baseValue*0.05));
+  } else if(meta.kind==='pct'){
+    artifact.mainStat.value+=0.01;
+  } else {
+    artifact.mainStat.value+=0.005;
+  }
+}
 function levelUpArtifact(uid){
   const it = findArtifactByUid(uid);
   if(!it) return;
@@ -834,12 +1318,16 @@ function levelUpArtifact(uid){
   if(state.gold<cost) return;
   state.gold -= cost;
   it.level = level+1;
+  upgradeArtifactMainStat(it);
   if(it.level % ARTIFACT_SUBSTAT_MILESTONE === 0){
     const idx = Math.floor(Math.random()*it.subStats.length); // a substat can be picked again on later milestones
     const sub = it.subStats[idx];
     const meta = STAT_KEYS[sub.key];
-    const bonus = valueForRarity(meta.kind, meta, it.rarity, 'sub', state.maxStageReached);
-    sub.value += bonus;
+    if(meta.flatKey==='speed') sub.value = Math.min(12, sub.value+2);
+    else {
+      const bonus = valueForRarity(meta.kind, meta, it.rarity, 'sub', state.maxStageReached);
+      sub.value += bonus;
+    }
   }
   render();
 }
@@ -878,6 +1366,75 @@ function unequipWeapon(charId){
   state.weaponInventory.push(current);
   render();
 }
+const WEAPON_MAX_LEVEL = 20;
+const WEAPON_MAX_ASCENSION = 5;
+function findWeapon(uid){
+  const inventoryWeapon = state.weaponInventory.find(weapon=>weapon.uid===uid);
+  if(inventoryWeapon) return {weapon:inventoryWeapon, ownerId:null};
+  for(const [charId,entry] of Object.entries(state.roster)){
+    if(entry.weapon?.uid===uid) return {weapon:entry.weapon, ownerId:charId};
+  }
+  return null;
+}
+function getWeaponUpgradeCost(level){ return 60+level*35; }
+function getWeaponSellValue(weapon){
+  const base = {comune:30, rara:70, epica:140, leggendaria:500}[weapon.rarity]||30;
+  return base+(weapon.level||0)*12+(weapon.ascension||0)*20;
+}
+function findWeaponDuplicate(weapon){
+  return state.weaponInventory.find(other=>other.uid!==weapon.uid && other.name===weapon.name && other.rarity===weapon.rarity);
+}
+function upgradeWeapon(uid){
+  const found = findWeapon(uid);
+  if(!found) return;
+  const weapon = normalizeWeapon(found.weapon);
+  if(weapon.level>=WEAPON_MAX_LEVEL) return;
+  const cost = getWeaponUpgradeCost(weapon.level);
+  if(state.gold<cost) return;
+  state.gold-=cost;
+  weapon.level++;
+  weapon.mainStat.value += Math.max(1,Math.round(weapon.baseAtk*0.04));
+  render();
+}
+function ascendWeapon(uid){
+  const found = findWeapon(uid);
+  if(!found) return;
+  const weapon = normalizeWeapon(found.weapon);
+  if(weapon.ascension>=WEAPON_MAX_ASCENSION) return;
+  const duplicateIndex = state.weaponInventory.findIndex(other=>other.uid!==uid && other.name===weapon.name && other.rarity===weapon.rarity);
+  if(duplicateIndex<0) return;
+  state.weaponInventory.splice(duplicateIndex,1);
+  weapon.ascension++;
+  render();
+}
+function sellWeapon(uid){
+  const found = findWeapon(uid);
+  if(!found) return;
+  const value = getWeaponSellValue(found.weapon);
+  if(found.ownerId){
+    state.roster[found.ownerId].weapon=null;
+    if(viewWeaponFor===found.ownerId) viewWeaponFor=null;
+  } else {
+    const index = state.weaponInventory.findIndex(weapon=>weapon.uid===uid);
+    if(index<0) return;
+    state.weaponInventory.splice(index,1);
+  }
+  state.gold+=value;
+  render();
+}
+function getWeaponManagementActions(weapon,opts={}){
+  normalizeWeapon(weapon);
+  const level=weapon.level||0;
+  const ascension=weapon.ascension||0;
+  const cost=getWeaponUpgradeCost(level);
+  const hasDuplicate=!!findWeaponDuplicate(weapon);
+  const actions=[];
+  if(opts.onUnequip) actions.push({label:'Rimuovi arma',onClick:opts.onUnequip});
+  actions.push({label:level>=WEAPON_MAX_LEVEL?'Livello massimo':`⬆ Potenzia (${cost} 💠)`,onClick:()=>upgradeWeapon(weapon.uid),disabled:level>=WEAPON_MAX_LEVEL||state.gold<cost});
+  actions.push({label:ascension>=WEAPON_MAX_ASCENSION?'Ascensione massima':hasDuplicate?`✦ Ascendi ${ascension+1}/${WEAPON_MAX_ASCENSION} (doppione)`:'✦ Ascendi (serve un doppione)',onClick:()=>ascendWeapon(weapon.uid),disabled:ascension>=WEAPON_MAX_ASCENSION||!hasDuplicate});
+  actions.push({label:`💰 Vendi (+${getWeaponSellValue(weapon)} 💠)`,onClick:()=>sellWeapon(weapon.uid)});
+  return actions;
+}
 function togglePartyMember(charId){
   if(!state.roster[charId] || !state.roster[charId].unlocked) return;
   const idx = state.party.indexOf(charId);
@@ -890,6 +1447,13 @@ function togglePartyMember(charId){
   }
   render();
 }
+function movePartyMember(charId,targetIndex){
+  const sourceIndex=state.party.indexOf(charId);
+  if(sourceIndex<0||targetIndex<0||targetIndex>=state.party.length||sourceIndex===targetIndex) return;
+  const [moved]=state.party.splice(sourceIndex,1);
+  state.party.splice(targetIndex,0,moved);
+  render();
+}
 function setTownTab(tab){ state.townTab=tab; render(); }
 function setAbilityTabChar(id){ state.abilityTabChar=id; render(); }
 
@@ -899,6 +1463,16 @@ const PITY_LIMIT_4 = 10;   // any-character pity (4★ tier)
 const PITY_LIMIT_5 = 50;   // 5★ specific pity
 const CHAR_PULL_CHANCE_4 = 0.05;
 const CHAR_PULL_CHANCE_5 = 0.02;
+const WEAPON_BANNER_PITY = 30;
+
+function drawWeaponBannerWeapon(){
+  const roll=Math.random();
+  const rarity=roll<0.02?'leggendaria':roll<0.12?'epica':roll<0.47?'rara':'comune';
+  const weaponNames=rarity==='leggendaria'
+    ? SIGNATURE_WEAPONS.map(weapon=>weapon.name)
+    : WEAPON_NAMES.filter(name=>WEAPON_FIXED_STATS[name].rarity===rarity);
+  return createWeapon(pick(weaponNames));
+}
 
 function grantCharacterOfRarity(rarity, byPity){
   const lockedIds = Object.keys(CHAR_DB).filter(id=>!state.roster[id].unlocked && CHAR_DB[id].rarity===rarity);
@@ -933,14 +1507,14 @@ function doSinglePull(){
       state.pityCounter = 0;
       result = grantCharacterOfRarity(4, forced4);
     } else {
-      const weapon = generateWeapon(state.maxStageReached);
+      const weapon = generateWeapon();
       state.weaponInventory.push(weapon);
       result = {type:'weapon', weapon};
     }
   }
   return result;
 }
-function doPulls(n){
+async function doPulls(n){
   const results=[];
   for(let i=0;i<n;i++){
     const r = doSinglePull();
@@ -948,7 +1522,105 @@ function doPulls(n){
     results.push(r);
   }
   state.lastPullResults = results;
+  state.lastPullBanner='personaggi';
+  if(results.length>0){
+    await playPullAnimation(results);
+  }
   render();
+}
+
+function doSingleWeaponPull(){
+  if(state.gold<PULL_COST) return null;
+  state.gold-=PULL_COST;
+  state.totalPullsDone++;
+  state.weaponBannerPulls++;
+
+  let result;
+  if(state.weaponBannerPulls>=WEAPON_BANNER_PITY){
+    const weapon=drawWeaponBannerWeaponForced5();
+    state.weaponBannerPulls=0;
+    state.weaponInventory.push(weapon);
+    return {type:'weapon',weapon,pity:true};
+  }
+
+  const roll=Math.random();
+  if(roll<CHAR_PULL_CHANCE_5){
+    result=grantCharacterOfRarity(5,false);
+  } else if(roll<CHAR_PULL_CHANCE_5+CHAR_PULL_CHANCE_4){
+    result=grantCharacterOfRarity(4,false);
+  } else {
+    const weapon=drawWeaponBannerWeapon();
+    state.weaponInventory.push(weapon);
+    if(weapon.rarity==='leggendaria') state.weaponBannerPulls=0;
+    result={type:'weapon',weapon};
+  }
+  return result;
+}
+
+function drawWeaponBannerWeaponForced5(){
+  return createWeapon(pick(SIGNATURE_WEAPONS).name);
+}
+
+async function doWeaponPulls(count){
+  const results=[];
+  for(let index=0;index<count;index++){
+    const result=doSingleWeaponPull();
+    if(!result) break;
+    results.push(result);
+  }
+  state.lastPullResults=results;
+  state.lastPullBanner='armi';
+  if(results.length>0) await playPullAnimation(results);
+  render();
+}
+
+function setBannerType(type){
+  state.bannerType=type;
+  render();
+}
+
+function playPullAnimation(results){
+  return new Promise(resolve=>{
+    const rarityRank = r => r.type==='weapon' ? ({comune:0,rara:1,epica:2,leggendaria:4}[r.weapon.rarity]||0) : (r.rarity===5?4:3);
+    const topRank = Math.max(...results.map(rarityRank));
+    const themeColor = topRank>=4 ? '#ffd700' : topRank===3 ? '#9aa4c4' : topRank===2 ? '#f5b342' : topRank===1 ? '#4fd8e0' : '#8791b3';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'pull-overlay';
+    overlay.innerHTML = `<div class="pull-stage">
+      <div class="pull-ring" style="--ring-color:${themeColor}"></div>
+      <div class="pull-core" style="background:${themeColor};color:${themeColor}"></div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    setTimeout(()=>{
+      overlay.classList.add('burst');
+      setTimeout(()=>{
+        const stage = overlay.querySelector('.pull-stage');
+        if(stage) stage.remove();
+
+        const revealWrap = document.createElement('div');
+        revealWrap.className = 'pull-reveal';
+        results.forEach((r,i)=>{
+          let cardEl;
+          if(r.type==='character') cardEl = renderCharUnlockCard(r.charId);
+          else if(r.type==='character_dupe') cardEl = el(`<div class="hud-panel artifact-card" style="text-align:center;border-color:${r.rarity===5?'#ffd700':'#8791b3'}"><div class="ac-name">${'★'.repeat(r.rarity)} già tutti sbloccati</div><div class="ac-setname">+${r.bonus} Frammenti di compenso</div></div>`);
+          else cardEl = renderWeaponCard(r.weapon);
+          cardEl.classList.add('pull-card-reveal');
+          cardEl.style.animationDelay = (i*220)+'ms';
+          revealWrap.appendChild(cardEl);
+        });
+        overlay.appendChild(revealWrap);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'primary';
+        closeBtn.style.marginTop = '18px';
+        closeBtn.textContent = 'Continua';
+        closeBtn.onclick = ()=>{ overlay.remove(); resolve(); };
+        overlay.appendChild(closeBtn);
+      }, 650);
+    }, 1500);
+  });
 }
 
 /* ============ MISSIONS ============ */
@@ -956,33 +1628,59 @@ function countUnlockedHeroes(){ return Object.values(state.roster).filter(r=>r.u
 function hasUnlocked5Star(){ return Object.keys(CHAR_DB).some(id=>CHAR_DB[id].rarity===5 && state.roster[id].unlocked); }
 function anyHeroHasEquippedArtifact(){ return Object.values(state.roster).some(r=>r.equipment.some(e=>e)); }
 function anyHeroHasWeapon(){ return Object.values(state.roster).some(r=>r.weapon); }
-function anyArtifactLevelAtLeast(lvl){
-  if(state.inventory.some(it=>(it.level||0)>=lvl)) return true;
-  for(const charId in state.roster){
-    if(state.roster[charId].equipment.some(it=>it && (it.level||0)>=lvl)) return true;
-  }
-  return false;
-}
 
-const QUEST_DB = [
-  {id:'stage5',   desc:'Raggiungi il Piano 5 della Torre',        reward:200,  check:()=>state.maxStageReached>5},
-  {id:'stage10',  desc:'Raggiungi il Piano 10 della Torre',       reward:400,  check:()=>state.maxStageReached>10},
-  {id:'stage20',  desc:'Raggiungi il Piano 20 della Torre',       reward:800,  check:()=>state.maxStageReached>20},
-  {id:'stage35',  desc:'Raggiungi il Piano 35 della Torre',       reward:1500, check:()=>state.maxStageReached>35},
-  {id:'unlock2',  desc:'Sblocca un secondo eroe',                 reward:300,  check:()=>countUnlockedHeroes()>=2},
-  {id:'unlock4',  desc:'Sblocca quattro eroi',                    reward:600,  check:()=>countUnlockedHeroes()>=4},
-  {id:'unlock5star', desc:'Sblocca un eroe a 5 stelle',            reward:1000, check:hasUnlocked5Star},
-  {id:'equip1',   desc:'Equipaggia il tuo primo manufatto',       reward:100,  check:anyHeroHasEquippedArtifact},
-  {id:'equipWeapon', desc:'Equipaggia la tua prima arma',          reward:150,  check:anyHeroHasWeapon},
-  {id:'levelArtifact5',  desc:'Porta un manufatto al livello 5',  reward:150,  check:()=>anyArtifactLevelAtLeast(5)},
-  {id:'levelArtifact20', desc:'Porta un manufatto al livello 20 (massimo)', reward:400, check:()=>anyArtifactLevelAtLeast(20)},
-  {id:'firstPull', desc:'Effettua la tua prima evocazione',       reward:100,  check:()=>state.totalPullsDone>=1},
-  {id:'pull20',   desc:'Effettua 20 evocazioni',                  reward:300,  check:()=>state.totalPullsDone>=20},
-  {id:'sell1',    desc:'Vendi un manufatto',                      reward:80,   check:()=>state.totalArtifactsSold>=1},
+const ONE_OFF_QUESTS = [
+  {id:'unlock5star',  desc:'Sblocca un eroe a 5 stelle',       reward:1000, check:hasUnlocked5Star},
+  {id:'equip1',       desc:'Equipaggia il tuo primo manufatto', reward:100,  check:anyHeroHasEquippedArtifact},
+  {id:'equipWeapon',  desc:'Equipaggia la tua prima arma',      reward:150,  check:anyHeroHasWeapon},
 ];
 
+function getHighestArtifactLevel(){
+  let max = 0;
+  state.inventory.forEach(it=>{ if((it.level||0)>max) max = it.level||0; });
+  for(const charId in state.roster){
+    state.roster[charId].equipment.forEach(it=>{ if(it && (it.level||0)>max) max = it.level; });
+  }
+  return max;
+}
+
+// Infinite quest tracks: each time claimed, the target and reward both increase for next time.
+const QUEST_TRACKS = [
+  {id:'tower',  label:t=>`Raggiungi il Piano ${t} della Torre`, baseTarget:5, step:5,  baseReward:200, rewardStep:120, getValue:()=>Math.max(0,state.maxStageReached-1)},
+  {id:'heroes', label:t=>`Sblocca ${t} eroi`,                   baseTarget:2, step:1,  baseReward:250, rewardStep:250, getValue:countUnlockedHeroes, maxTarget:Object.keys(CHAR_DB).length},
+  {id:'pulls',  label:t=>`Effettua ${t} evocazioni totali`,     baseTarget:5, step:15, baseReward:150, rewardStep:100, getValue:()=>state.totalPullsDone},
+  {id:'sells',  label:t=>`Vendi ${t} manufatti`,                baseTarget:3, step:5,  baseReward:100, rewardStep:80,  getValue:()=>state.totalArtifactsSold},
+  {id:'artifactLevel', label:t=>`Porta un manufatto al livello ${t}`, baseTarget:5, step:5, baseReward:150, rewardStep:150, getValue:getHighestArtifactLevel, maxTarget:20},
+];
+
+function getTrackTarget(track){
+  const tier = state.questTiers[track.id]||0;
+  let target = track.baseTarget + tier*track.step;
+  if(track.maxTarget!==undefined) target = Math.min(target, track.maxTarget);
+  return target;
+}
+function getTrackReward(track){
+  const tier = state.questTiers[track.id]||0;
+  return track.baseReward + tier*track.rewardStep;
+}
+function isTrackExhausted(track){ return !!state.questExhausted[track.id]; }
+function claimTrack(trackId){
+  const track = QUEST_TRACKS.find(t=>t.id===trackId);
+  if(!track || isTrackExhausted(track)) return;
+  const target = getTrackTarget(track);
+  if(track.getValue()<target) return;
+  state.gold += getTrackReward(track);
+  const tier = state.questTiers[track.id]||0;
+  if(track.maxTarget!==undefined && target>=track.maxTarget){
+    state.questExhausted[track.id] = true; // fully maxed out, no further tiers
+  } else {
+    state.questTiers[track.id] = tier+1;
+  }
+  render();
+}
+
 function claimQuest(id){
-  const q = QUEST_DB.find(x=>x.id===id);
+  const q = ONE_OFF_QUESTS.find(x=>x.id===id);
   if(!q || state.claimedQuests[id] || !q.check()) return;
   state.claimedQuests[id] = true;
   state.gold += q.reward;
@@ -1070,6 +1768,7 @@ function renderHeroCard(charId){
           <div class="hero-name" style="opacity:0.55;">${c.name}</div>
           <div class="hero-title" style="opacity:0.45;">${c.title}</div>
           <div class="hero-role" style="opacity:0.45;">${c.role}</div>
+          <div class="element-tag">${ELEMENT_DATA[c.element]?.label||c.element}</div>
           <div class="hero-stars" style="opacity:0.45;color:${c.rarity===5?'#ffd700':'#9aa4c4'}">${'★'.repeat(c.rarity)}</div>
         </div>
       </div>
@@ -1085,12 +1784,14 @@ function renderHeroCard(charId){
         <div class="hero-name">${c.name}</div>
         <div class="hero-title">${c.title}</div>
         <div class="hero-role">${c.role}</div>
+        <div class="element-tag">${ELEMENT_DATA[c.element]?.label||c.element}</div>
         <div class="hero-stars" style="color:${c.rarity===5?'#ffd700':'#9aa4c4'}">${'★'.repeat(c.rarity)}</div>
       </div>
     </div>
     <div class="stat-row"><span>PV</span><b>${eff.hp}</b></div>
     <div class="stat-row"><span>ATK</span><b>${eff.atk}</b></div>
     <div class="stat-row"><span>DEF</span><b>${eff.def}</b></div>
+    <div class="stat-row"><span>VEL</span><b>${eff.speed}</b></div>
     <div id="wslot-${charId}"></div>
     <div class="equip-row" id="eqrow-${charId}"></div>
     <div class="set-bonus-list" id="setbonus-${charId}"></div>
@@ -1123,6 +1824,8 @@ function renderTownTabs(){
     ['personaggi','Cambia Personaggi'],
     ['abilita','Abilità'],
     ['inventario','Inventario'],
+    ['indice','Indice'],
+    ['tutorial','Tutorial'],
     ['torre','Torre'],
     ['banner','Banner'],
     ['missioni','Missioni'],
@@ -1139,9 +1842,40 @@ function renderTownTabs(){
 function renderSquadraTab(){
   const wrap = document.createElement('div');
   wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Squadra attiva</span><h2>I tuoi 4 eroi</h2></div>`));
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Questi sono i personaggi che scenderanno in campo. Tocca uno slot per equipaggiare o rimuovere un manufatto.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Trascina un eroe su un altro slot per cambiare l'ordine. Puoi anche selezionare una carta e usare ↑/↓. L'ordine definisce i turni a parità di velocità.</div>`));
   const grid = el(`<div class="roster-grid"></div>`);
-  state.party.forEach(id=> grid.appendChild(renderHeroCard(id)));
+  state.party.forEach((id,index)=>{
+    const card=renderHeroCard(id);
+    card.classList.add('party-sortable');
+    card.draggable=true;
+    card.tabIndex=0;
+    card.setAttribute('aria-label',`${CHAR_DB[id].name}, slot ${index+1} di ${state.party.length}. Usa freccia su o giù per riordinare.`);
+    card.addEventListener('dragstart',event=>{
+      event.dataTransfer.setData('text/plain',id);
+      event.dataTransfer.effectAllowed='move';
+      card.classList.add('party-dragging');
+    });
+    card.addEventListener('dragend',()=>card.classList.remove('party-dragging'));
+    card.addEventListener('dragover',event=>{
+      event.preventDefault();
+      event.dataTransfer.dropEffect='move';
+      card.classList.add('party-drag-over');
+    });
+    card.addEventListener('dragleave',()=>card.classList.remove('party-drag-over'));
+    card.addEventListener('drop',event=>{
+      event.preventDefault();
+      card.classList.remove('party-drag-over');
+      movePartyMember(event.dataTransfer.getData('text/plain'),state.party.indexOf(id));
+    });
+    card.addEventListener('keydown',event=>{
+      if(event.target!==card) return;
+      if(event.key==='ArrowUp'||event.key==='ArrowDown'){
+        event.preventDefault();
+        movePartyMember(id,index+(event.key==='ArrowUp'?-1:1));
+      }
+    });
+    grid.appendChild(card);
+  });
   wrap.appendChild(grid);
   const startRow = el(`<div style="text-align:center;margin-top:10px;">
     <button class="primary" id="deployBtn" style="padding:12px 26px;font-size:15px;">Avvia Piano ${state.stage} ▶</button>
@@ -1205,6 +1939,7 @@ function renderAbilitaTab(){
       <div class="hero-name" style="font-size:19px;">${c.name}</div>
       <div class="hero-title">${c.title}</div>
       <div class="hero-role">${c.role}</div>
+      <div class="element-tag" style="margin-top:4px;">Elemento: ${ELEMENT_DATA[c.element].label}</div>
       <div class="hero-stars" style="color:${c.rarity===5?'#ffd700':'#9aa4c4'}">${'★'.repeat(c.rarity)}${unlocked?'':' · 🔒 Bloccato'}</div>
       ${c.passiveSpCapBonus?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: mentre è in squadra, il cap dei Punti Abilità sale da 5 a ${5+c.passiveSpCapBonus}.</div>`:''}
     </div>
@@ -1225,6 +1960,18 @@ function renderAbilitaTab(){
      ${c.ult.effect?`<span><b>Effetto:</b> ${effectLabel(c.ult)}</span>`:''}
      <span><b>Energia massima:</b> ${c.base.energyMax}</span>`));
   wrap.appendChild(cards);
+  if(id==='hakosBaels'){
+    wrap.appendChild(el(`<div class="screen-title" style="margin-top:20px;"><span class="eyebrow">Rovina del Caos</span><h2>Abilità trasformate</h2></div>`));
+    wrap.appendChild(el(`<div class="hint" style="margin:-8px 0 14px;">Disponibili durante la Ultimate. Hakos resta sola per cinque sue azioni; nessuna abilità genera energia.</div>`));
+    const formCards=el(`<div class="ability-cards"></div>`);
+    const formBasic=HAKOS_FORM_ABILITIES.basic;
+    const formSkill=HAKOS_FORM_ABILITIES.skill;
+    formCards.appendChild(renderAbilityCard(formBasic,'basic','Attacco Base · Trasformata',
+      `<span><b>Moltiplicatore:</b> ${Math.round(formBasic.mult*100)}% ATK</span><span><b>Bersaglio:</b> Un nemico</span><span><b>Energia:</b> Non genera energia</span>`));
+    formCards.appendChild(renderAbilityCard(formSkill,'skill','Skill · Trasformata',
+      `<span><b>Moltiplicatore:</b> ${Math.round(formSkill.mult*100)}% ATK</span><span><b>Bersaglio:</b> Bersaglio selezionato e nemici adiacenti</span><span><b>Energia:</b> Non genera energia</span>`));
+    wrap.appendChild(formCards);
+  }
   return wrap;
 }
 
@@ -1242,41 +1989,272 @@ function effectLabel(ability){
     case 'extra_attack_buff': return `L'alleato scelto attacca subito una volta in più e ottiene +${Math.round(ability.buffPct*100)}% ATK per 2 turni.`;
     case 'grant_sp': return `Dona istantaneamente ${ability.spGrant} Punti Abilità alla squadra (nessun danno).`;
     case 'grant_sp_and_buff': return `Dona istantaneamente ${ability.spGrant} Punti Abilità e +${Math.round(ability.buffPct*100)}% ATK a tutta la squadra per 2 turni.`;
+    case 'hakos_ultimate': return `Assorbe PV, ATK, DIF, VEL, scudi e buff ATK degli alleati. Hakos resta sola per cinque suoi turni; poi li richiama. Durante la forma non guadagna energia.`;
     default: return '';
   }
 }
 
+let inventoryFilters={type:'tutto',query:'',stat:'tutte',set:'tutti'};
+
+function applyInventoryFilters(root){
+  const query=inventoryFilters.query.trim().toLocaleLowerCase();
+  root.querySelectorAll('.inventory-item').forEach(card=>{
+    const typeMatches=inventoryFilters.type==='tutto'||card.dataset.inventoryType===inventoryFilters.type;
+    const queryMatches=!query||card.dataset.inventorySearch.includes(query);
+    const statMatches=inventoryFilters.stat==='tutte'||card.dataset.inventoryStats.split(',').includes(inventoryFilters.stat);
+    const setMatches=inventoryFilters.set==='tutti'||(card.dataset.inventoryType==='manufatto'&&card.dataset.inventorySet===inventoryFilters.set);
+    card.hidden=!(typeMatches&&queryMatches&&statMatches&&setMatches);
+  });
+  root.querySelectorAll('.inventory-section').forEach(section=>{
+    const typeMatches=inventoryFilters.type==='tutto'||section.dataset.inventorySection===inventoryFilters.type;
+    section.hidden=!typeMatches;
+    if(!typeMatches) return;
+    const hasVisibleItems=section.querySelector('.inventory-item:not([hidden])');
+    const noResults=section.querySelector('.inventory-no-results');
+    if(noResults) noResults.hidden=!!hasVisibleItems;
+  });
+  root.querySelectorAll('.inventory-section-heading').forEach(heading=>{
+    heading.hidden=inventoryFilters.type!=='tutto'&&heading.dataset.inventoryHeading!==inventoryFilters.type;
+  });
+}
+
 function renderInventarioTab(){
   const wrap = document.createElement('div');
-  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Magazzino</span><h2>Manufatti (${state.inventory.length})</h2></div>`));
-  const invPanel = el(`<div class="hud-panel section" style="padding:16px;"></div>`);
+  const totalItems=state.inventory.length+state.weaponInventory.length;
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Equipaggiamento</span><h2>Zaino (${totalItems})</h2></div>`));
+
+  const toolbar=el(`<div class="hud-panel inventory-toolbar">
+    <div class="inventory-type-filter" role="group" aria-label="Tipo di equipaggiamento"></div>
+    <input class="inventory-search" type="search" placeholder="Cerca nome, set o effetto" aria-label="Cerca nome, set o effetto">
+    <select class="inventory-stat-filter" aria-label="Filtra per statistica"></select>
+    <select class="inventory-set-filter" aria-label="Filtra per set"></select>
+  </div>`);
+  const typeFilter=toolbar.querySelector('.inventory-type-filter');
+  [['tutto','Tutto'],['manufatto','Manufatti'],['arma','Armi']].forEach(([key,label])=>{
+    const button=el(`<button class="subtab-btn ${inventoryFilters.type===key?'active':''}" type="button">${label}</button>`);
+    button.onclick=()=>{
+      inventoryFilters.type=key;
+      typeFilter.querySelectorAll('button').forEach(item=>item.classList.toggle('active',item===button));
+      applyInventoryFilters(wrap);
+    };
+    typeFilter.appendChild(button);
+  });
+  const searchInput=toolbar.querySelector('.inventory-search');
+  searchInput.value=inventoryFilters.query;
+  searchInput.oninput=()=>{
+    inventoryFilters.query=searchInput.value;
+    applyInventoryFilters(wrap);
+  };
+  const statFilter=toolbar.querySelector('.inventory-stat-filter');
+  statFilter.appendChild(el(`<option value="tutte">Tutte le statistiche</option>`));
+  Object.entries(STAT_KEYS).forEach(([key,meta])=>statFilter.appendChild(el(`<option value="${key}">${meta.label}</option>`)));
+  statFilter.value=inventoryFilters.stat;
+  statFilter.onchange=()=>{inventoryFilters.stat=statFilter.value;applyInventoryFilters(wrap);};
+  const setFilter=toolbar.querySelector('.inventory-set-filter');
+  setFilter.appendChild(el(`<option value="tutti">Tutti i set</option>`));
+  Object.entries(ARTIFACT_SETS).forEach(([key,set])=>setFilter.appendChild(el(`<option value="${key}">${set.name}</option>`)));
+  setFilter.value=inventoryFilters.set;
+  setFilter.onchange=()=>{inventoryFilters.set=setFilter.value;applyInventoryFilters(wrap);};
+  wrap.appendChild(toolbar);
+
+  wrap.appendChild(el(`<div class="screen-title inventory-section-heading" data-inventory-heading="manufatto"><span class="eyebrow">Manufatti</span><h2>${state.inventory.length}</h2></div>`));
+  const invPanel=el(`<div class="hud-panel section inventory-section" data-inventory-section="manufatto" style="padding:16px;"></div>`);
   if(state.inventory.length===0){
     invPanel.appendChild(el(`<div class="hint">Nessun manufatto. Completa un piano della torre per ottenerne.</div>`));
   } else {
-    const list = el(`<div class="artifact-grid"></div>`);
+    const list=el(`<div class="artifact-grid"></div>`);
     state.inventory.forEach(it=>{
-      const cost = getArtifactLevelUpCost(it.level||0);
-      const maxed = (it.level||0)>=ARTIFACT_MAX_LEVEL;
-      list.appendChild(renderArtifactCard(it, {actions:[
-        {label: maxed ? 'Livello massimo' : `⬆ Potenzia (${cost} 💠)`, onClick:()=>levelUpArtifact(it.uid), disabled: maxed || state.gold<cost},
-        {label:`💰 Vendi (+${getArtifactSellValue(it)} 💠)`, onClick:()=>sellArtifact(it.uid)},
-      ]}));
+      const cost=getArtifactLevelUpCost(it.level||0);
+      const maxed=(it.level||0)>=ARTIFACT_MAX_LEVEL;
+      const card=renderArtifactCard(it,{actions:[
+        {label:maxed?'Livello massimo':`⬆ Potenzia (${cost} 💠)`,onClick:()=>levelUpArtifact(it.uid),disabled:maxed||state.gold<cost},
+        {label:`💰 Vendi (+${getArtifactSellValue(it)} 💠)`,onClick:()=>sellArtifact(it.uid)},
+      ]});
+      const set=ARTIFACT_SETS[it.setId];
+      const stats=[it.mainStat,...it.subStats].map(stat=>stat.key);
+      card.classList.add('inventory-item');
+      card.dataset.inventoryType='manufatto';
+      card.dataset.inventorySet=it.setId;
+      card.dataset.inventoryStats=stats.join(',');
+      card.dataset.inventorySearch=`${it.name} ${set.name} ${RARITY_LABEL[it.rarity]} ${stats.map(statKeyLabel).join(' ')} ${it.subStats.map(formatStatValue).join(' ')}`.toLocaleLowerCase();
+      list.appendChild(card);
     });
     invPanel.appendChild(list);
+    invPanel.appendChild(el(`<div class="hint inventory-no-results" hidden>Nessun manufatto corrisponde ai filtri.</div>`));
   }
   wrap.appendChild(invPanel);
-  wrap.appendChild(el(`<div class="hint" style="margin:8px 0 20px;">Ogni manufatto può essere potenziato fino al livello 20 (ogni 5 livelli migliora una sottostatistica casuale, anche ripetuta) oppure venduto per Frammenti. Per equipaggiarne uno vai su Squadra o Cambia Personaggi e tocca uno slot vuoto.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin:8px 0 20px;">I manufatti si possono potenziare fino al livello 20 e vendere per Frammenti. I set attivano bonus con 2 e 4 pezzi.</div>`));
 
-  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Armeria</span><h2>Armi (${state.weaponInventory.length})</h2></div>`));
-  const wpnPanel = el(`<div class="hud-panel section" style="padding:16px;"></div>`);
+  wrap.appendChild(el(`<div class="screen-title inventory-section-heading" data-inventory-heading="arma"><span class="eyebrow">Armi</span><h2>${state.weaponInventory.length}</h2></div>`));
+  const wpnPanel=el(`<div class="hud-panel section inventory-section" data-inventory-section="arma" style="padding:16px;"></div>`);
   if(state.weaponInventory.length===0){
-    wpnPanel.appendChild(el(`<div class="hint">Nessuna arma. Ottienile dal Banner o dalla torre.</div>`));
+    wpnPanel.appendChild(el(`<div class="hint">Nessuna arma. Ottienile dal Banner.</div>`));
   } else {
-    const list2 = el(`<div class="artifact-grid"></div>`);
-    state.weaponInventory.forEach(w=> list2.appendChild(renderWeaponCard(w)));
-    wpnPanel.appendChild(list2);
+    const list=el(`<div class="artifact-grid"></div>`);
+    state.weaponInventory.forEach(weapon=>{
+      const card=renderWeaponCard(weapon,{actions:getWeaponManagementActions(weapon)});
+      const effect=getWeaponEffectDescription(weapon,weapon.ownerId||undefined);
+      card.classList.add('inventory-item');
+      card.dataset.inventoryType='arma';
+      card.dataset.inventorySet='';
+      card.dataset.inventoryStats=[weapon.mainStat.key,weapon.subStat.key].join(',');
+      card.dataset.inventorySearch=`${weapon.name} ${RARITY_LABEL[weapon.rarity]} ${statKeyLabel(weapon.mainStat.key)} ${statKeyLabel(weapon.subStat.key)} ${formatStatValue(weapon.mainStat)} ${formatStatValue(weapon.subStat)} ${effect}`.toLocaleLowerCase();
+      list.appendChild(card);
+    });
+    wpnPanel.appendChild(list);
+    wpnPanel.appendChild(el(`<div class="hint inventory-no-results" hidden>Nessuna arma corrisponde ai filtri.</div>`));
   }
   wrap.appendChild(wpnPanel);
+  applyInventoryFilters(wrap);
+  return wrap;
+}
+
+function setIndexCategory(category){ state.indexCategory = category; render(); }
+
+function renderIndiceTab(){
+  const wrap = document.createElement('div');
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Catalogo</span><h2>Indice completo</h2></div>`));
+  const elementLabels = elements => elements.map(element => ELEMENT_DATA[element].label).join(' · ');
+
+  const subbar = el(`<div class="subtab-bar" style="margin-bottom:16px;"></div>`);
+  const categories = [
+    ['tutto','Tutto'],
+    ['eroi','Eroi'],
+    ['manufatti','Manufatti'],
+    ['armi','Armi'],
+    ['nemici','Nemici'],
+  ];
+  categories.forEach(([key,label])=>{
+    const btn = el(`<button class="subtab-btn ${state.indexCategory===key?'active':''}">${label}</button>`);
+    btn.onclick=()=>setIndexCategory(key);
+    subbar.appendChild(btn);
+  });
+  wrap.appendChild(subbar);
+
+  const renderCards = (title, cards)=>{
+    const panel = el(`<div class="hud-panel section" style="padding:16px;margin-bottom:16px;"></div>`);
+    panel.appendChild(el(`<div class="screen-title" style="margin:0 0 10px;"><span class="eyebrow">${title}</span><h3 style="margin:0;">${title}</h3></div>`));
+    const grid = el(`<div class="artifact-grid"></div>`);
+    cards.forEach(card => grid.appendChild(card));
+    panel.appendChild(grid);
+    return panel;
+  };
+
+  const selected = state.indexCategory || 'tutto';
+  if(selected === 'tutto' || selected === 'eroi'){
+    const heroCards = Object.keys(CHAR_DB).map(id => {
+      const c = CHAR_DB[id];
+      return el(`<div class="hud-panel artifact-card" style="border-color:${c.color};">
+        <div class="ac-head">
+          <span class="ac-icon" style="background:${c.color};color:#111;">${c.glyph}</span>
+          <div>
+            <div class="ac-name">${c.name}</div>
+            <div class="ac-setname" style="color:${c.color};">${c.role}</div>
+          </div>
+        </div>
+        <div class="ac-main">${c.title}</div>
+        <div class="ac-subs"><span>· Elemento: ${ELEMENT_DATA[c.element].label}</span><span>· ${'★'.repeat(c.rarity)} ${c.rarity===5?'SSR':'SR'}</span></div>
+      </div>`);
+    });
+    if(selected === 'tutto') wrap.appendChild(renderCards('Eroi', heroCards));
+    else wrap.appendChild(renderCards('Eroi', heroCards));
+  }
+
+  if(selected === 'tutto' || selected === 'manufatti'){
+    const artifactCards = Object.keys(ARTIFACT_SETS).map(setId => {
+      const setDef = ARTIFACT_SETS[setId];
+      return el(`<div class="hud-panel artifact-card" style="border-color:${RARITY_COLOR.epica};">
+        <div class="ac-head">
+          <span class="ac-icon">${setDef.icon}</span>
+          <div>
+            <div class="ac-name">${setDef.name}</div>
+            <div class="ac-setname" style="color:${RARITY_COLOR.epica};">Set ${setId}</div>
+          </div>
+        </div>
+        <div class="ac-main">${setDef.bonus2.label}</div>
+        <div class="ac-subs"><span>· ${setDef.bonus4.label}</span></div>
+        <div class="ac-setbonus">Pezzi: ${setDef.pieces.join(', ')}</div>
+      </div>`);
+    });
+    wrap.appendChild(renderCards('Manufatti', artifactCards));
+  }
+
+  if(selected === 'tutto' || selected === 'armi'){
+    const weaponCards = WEAPON_NAMES.map(name=>{
+      const weapon=WEAPON_FIXED_STATS[name];
+      return el(`<div class="hud-panel artifact-card" style="border-color:${RARITY_COLOR[weapon.rarity]};">
+        <div class="ac-head"><span class="ac-icon">⚔</span><div>
+          <div class="ac-name">${name}</div>
+          <div class="ac-setname" style="color:${RARITY_COLOR[weapon.rarity]};">${RARITY_LABEL[weapon.rarity]} · Arma</div>
+        </div></div>
+        <div class="ac-main">ATK <b>+${weapon.atk}</b></div>
+        <div class="ac-subs"><span>· ${statKeyLabel(weapon.subStat.key)} ${formatStatValue(weapon.subStat)}</span></div>
+        <div class="ac-setbonus">${WEAPON_DEFINITIONS[name].effect.describe(WEAPON_DEFINITIONS[name].effect.base)}</div>
+      </div>`);
+    });
+    SIGNATURE_WEAPONS.forEach(signature=>{
+      weaponCards.push(renderWeaponCard({
+        uid:'catalog-'+signature.ownerId,
+        name:signature.name,
+        rarity:'leggendaria',
+        level:0,
+        ascension:0,
+        unavailable:false,
+        baseAtk:signature.atk,
+        mainStat:{key:'atk',value:signature.atk},
+        subStat:signature.subStat,
+      },{charId:signature.ownerId}));
+    });
+    wrap.appendChild(renderCards('Armi', weaponCards));
+  }
+
+  if(selected === 'tutto' || selected === 'nemici'){
+    const enemyCards = [...ENEMY_NAMES.map(name => el(`<div class="hud-panel artifact-card" style="border-color:#a1a1aa;">
+      <div class="ac-head">
+        <span class="ac-icon">◆</span>
+        <div>
+          <div class="ac-name">${name}</div>
+          <div class="ac-setname" style="color:#a1a1aa;">Nemico comune</div>
+        </div>
+      </div>
+      <div class="ac-main">Scarto: minion di torre</div>
+      <div class="ac-subs"><span>· Elementi: ${elementLabels(ENEMY_ELEMENT_SETS[name])}</span></div>
+    </div>`)), ...BOSS_NAMES.map(name => el(`<div class="hud-panel artifact-card" style="border-color:#eab308;">
+      <div class="ac-head">
+        <span class="ac-icon">☠</span>
+        <div>
+          <div class="ac-name">${name}</div>
+          <div class="ac-setname" style="color:#eab308;">Boss</div>
+        </div>
+      </div>
+      <div class="ac-main">Due attacchi per turno · Fase 2 al 50% PV</div>
+      <div class="ac-subs"><span>· Elementi: ${elementLabels(ENEMY_ELEMENT_SETS[name])}</span><span>· Speciale: ${BOSS_MECHANIC_LABELS[BOSS_MECHANICS[name].phase1]} → ${BOSS_MECHANIC_LABELS[BOSS_MECHANICS[name].phase2]}</span></div>
+    </div>`))];
+    wrap.appendChild(renderCards('Nemici', enemyCards));
+  }
+
+  return wrap;
+}
+
+function renderTutorialTab(){
+  const wrap = document.createElement('div');
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Guida rapida</span><h2>Tutorial</h2></div>`));
+  const sections = [
+    ['Squadra e turni', `<p>Porta in battaglia fino a 4 eroi. Durante il turno della squadra scegli un'azione per l'eroe attivo; poi agiscono i nemici. Gli eroi sconfitti saltano il proprio turno.</p>`],
+    ['Boss e fasi', `<p>I boss hanno molti più PV, compiono due attacchi consecutivi a ogni turno e passano alla Fase 2 quando scendono al 50% dei PV: il loro ATK aumenta e la mossa speciale diventa più frequente. Ogni boss ha una meccanica propria; gli evocati non superano mai 5 nemici vivi in campo.</p>`],
+    ['Velocità e ordine', `<p>Ogni round mostra l'ordine completo delle azioni: chi ha più VEL agisce prima, eroi e nemici possono alternarsi. Gli eroi partono da 100 VEL; i nemici hanno da 90 a 120. Gli artefatti possono aggiungere VEL: le statistiche VEL partono da 1–4 e, potenziando una secondaria, possono arrivare fino a 12.</p>`],
+    ['Attacco, Skill e Ultimate', `<ul><li><b>Attacco Base:</b> infligge danno, genera Punti Abilità e ricarica energia.</li><li><b>Skill:</b> di norma costa 1 Punto Abilità; alcune abilità hanno usi gratuiti o effetti speciali.</li><li><b>Ultimate:</b> si attiva quando l'energia è al massimo e consuma tutta l'energia accumulata.</li></ul><p>La squadra parte con 3 Punti Abilità, ne può conservare fino a 5; Ouro Kronii aumenta il limite se è in squadra.</p>`],
+    ['Elementi e danni', `<p>Ogni eroe ha un elemento; ogni nemico ha sempre gli stessi 3 elementi, mostrati nell'Indice e in battaglia. Un attacco dello stesso elemento infligge metà danno. Un elemento forte contro uno dei tipi del nemico infligge il doppio; gli altri attacchi infliggono danno normale.</p><ul>${Object.keys(ELEMENT_DATA).map(element=>`<li><b>${ELEMENT_DATA[element].label}</b> è forte contro ${ELEMENT_DATA[ELEMENT_DATA[element].strongAgainst].label}.</li>`).join('')}</ul>`],
+    ['Manufatti e set', `<p>Equipaggia fino a 5 manufatti per eroe. Le statistiche principali e secondarie aumentano i parametri; i bonus set si attivano con 2 e 4 pezzi dello stesso set. Puoi potenziare un manufatto fino al livello 20; ogni 5 livelli migliora una statistica secondaria casuale.</p>`],
+    ['Armi', `<p>Ogni eroe ha uno slot arma. Ogni arma ha rarità, ATK, statistica secondaria ed effetto fissi. Potenziala fino al livello 20 spendendo Frammenti; ascendi fino al grado 5 consumando un doppione identico e vendila dall'Armeria. Il Banner armi contiene anche le sette firme 5 stelle dedicate agli eroi esistenti.</p>`],
+    ['Torre e ricompense', `<p>Avanza nella Torre Infinita: ogni piano aumenta la difficoltà e ogni 5 piani affronti un boss. Le vittorie danno Frammenti e manufatti; usa i Frammenti per evocare dal Banner o potenziare l'equipaggiamento.</p>`],
+    ['Banner e missioni', `<p>Un'evocazione costa 300 Frammenti. Il Banner personaggi garantisce un personaggio 4 stelle entro 10 evocazioni e uno 5 stelle entro 50. Nel Banner armi i personaggi hanno le stesse probabilità base ma nessuna garanzia: un'arma 5 stelle è invece garantita ogni 30 evocazioni. Le missioni offrono Frammenti aggiuntivi.</p>`],
+  ];
+  const grid = el(`<div class="tutorial-grid"></div>`);
+  sections.forEach(([title, content])=>{
+    grid.appendChild(el(`<section class="hud-panel tutorial-section"><h3>${title}</h3>${content}</section>`));
+  });
+  wrap.appendChild(grid);
   return wrap;
 }
 
@@ -1292,12 +2270,38 @@ function renderCharUnlockCard(charId){
 
 function renderMissioniTab(){
   const wrap = document.createElement('div');
-  const completedCount = QUEST_DB.filter(q=>state.claimedQuests[q.id]).length;
-  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Obiettivi</span><h2>Missioni (${completedCount}/${QUEST_DB.length})</h2></div>`));
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Completa obiettivi una tantum per guadagnare Frammenti extra.</div>`));
+  const oneOffDone = ONE_OFF_QUESTS.filter(q=>state.claimedQuests[q.id]).length;
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Obiettivi</span><h2>Missioni</h2></div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Le missioni a progressione si ripetono all'infinito: ogni volta che le riscatti, obiettivo e ricompensa aumentano per il giro successivo.</div>`));
 
+  wrap.appendChild(el(`<div class="screen-title" style="margin-top:6px;"><span class="eyebrow">Progressione</span><h2>Missioni Ricorrenti</h2></div>`));
+  const trackGrid = el(`<div class="artifact-grid"></div>`);
+  QUEST_TRACKS.forEach(track=>{
+    const exhausted = isTrackExhausted(track);
+    const target = getTrackTarget(track);
+    const value = track.getValue();
+    const reward = getTrackReward(track);
+    const tier = (state.questTiers[track.id]||0)+1;
+    const completed = !exhausted && value>=target;
+    const statusLabel = exhausted ? '✓ Completata al massimo' : completed ? 'Completata!' : `${Math.min(value,target)}/${target}`;
+    const statusColor = exhausted ? 'var(--green)' : completed ? 'var(--amber)' : 'var(--text-dim)';
+    const card = el(`<div class="hud-panel artifact-card" style="border-color:${exhausted?'var(--green)':completed?'var(--amber)':'var(--border)'}">
+      <div class="ac-name">${track.label(target)} ${exhausted?'':`<span class="ac-level">Livello ${tier}</span>`}</div>
+      <div class="ac-main">Ricompensa: <b>+${reward} 💠</b></div>
+      <div class="ac-setname" style="color:${statusColor}">${statusLabel}</div>
+    </div>`);
+    if(completed){
+      const btn = el(`<button class="small primary" style="margin-top:8px;width:100%;">Riscatta</button>`);
+      btn.onclick=(ev)=>{ ev.stopPropagation(); claimTrack(track.id); };
+      card.appendChild(btn);
+    }
+    trackGrid.appendChild(card);
+  });
+  wrap.appendChild(trackGrid);
+
+  wrap.appendChild(el(`<div class="screen-title" style="margin-top:22px;"><span class="eyebrow">Una tantum</span><h2>Traguardi (${oneOffDone}/${ONE_OFF_QUESTS.length})</h2></div>`));
   const grid = el(`<div class="artifact-grid"></div>`);
-  QUEST_DB.forEach(q=>{
+  ONE_OFF_QUESTS.forEach(q=>{
     const claimed = !!state.claimedQuests[q.id];
     const completed = !claimed && q.check();
     const statusLabel = claimed ? '✓ Riscattata' : completed ? 'Completata!' : 'In corso';
@@ -1320,25 +2324,37 @@ function renderMissioniTab(){
 
 function renderBannerTab(){
   const wrap = document.createElement('div');
-  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Banner</span><h2>Richiamo degli Eroi</h2></div>`));
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Ogni evocazione costa ${PULL_COST} Frammenti. ★★★★★ 2% di possibilità (garantito ogni ${PITY_LIMIT_5} evocazioni). ★★★★ 5% di possibilità (garantito ogni ${PITY_LIMIT_4} se non hai ottenuto nessun eroe prima). Il resto sono armi.</div>`));
+  const weaponBanner=state.bannerType==='armi';
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Evocazioni</span><h2>${weaponBanner?'Arsenale delle Stelle':'Richiamo degli Eroi'}</h2></div>`));
+  const modeBar=el(`<div class="subtab-bar banner-mode"></div>`);
+  [['personaggi','Banner personaggi'],['armi','Banner armi']].forEach(([type,label])=>{
+    const button=el(`<button class="subtab-btn ${state.bannerType===type?'active':''}">${label}</button>`);
+    button.onclick=()=>setBannerType(type);
+    modeBar.appendChild(button);
+  });
+  wrap.appendChild(modeBar);
+  const bannerDescription=weaponBanner
+    ? `Ogni evocazione costa ${PULL_COST} Frammenti. Il pool include tutti i personaggi, le ${WEAPON_NAMES.length} armi standard e le ${SIGNATURE_WEAPONS.length} firme 5 stelle. Personaggi ★★★★★: 2%; ★★★★: 5%, senza garanzie. Un'arma 5 stelle è garantita ogni ${WEAPON_BANNER_PITY} evocazioni.`
+    : `Ogni evocazione costa ${PULL_COST} Frammenti. Personaggi ★★★★★: 2% (garantito ogni ${PITY_LIMIT_5}); ★★★★: 5% (garantito ogni ${PITY_LIMIT_4} senza averne ottenuto uno). Il resto sono armi.`;
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${bannerDescription}</div>`));
 
   const info = el(`<div class="hud-panel section" style="padding:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center;">
     <div>
       <div class="hero-name" style="font-size:20px;">💠 ${state.gold} Frammenti</div>
-      <div class="hint" style="margin:4px 0 0;text-align:left;">Garanzia ★★★★: ${state.pityCounter}/${PITY_LIMIT_4} · Garanzia ★★★★★: ${state.pity5Counter}/${PITY_LIMIT_5}</div>
+      <div class="hint" style="margin:4px 0 0;text-align:left;">${weaponBanner?`Garanzia arma ★★★★★: ${state.weaponBannerPulls}/${WEAPON_BANNER_PITY}`:`Garanzia ★★★★: ${state.pityCounter}/${PITY_LIMIT_4} · Garanzia ★★★★★: ${state.pity5Counter}/${PITY_LIMIT_5}`}</div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <button class="primary" id="pull1" ${state.gold<PULL_COST?'disabled':''}>Evoca x1 (${PULL_COST})</button>
       <button class="primary" id="pull10" ${state.gold<PULL_COST*10?'disabled':''}>Evoca x10 (${PULL_COST*10})</button>
     </div>
   </div>`);
-  info.querySelector('#pull1').onclick=()=>doPulls(1);
-  info.querySelector('#pull10').onclick=()=>doPulls(10);
+  info.querySelector('#pull1').onclick=()=>weaponBanner?doWeaponPulls(1):doPulls(1);
+  info.querySelector('#pull10').onclick=()=>weaponBanner?doWeaponPulls(10):doPulls(10);
   wrap.appendChild(info);
 
   if(state.lastPullResults.length>0){
-    wrap.appendChild(el(`<div class="screen-title" style="margin-top:22px;"><span class="eyebrow">Risultato</span><h2>Ultima Evocazione</h2></div>`));
+    const resultBanner=state.lastPullBanner==='armi'?'Banner armi':'Banner personaggi';
+    wrap.appendChild(el(`<div class="screen-title" style="margin-top:22px;"><span class="eyebrow">${resultBanner}</span><h2>Ultime evocazioni</h2></div>`));
     const grid = el(`<div class="artifact-grid"></div>`);
     state.lastPullResults.forEach(r=>{
       if(r.type==='character') grid.appendChild(renderCharUnlockCard(r.charId));
@@ -1392,6 +2408,8 @@ function renderTown(){
   else if(state.townTab==='personaggi') wrap.appendChild(renderPersonaggiTab());
   else if(state.townTab==='abilita') wrap.appendChild(renderAbilitaTab());
   else if(state.townTab==='inventario') wrap.appendChild(renderInventarioTab());
+  else if(state.townTab==='indice') wrap.appendChild(renderIndiceTab());
+  else if(state.townTab==='tutorial') wrap.appendChild(renderTutorialTab());
   else if(state.townTab==='torre') wrap.appendChild(renderTorreTab());
   else if(state.townTab==='banner') wrap.appendChild(renderBannerTab());
   else if(state.townTab==='missioni') wrap.appendChild(renderMissioniTab());
@@ -1401,6 +2419,56 @@ function renderTown(){
   if(weaponPickerFor) wrap.appendChild(renderWeaponPickerModal());
   if(viewWeaponFor) wrap.appendChild(renderViewWeaponModal());
   return wrap;
+}
+
+function createEquipmentPickerFilters(type,grid,noResults){
+  const artifactPicker=type==='manufatto';
+  const controls=el(`<div class="equipment-picker-filters">
+    <input type="search" class="picker-search" placeholder="Cerca nome, effetto o statistica" aria-label="Cerca equipaggiamento">
+    <select class="picker-rarity" aria-label="Filtra per rarità"></select>
+    <select class="picker-stat" aria-label="Filtra per statistica"></select>
+    ${artifactPicker?'<select class="picker-set" aria-label="Filtra per set"></select>':''}
+    <span class="picker-count" aria-live="polite"></span>
+  </div>`);
+  const raritySelect=controls.querySelector('.picker-rarity');
+  raritySelect.appendChild(el(`<option value="tutte">Tutte le rarità</option>`));
+  [...RARITY_ORDER,'leggendaria'].forEach(rarity=>{
+    const label=RARITY_LABEL[rarity];
+    if(label) raritySelect.appendChild(el(`<option value="${rarity}">${label}</option>`));
+  });
+  const statSelect=controls.querySelector('.picker-stat');
+  statSelect.appendChild(el(`<option value="tutte">Tutte le statistiche</option>`));
+  Object.entries(STAT_KEYS).forEach(([key,meta])=>statSelect.appendChild(el(`<option value="${key}">${meta.label}</option>`)));
+  const setSelect=controls.querySelector('.picker-set');
+  if(setSelect){
+    setSelect.appendChild(el(`<option value="tutti">Tutti i set</option>`));
+    Object.entries(ARTIFACT_SETS).forEach(([key,set])=>setSelect.appendChild(el(`<option value="${key}">${set.name}</option>`)));
+  }
+  const search=controls.querySelector('.picker-search');
+  const count=controls.querySelector('.picker-count');
+  const applyFilters=()=>{
+    const query=search.value.trim().toLocaleLowerCase();
+    const rarity=raritySelect.value;
+    const stat=statSelect.value;
+    const set=setSelect?.value||'tutti';
+    let visible=0;
+    [...grid.children].forEach(card=>{
+      const matches=(!query||card.dataset.pickerSearch.includes(query))
+        && (rarity==='tutte'||card.dataset.pickerRarity===rarity)
+        && (stat==='tutte'||card.dataset.pickerStats.split(',').includes(stat))
+        && (set==='tutti'||card.dataset.pickerSet===set);
+      card.hidden=!matches;
+      if(matches) visible++;
+    });
+    noResults.hidden=visible>0;
+    count.textContent=`${visible} / ${grid.children.length}`;
+  };
+  search.oninput=applyFilters;
+  raritySelect.onchange=applyFilters;
+  statSelect.onchange=applyFilters;
+  if(setSelect) setSelect.onchange=applyFilters;
+  applyFilters();
+  return controls;
 }
 
 function renderWeaponPickerModal(){
@@ -1414,9 +2482,18 @@ function renderWeaponPickerModal(){
   } else {
     const list = el(`<div class="artifact-grid"></div>`);
     state.weaponInventory.forEach(w=>{
-      list.appendChild(renderWeaponCard(w, {actionLabel:'Equipaggia', onAction:()=>equipWeapon(w.uid)}));
+      const card=renderWeaponCard(w,{actionLabel:'Equipaggia',onAction:()=>equipWeapon(w.uid)});
+      const effect=getWeaponEffectDescription(w,charId);
+      card.dataset.pickerRarity=w.rarity;
+      card.dataset.pickerStats=[w.mainStat.key,w.subStat.key].join(',');
+      card.dataset.pickerSet='';
+      card.dataset.pickerSearch=`${w.name} ${RARITY_LABEL[w.rarity]} ${statKeyLabel(w.mainStat.key)} ${statKeyLabel(w.subStat.key)} ${formatStatValue(w.mainStat)} ${formatStatValue(w.subStat)} ${effect}`.toLocaleLowerCase();
+      list.appendChild(card);
     });
+    const noResults=el(`<div class="hint picker-no-results" hidden>Nessuna arma corrisponde ai filtri.</div>`);
+    box.appendChild(createEquipmentPickerFilters('arma',list,noResults));
     box.appendChild(list);
+    box.appendChild(noResults);
   }
   const closeBtn = el(`<div style="text-align:right;margin-top:16px;"><button class="ghost small" id="closeWp">Chiudi</button></div>`);
   closeBtn.querySelector('#closeWp').onclick=closeWeaponPicker;
@@ -1436,7 +2513,10 @@ function renderViewWeaponModal(){
   if(!weapon){
     box.appendChild(el(`<div class="hint">Nessuna arma equipaggiata.</div>`));
   } else {
-    box.appendChild(renderWeaponCard(weapon, {actionLabel:'Rimuovi arma', onAction:()=>{ unequipWeapon(charId); closeViewWeapon(); }}));
+    box.appendChild(renderWeaponCard(weapon, {
+      charId,
+      actions:getWeaponManagementActions(weapon,{onUnequip:()=>{ unequipWeapon(charId); closeViewWeapon(); }}),
+    }));
   }
   const closeBtn = el(`<div style="text-align:right;margin-top:16px;"><button class="ghost small" id="closeWv">Chiudi</button></div>`);
   closeBtn.querySelector('#closeWv').onclick=closeViewWeapon;
@@ -1483,9 +2563,19 @@ function renderEquipPickerModal(){
   } else {
     const list = el(`<div class="artifact-grid"></div>`);
     eligible.forEach(it=>{
-      list.appendChild(renderArtifactCard(it, {actionLabel:'Equipaggia', onAction:()=>equipItem(it.uid)}));
+      const card=renderArtifactCard(it,{actionLabel:'Equipaggia',onAction:()=>equipItem(it.uid)});
+      const set=ARTIFACT_SETS[it.setId];
+      const stats=[it.mainStat,...it.subStats].map(stat=>stat.key);
+      card.dataset.pickerRarity=it.rarity;
+      card.dataset.pickerStats=stats.join(',');
+      card.dataset.pickerSet=it.setId;
+      card.dataset.pickerSearch=`${it.name} ${set.name} ${RARITY_LABEL[it.rarity]} ${stats.map(statKeyLabel).join(' ')} ${[it.mainStat,...it.subStats].map(formatStatValue).join(' ')}`.toLocaleLowerCase();
+      list.appendChild(card);
     });
+    const noResults=el(`<div class="hint picker-no-results" hidden>Nessun manufatto corrisponde ai filtri.</div>`);
+    box.appendChild(createEquipmentPickerFilters('manufatto',list,noResults));
     box.appendChild(list);
+    box.appendChild(noResults);
   }
   const closeBtn = el(`<div style="text-align:right;margin-top:16px;"><button class="ghost small" id="closeEq">Chiudi</button></div>`);
   closeBtn.querySelector('#closeEq').onclick=closeEquipPicker;
@@ -1495,27 +2585,75 @@ function renderEquipPickerModal(){
   return overlay;
 }
 
+const ANIM_STYLE_KEYFRAME = {
+  heavy:'fx-heavy', arcane:'fx-arcane', swift:'fx-swift', bleed:'fx-bleed',
+  'radiant-soft':'fx-radiant-soft', surge:'fx-surge', celestial:'fx-celestial', menace:'fx-menace',
+};
+const ANIM_TIER_TIMING = {
+  basic:{dur:0.75, scale:1},
+  skill:{dur:1.1,  scale:1.35},
+  ult:  {dur:1.6,  scale:1.8},
+};
+const HIT_ANIM = {
+  damage:  d=>`fx-shake ${d}s ease, fx-flash-damage ${d+0.15}s ease`,
+  heal:    d=>`fx-flash-heal ${d+0.15}s ease`,
+  shield:  d=>`fx-flash-shield ${d+0.15}s ease`,
+  buff:    d=>`fx-flash-buff ${d+0.15}s ease`,
+  spgrant: d=>`fx-flash-spgrant ${d+0.15}s ease`,
+};
+
+function consumeFx(entity, styleKey){
+  const anims = [];
+  let floatHtml = '';
+  let scale = 1;
+  if(entity._fxAttack){
+    const timing = ANIM_TIER_TIMING[entity._fxAttack] || ANIM_TIER_TIMING.basic;
+    const keyframeName = ANIM_STYLE_KEYFRAME[styleKey] || 'fx-lunge';
+    anims.push(`${keyframeName} ${timing.dur}s cubic-bezier(.34,1.15,.64,1)`);
+    scale = timing.scale;
+    entity._fxAttack = null;
+  }
+  if(entity._fx){
+    anims.push(HIT_ANIM[entity._fx.variant](0.8));
+    floatHtml = `<div class="fx-float ${entity._fx.variant}">${entity._fx.label}</div>`;
+    entity._fx = null;
+  }
+  return {animation: anims.join(', '), scale, floatHtml};
+}
+
 function renderBattle(){
   const b = state.battle;
   const wrap = document.createElement('div');
   wrap.className='battle-wrap';
   const auto = state.autoBattle;
+  const busy = !!b.busy;
 
-  const targetingEnemy = !auto && b.pendingAbility && CHAR_DB[currentAlly().charId][b.pendingAbility.key].target==='enemy';
-  const targetingAlly = !auto && b.pendingAbility && CHAR_DB[currentAlly().charId][b.pendingAbility.key].target==='ally';
+  if(b.screenFx){
+    wrap.appendChild(el(`<div class="ult-flash-overlay" style="background:radial-gradient(circle, ${hexToRgba(b.screenFx,0.5)}, transparent 70%);"></div>`));
+    b.screenFx = null;
+  }
+
+  const pendingAbility=b.pendingAbility && currentAlly()?getAbilityForActor(currentAlly(),b.pendingAbility.key):null;
+  const targetingEnemy = !auto && !busy && pendingAbility && (pendingAbility.target==='enemy' || pendingAbility.target==='enemy_adjacent');
+  const targetingAlly = !auto && !busy && pendingAbility && pendingAbility.target==='ally';
+  const activeEntry = b.turnOrder[b.turnIndex];
 
   const enemyRow = el(`<div class="hud-panel enemy-row"></div>`);
-  b.enemies.forEach(e=>{
-    const dead = e.hp<=0;
-    const card = el(`<div class="hud-panel enemy-card ${dead?'dead':''} ${targetingEnemy && !dead?'targetable':''}">
+  b.enemies.filter(enemy=>enemy.hp>0).forEach(e=>{
+    const isActive = activeEntry.side==='enemy' && activeEntry.id===e.id;
+    const fx = consumeFx(e, 'menace');
+    const card = el(`<div class="hud-panel enemy-card ${isActive?'active-turn':''} ${targetingEnemy?'targetable':''}" style="--char-glow:${hexToRgba('#ef5a7d',0.85)};--fx-scale:${fx.scale};position:relative;${fx.animation?'animation:'+fx.animation+';':''}">
       <div class="portrait">${e.isBoss?'☠':'◆'}</div>
       <div class="name">${e.name}</div>
+      ${e.isBoss?`<div class="boss-tag">FASE ${e.phase||1}/2 · 2 ATTACCHI</div>`:''}
+      <div class="element-tags">${(e.elements||[e.element]).map(element=>`<span class="element-tag">${ELEMENT_DATA[element]?.label||element}</span>`).join('')}</div>
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(e.hp/e.maxHp*100)}%"></div></div>
       <div class="mini-lbl"><span>${e.hp}/${e.maxHp}</span></div>
       ${e.burnStacks>0?`<div class="burn-tag">${e.dotName==='Sanguinamento'?'🩸':'🔥'} x${e.burnStacks}</div>`:''}
       ${e.shield>0?`<div class="shield-tag">🛡 ${e.shield}</div>`:''}
+      ${fx.floatHtml}
     </div>`);
-    if(targetingEnemy && !dead) card.onclick=()=>playerChooseTarget(e.id);
+    if(targetingEnemy) card.onclick=()=>playerChooseTarget(e.id);
     enemyRow.appendChild(card);
   });
   wrap.appendChild(enemyRow);
@@ -1534,17 +2672,29 @@ function renderBattle(){
     pipsWrap.appendChild(el(`<div class="sp-pip ${i<b.sp?'filled':''}"></div>`));
   }
   midRow.appendChild(spPanel);
+  const turnOrderPanel = el(`<div class="hud-panel turn-order-panel"><div class="mini-lbl turn-order-heading">ORDINE DEL ROUND</div><div class="turn-order-list"></div></div>`);
+  const turnOrderList = turnOrderPanel.querySelector('.turn-order-list');
+  b.turnOrder.forEach((entry,index)=>{
+    const actor = getTurnActor(b,entry);
+    const dead = !actor || actor.hp<=0;
+    const item = el(`<div class="turn-order-item ${index===b.turnIndex?'current':''} ${index<b.turnIndex?'passed':''} ${dead?'dead':''} ${entry.side}">
+      <span class="turn-order-index">${index+1}</span><span class="turn-order-name">${actor?actor.name:'?'}</span><span class="turn-order-speed">${entry.speed}</span>
+    </div>`);
+    turnOrderList.appendChild(item);
+  });
+  midRow.appendChild(turnOrderPanel);
   wrap.appendChild(midRow);
 
   const allyRow = el(`<div class="ally-row"></div>`);
   b.allies.forEach((a,i)=>{
     const dead = a.hp<=0;
-    const isActive = i===b.turnIndex && b.phase==='ally_turn' && !b.pendingAbility && !auto;
+    const isActive = activeEntry.side==='ally' && activeEntry.id===a.charId && b.phase==='ally_turn' && !b.pendingAbility && !auto;
     const isTargetable = targetingAlly && !dead;
-    const card = el(`<div class="hud-panel ally-card ${isActive?'active-turn':''} ${dead?'dead':''} ${isTargetable?'selectable-target':''}">
+    const fx = consumeFx(a, CHAR_DB[a.charId].animStyle);
+    const card = el(`<div class="hud-panel ally-card ${isActive?'active-turn':''} ${dead?'dead':''} ${isTargetable?'selectable-target':''}" style="--char-glow:${hexToRgba(a.color,0.85)};--fx-scale:${fx.scale};${isActive?'border-color:'+a.color+';box-shadow:0 0 0 1px '+a.color+' inset;':''}position:relative;${fx.animation?'animation:'+fx.animation+';':''}">
       <div class="ally-top">
         <div class="ally-portrait" style="background:${a.color}">${a.glyph}</div>
-        <div class="ally-name">${a.name}</div>
+        <div><div class="ally-name">${a.name}</div><div class="element-tag">${ELEMENT_DATA[a.element]?.label||a.element}</div>${a.hakosForm?`<div class="hakos-form-tag">FORMA CAOTICA · ${a.hakosFormTurns}/5</div>`:''}</div>
       </div>
       <div class="mini-lbl"><span>PV</span><span>${a.hp}/${a.maxHp}</span></div>
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(a.hp/a.maxHp*100)}%"></div></div>
@@ -1552,6 +2702,7 @@ function renderBattle(){
       <div class="bar-track"><div class="bar-fill energy-fill" style="width:${(a.energy/a.energyMax*100)}%"></div></div>
       ${a.shield>0?`<div class="shield-tag">🛡 Scudo ${a.shield}</div>`:''}
       ${a.buffRounds>0?`<div class="buff-tag">▲ ATK +${Math.round((a.atkBuffMult-1)*100)}%</div>`:''}
+      ${fx.floatHtml}
     </div>`);
     if(isTargetable) card.onclick=()=>playerChooseTarget(a.charId);
     allyRow.appendChild(card);
@@ -1561,9 +2712,11 @@ function renderBattle(){
   const actionBar = el(`<div class="hud-panel action-bar"></div>`);
   if(auto){
     actionBar.appendChild(el(`<div class="hint" style="margin:0;">🤖 Modalità automatica in corso…</div>`));
+  } else if(busy){
+    actionBar.appendChild(el(`<div class="hint" style="margin:0;">${b.phase==='enemy_turn'?'⏳ Turno dei nemici…':'⏳ Azione in corso…'}</div>`));
   } else if(b.phase==='ally_turn'){
     const actor = currentAlly();
-    const cdb = CHAR_DB[actor.charId];
+    const cdb={basic:getAbilityForActor(actor,'basic'),skill:getAbilityForActor(actor,'skill'),ult:getAbilityForActor(actor,'ult')};
     actionBar.appendChild(el(`<div class="who">${actor.name} ▸</div>`));
 
     if(b.pendingAbility){
