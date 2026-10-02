@@ -59,18 +59,34 @@ const CHAR_DB = {
     basic:{name:'Dado Impazzito', desc:'Infligge danno normale a un nemico.', mult:1.0, target:'enemy', effect:null, energyGain:20},
     skill:{name:'Caos Concentrato', desc:'Infligge danno maggiore a un nemico.', mult:1.35, target:'enemy', effect:null, energyGain:30},
     ult:{name:'Rovina del Caos', desc:'Assorbe i parametri degli alleati e li richiama dopo cinque azioni di Hakos.', mult:0, target:'self', effect:'hakos_ultimate'} },
+  laplusDarkness: { name:'Laplus Darkness', title:'Signora della Disordine', role:'Debuffer Quantum', color:'#b69cff', glyph:'L', rarity:5, element:'quantum', animStyle:'arcane',
+    base:{hp:1080, atk:136, def:78, speed:100, energyMax:140},
+    basic:{name:'Raggio Disordinato', desc:'Infligge danno a un nemico e ne riduce la DIF del 15% per 2 round.', mult:1.0, target:'enemy', effect:'laplus_def_down', energyGain:20},
+    skill:{name:'Marchio del Caos', desc:'Infligge danno, riduce la DIF del 15% e pianta per 2 round la debolezza contro l’elemento forte del primo eroe in squadra.', mult:1.35, target:'enemy', effect:'laplus_plant_weakness', energyGain:30},
+    ult:{name:'Dominio della Disordine', desc:'Danneggia tutti i nemici, riduce la DIF del 30% per 2 round e rinnova il debuff.', mult:1.6, target:'enemies_all', effect:'laplus_ultimate'} },
+  ninomaeInaNis: {name:"Ninomae Ina'Nis",title:'Sacerdotessa del Vuoto',role:'DPS Follow-up',color:'#42c9b8',glyph:'I',rarity:4,element:'hydro',animStyle:'radiant-soft',passiveInaFollowUps:3,
+    base:{hp:1120,atk:128,def:82,speed:100,energyMax:135},
+    basic:{name:'Inchiostro Abissale',desc:'Infligge danno a un singolo nemico.',mult:0.9,target:'enemy',effect:null,energyGain:20},
+    skill:{name:'Marchio Tentacolare',desc:'Infligge danno e marca un nemico. Gli attacchi successivi contro il bersaglio marcato attivano un follow-up di Ina, fino a 3 volte.',mult:1.3,target:'enemy',effect:'ina_mark',energyGain:30},
+    ult:{name:'Oltre il Mare',desc:'Infligge danno a tutti i nemici, esegue un follow-up casuale e recupera le 3 cariche di follow-up.',mult:1.55,target:'enemies_all',effect:'ina_ultimate'} },
+  suiseiHoshimachi: {name:'Susei Hoshimachi',title:'Cometa Cremisi',role:'DPS PV Massimi',color:'#4c91ff',glyph:'S',rarity:5,element:'imaginary',animStyle:'surge',passiveHpLossFollowUps:4,revivesPerBattle:2,
+    base:{hp:1420,atk:88,def:84,speed:100,energyMax:145},
+    basic:{name:'Luce della Cometa',desc:'Attacco singolo basato sui PV massimi.',mult:0.14,target:'enemy',effect:null,hpBased:true,energyGain:20},
+    skill:{name:'Stella Cadente',desc:'Sacrifica metà dei PV correnti, riduce del 40% i danni subiti per 3 round e potenzia il Basic.',mult:0,target:'self',effect:'suisei_guard',energyGain:0},
+    ult:{name:'Finale Stellare',desc:'Colpo singolo basato sui PV massimi. Porta i PV di Susei esattamente al 50% dopo il colpo.',mult:0.48,target:'enemy',effect:'suisei_set_half_hp',hpBased:true,energyGain:0} },
 };
 
 const ENEMY_NAMES = ['Larva del Vuoto','Sentinella Corrotta','Sciame Spinato','Costrutto Infranto','Ombra Vagante'];
-const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra'];
+const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra','Abisso Primordiale'];
 const MAX_ENEMIES_IN_BATTLE = 5;
 const BOSS_MECHANICS = {
   'Custode di Cristallo':{phase1:'shield',phase2:'area'},
   'Araldo del Vuoto':{phase1:'summon',phase2:'summon'},
   'Colosso Corroso':{phase1:'heal',phase2:'area'},
   'Regina Ombra':{phase1:'shield',phase2:'heal'},
+  'Abisso Primordiale':{phase1:'shield_heal',phase2:'summon_burst'},
 };
-const BOSS_MECHANIC_LABELS = {shield:'Scudo',summon:'Evoca rinforzi',heal:'Cura',area:'Attacco ad area'};
+const BOSS_MECHANIC_LABELS = {shield:'Scudo',summon:'Evoca rinforzi',heal:'Cura',area:'Attacco ad area',shield_heal:'Scudo e cura',summon_burst:'Evoca due sentinelle; AoE massiva se sopravvivono 2 turni'};
 const ENEMY_ELEMENT_SETS = {
   'Larva del Vuoto':['quantum','hydro','dendro'],
   'Sentinella Corrotta':['physical','electro','imaginary'],
@@ -81,6 +97,7 @@ const ENEMY_ELEMENT_SETS = {
   'Araldo del Vuoto':['electro','ether','imaginary'],
   'Colosso Corroso':['dendro','physical','ether'],
   'Regina Ombra':['quantum','hydro','electro'],
+  'Abisso Primordiale':['hydro','electro','physical'],
 };
 
 /* ============ ARTIFACT / STAT SYSTEM ============ */
@@ -204,7 +221,10 @@ const WEAPON_DEFINITIONS = {
   'Giuramento Cremisi': {ownerId:'vestiaZeta', effect:{stat:'burnMult', base:0.35, perAscension:0.05, describe:value=>`Danni da Sanguinamento +${Math.round(value*100)}%.`}},
   'Voce della Speranza': {ownerId:'IRyS', effect:{stat:'buffPctBonus', base:0.10, perAscension:0.02, describe:value=>`Efficacia dei buff ATK +${Math.round(value*100)}%.`}},
   'Eternita Meccanica': {ownerId:'ouroKronii', effect:{stat:'spGrantBonus', base:1, perAscension:1, ascensionStep:3, describe:value=>`Le Skill che donano PA ne forniscono ${value} in piu.`}},
-  'Caos Inevitabile': {ownerId:'hakosBaels', effect:{stat:'formDamageMult', base:0.15, perAscension:0.03, describe:value=>`Durante la Rovina del Caos, danni inflitti +${Math.round(value*100)}%.`}},
+  'Caos Inevitabile': {ownerId:'hakosBaels', effect:{stat:'damageMult', base:0.15, perAscension:0.03, describe:value=>`Danni inflitti +${Math.round(value*100)}%.`}},
+  'Sigillo del Disordine': {ownerId:'laplusDarkness', effect:{stat:'defDownBonus', base:0.05, perAscension:0.02, describe:value=>`Ogni attacco riduce la DIF nemica di ${Math.round(value*100)}% per 2 round.`}},
+  'Scia della Cometa': {ownerId:'suiseiHoshimachi', effect:{stat:'hpDamageMult',base:0.15,perAscension:0.03,describe:value=>`Danni delle abilita basate sui PV massimi +${Math.round(value*100)}%.`}},
+  'Reliquiario delle Profondita': {ownerId:'ninomaeInaNis', effect:{stat:'damageMult', base:0.12, perAscension:0.025, describe:value=>`Danni inflitti +${Math.round(value*100)}%.`}},
 };
 const SIGNATURE_WEAPONS = [
   {name:'Aegis dell\'Ultima Alba', ownerId:'kaelaKolvalskia', atk:165, subStat:{key:'def_pct',value:0.16}},
@@ -215,6 +235,9 @@ const SIGNATURE_WEAPONS = [
   {name:'Voce della Speranza', ownerId:'IRyS', atk:145, subStat:{key:'energy_pct',value:0.16}},
   {name:'Eternita Meccanica', ownerId:'ouroKronii', atk:170, subStat:{key:'speed',value:7}},
   {name:'Caos Inevitabile', ownerId:'hakosBaels', atk:188, subStat:{key:'atk_pct',value:0.14}},
+  {name:'Sigillo del Disordine', ownerId:'laplusDarkness', atk:182, subStat:{key:'energy_pct',value:0.14}},
+  {name:'Scia della Cometa',ownerId:'suiseiHoshimachi',atk:180,subStat:{key:'hp_pct',value:0.14}},
+  {name:'Reliquiario delle Profondita', ownerId:'ninomaeInaNis', atk:176, subStat:{key:'atk_pct',value:0.12}},
 ];
 
 function normalizeWeapon(weapon){
@@ -240,28 +263,24 @@ function getWeaponDefinition(weapon){
   return WEAPON_DEFINITIONS[weapon?.name] || null;
 }
 
-function getWeaponEffect(weapon,charId){
+function getWeaponEffect(weapon){
   const definition = getWeaponDefinition(weapon);
-  if(!definition || (definition.ownerId && definition.ownerId!==charId)) return null;
-  return definition.effect;
+  return definition?.effect||null;
 }
 
-function getWeaponEffectValue(weapon,charId){
-  const effect = getWeaponEffect(weapon,charId);
+function getWeaponEffectValue(weapon){
+  const effect = getWeaponEffect(weapon);
   if(!effect) return 0;
   const ascension = weapon.ascension||0;
   const ranks = effect.ascensionStep ? Math.floor(ascension/effect.ascensionStep) : ascension;
   return effect.base + effect.perAscension*ranks;
 }
 
-function getWeaponEffectDescription(weapon,charId){
+function getWeaponEffectDescription(weapon){
   const definition=getWeaponDefinition(weapon);
   if(!definition) return 'Nessun effetto speciale.';
   const effect=definition.effect;
-  const description=effect.describe(getWeaponEffectValue(weapon,definition.ownerId?definition.ownerId:charId));
-  if(definition.ownerId && charId && definition.ownerId!==charId) return `Richiede ${CHAR_DB[definition.ownerId].name}: ${description}`;
-  if(definition.ownerId && !charId) return `Solo ${CHAR_DB[definition.ownerId].name}: ${description}`;
-  return description;
+  return effect.describe(getWeaponEffectValue(weapon));
 }
 
 function createWeapon(name){
@@ -418,7 +437,8 @@ function getEffectiveStats(charId){
     damageMult:1+(acc.damageMult||0), weaknessBonus:acc.weaknessBonus||0,
     sameElementBonus:acc.sameElementBonus||0, basicDamageMult:1+(acc.basicDamageMult||0),
     buffPctBonus:acc.buffPctBonus||0, spGrantBonus:acc.spGrantBonus||0,
-    formDamageMult:1+(acc.formDamageMult||0),
+    formDamageMult:1+(acc.formDamageMult||0), defDownBonus:acc.defDownBonus||0,
+    hpDamageMult:1+(acc.hpDamageMult||0),
   };
 }
 
@@ -562,13 +582,23 @@ function resetSave(){
 function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
 function rnd(a,b){return Math.random()*(b-a)+a;}
 function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
-function getElementMultiplier(attackerElement, targetElements, weaknessBonus=0, sameElementBonus=0){
+function getElementMultiplier(attackerElement, targetElements, weaknessBonus=0, sameElementBonus=0, vulnerableToElement=null){
   const attack = (attackerElement || '').toLowerCase();
   const targets = Array.isArray(targetElements) ? targetElements.map(e => String(e).toLowerCase()) : [String(targetElements || '').toLowerCase()];
   if(!attack || targets.length===0 || targets.every(t => !t)) return 1;
+  if(vulnerableToElement && attack===vulnerableToElement) return 2*(1+weaknessBonus);
   if(targets.includes(attack)) return Math.min(1,0.5+sameElementBonus);
   if(ELEMENT_RELATION[attack] && targets.includes(ELEMENT_RELATION[attack])) return 2*(1+weaknessBonus);
   return 1;
+}
+function getEnemyElementAffinity(enemy,enemyElement,attackerElement){
+  if(!attackerElement) return '';
+  const enemyElements=enemy.elements||[enemy.element];
+  if(enemy.vulnerableRounds>0&&enemy.vulnerableToElement===attackerElement){
+    return enemyElement===attackerElement?'element-strong':'element-not-strong';
+  }
+  if(enemyElements.includes(attackerElement)) return 'element-not-strong';
+  return ELEMENT_RELATION[attackerElement]===enemyElement?'element-strong':'element-not-strong';
 }
 function hexToRgba(hex, alpha){
   const h = (hex||'#888888').replace('#','');
@@ -592,7 +622,7 @@ function generateEnemies(stageNum){
     const name = boss ? BOSS_NAMES[(Math.floor(n/5)-1) % BOSS_NAMES.length] : ENEMY_NAMES[i % ENEMY_NAMES.length];
     const elements = ENEMY_ELEMENT_SETS[name].slice();
     const speed = 90+Math.floor(Math.random()*31);
-    enemies.push({id:'e'+i, name, hp, maxHp:hp, atk, def, speed, element:elements[0], elements, shield:0, burnStacks:0, burnRounds:0, burnSourceMult:1, isBoss:boss, phase:boss?1:0, bossTurns:0});
+    enemies.push({id:'e'+i,name,hp,maxHp:hp,atk,def,speed,element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,burnStacks:0,burnRounds:0,burnSourceMult:1,isBoss:boss,phase:boss?1:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0});
   }
   return enemies;
 }
@@ -622,10 +652,13 @@ function startBattle(){
       energyGainMult:eff.energyGainMult, healMult:eff.healMult, burnMult:eff.burnMult, shieldMult:eff.shieldMult,
       damageMult:eff.damageMult, weaknessBonus:eff.weaknessBonus, sameElementBonus:eff.sameElementBonus,
       basicDamageMult:eff.basicDamageMult, buffPctBonus:eff.buffPctBonus, spGrantBonus:eff.spGrantBonus,
-      formDamageMult:eff.formDamageMult,
+      formDamageMult:eff.formDamageMult, defDownBonus:eff.defDownBonus, hpDamageMult:eff.hpDamageMult,
       shield:0, shieldRounds:0, atkBuffMult:1, buffRounds:0,
       basicHits: CHAR_DB[id].basic.hits||1,
       skillFreeUses: CHAR_DB[id].skillFreeUses||0,
+      inaFollowUpsRemaining: CHAR_DB[id].passiveInaFollowUps||0,
+      suiseiHpLossEvents:0,suiseiFollowUpReady:false,suiseiGuardRounds:0,suiseiGuardFresh:false,
+      suiseiRevivesRemaining:CHAR_DB[id].revivesPerBattle||0,
     };
   });
   const enemies = generateEnemies(state.stage);
@@ -643,10 +676,14 @@ function startBattle(){
     screenFx:null,
     log:[],
     loot:[],
+    inaFollowUpActive:false,
+    suiseiFollowUpActive:false,
+    summonCounter:0,
   };
   state.autoBattle=false;
   const firstActor = getTurnActor(state.battle);
   logMsg(`Piano ${state.stage} — Round 1. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`);
+  ensureInaMark(state.battle);
   state.screen='battle';
   render();
   if(state.battle.phase==='enemy_turn') setTimeout(runEnemyTurn,450);
@@ -709,6 +746,7 @@ function checkBattleEnd(){
     onVictory();
     return true;
   }
+  b.allies.filter(ally=>ally.charId==='suiseiHoshimachi').forEach(reviveSuiseiIfNeeded);
   if(b.allies.every(a=>a.hp<=0) && b.hakosFormState){
     restoreHakosUltimate(b,'knockout');
     if(b.allies.some(ally=>ally.hp>0)) return false;
@@ -722,12 +760,87 @@ function checkBattleEnd(){
 }
 
 /* ============ ABILITY EXECUTION ============ */
-function calcDamage(atk, mult, def, attackerElement, targetElement, attackerStats=null, abilityKey=''){
+function getEffectiveEnemyDefense(enemy){
+  return Math.max(0,enemy.def*(1-(enemy.defDownPct||0)));
+}
+
+function applyLaplusAttackEffects(actor,enemy,extraDefDown=0,plantWeakness=false){
+  const reduction=(actor.charId==='laplusDarkness'?0.15:0)+(actor.defDownBonus||0)+extraDefDown;
+  if(reduction>0){
+    enemy.defDownPct=Math.min(0.75,(enemy.defDownPct||0)+reduction);
+    enemy.defDownRounds=2;
+    logMsg(`${enemy.name} subisce -${Math.round(reduction*100)}% DIF (${Math.round(enemy.defDownPct*100)}% totale).`);
+  }
+  if(plantWeakness){
+    const leader=CHAR_DB[state.party[0]];
+    if(leader){
+      enemy.vulnerableToElement=leader.element;
+      enemy.vulnerableRounds=2;
+      logMsg(`${enemy.name} diventa vulnerabile a ${ELEMENT_DATA[leader.element].label} per 2 round.`);
+    }
+  }
+}
+
+function getInaActor(b){
+  return b.allies.find(ally=>ally.charId==='ninomaeInaNis'&&ally.hp>0)||null;
+}
+
+function setInaMark(b,target,log=true){
+  if(!target||target.hp<=0) return;
+  b.enemies.forEach(enemy=>{enemy.inaMarked=false;});
+  target.inaMarked=true;
+  if(log) logMsg(`${target.name} viene marchiato da Ina.`);
+}
+
+function ensureInaMark(b){
+  if(!getInaActor(b)) return;
+  const living=b.enemies.filter(enemy=>enemy.hp>0);
+  const marked=living.find(enemy=>enemy.inaMarked);
+  if(marked) return;
+  b.enemies.forEach(enemy=>{enemy.inaMarked=false;});
+  const target=living.reduce((lowest,enemy)=>!lowest||enemy.hp<lowest.hp?enemy:lowest,null);
+  if(target) setInaMark(b,target);
+}
+
+async function performInaFollowUp(b,target,consumeCharge=true){
+  const ina=getInaActor(b);
+  if(!ina||!target||target.hp<=0||b.inaFollowUpActive) return false;
+  if(consumeCharge && ina.inaFollowUpsRemaining<=0) return false;
+  if(consumeCharge) ina.inaFollowUpsRemaining--;
+  b.inaFollowUpActive=true;
+  const vulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
+  const attack=Math.round(ina.atk*(ina.atkBuffMult||1));
+  const dmg=calcDamage(attack,0.65,getEffectiveEnemyDefense(target),ina.element,target.elements||target.element,ina,'basic',vulnerability);
+  const applied=dealDamageToEnemy(target,dmg);
+  ina._fxAttack='basic';
+  ina.energy=clamp(ina.energy+Math.round(10*(ina.energyGainMult||1)),0,ina.energyMax);
+  logMsg(`${ina.name} esegue un follow-up su ${target.name}: ${applied} danni${consumeCharge?` (${ina.inaFollowUpsRemaining} cariche rimaste)`:''}.`);
+  render();
+  await sleepMs(260);
+  b.inaFollowUpActive=false;
+  if(target.inaMarked&&target.hp<=0){
+    target.inaMarked=false;
+    ensureInaMark(b);
+  }
+  return true;
+}
+
+async function triggerInaFollowUpAfterHit(b,target,attacker){
+  if(attacker?.charId==='ninomaeInaNis'||!target.inaMarked||b.inaFollowUpActive) return;
+  if(target.hp<=0){
+    target.inaMarked=false;
+    ensureInaMark(b);
+    target=b.enemies.find(enemy=>enemy.inaMarked&&enemy.hp>0);
+  }
+  if(target) await performInaFollowUp(b,target,true);
+}
+
+function calcDamage(atk, mult, def, attackerElement, targetElement, attackerStats=null, abilityKey='', vulnerableToElement=null){
   let raw = atk*mult - def*0.5;
   raw = Math.max(raw, atk*mult*0.2);
   const variance = rnd(0.9,1.1);
-  const elementMult = getElementMultiplier(attackerElement, targetElement, attackerStats?.weaknessBonus||0, attackerStats?.sameElementBonus||0);
-  const weaponMult = (attackerStats?.damageMult||1)*(abilityKey==='basic'?(attackerStats?.basicDamageMult||1):1)*(attackerStats?.hakosForm?(attackerStats.formDamageMult||1):1);
+  const elementMult = getElementMultiplier(attackerElement, targetElement, attackerStats?.weaknessBonus||0, attackerStats?.sameElementBonus||0, vulnerableToElement);
+  const weaponMult = (attackerStats?.damageMult||1)*(abilityKey==='basic'?(attackerStats?.basicDamageMult||1):1)*(attackerStats?.formDamageMult||1);
   return Math.max(1, Math.round(raw*variance*elementMult*weaponMult));
 }
 
@@ -752,7 +865,56 @@ function updateBossPhase(enemy){
   return true;
 }
 
+function recordSuiseiHpLoss(actor){
+  actor.suiseiHpLossEvents=(actor.suiseiHpLossEvents||0)+1;
+  if(actor.suiseiHpLossEvents>=4){
+    actor.suiseiHpLossEvents=0;
+    actor.suiseiFollowUpReady=true;
+  }
+}
+
+function loseSuiseiHp(actor,amount){
+  const lost=Math.min(actor.hp,Math.max(0,Math.round(amount)));
+  actor.hp=clamp(actor.hp-lost,0,actor.maxHp);
+  if(lost>0) recordSuiseiHpLoss(actor);
+  if(!reviveSuiseiIfNeeded(actor)) actor._fx={variant:'damage',label:'-'+lost};
+  return lost;
+}
+
+function reviveSuiseiIfNeeded(actor){
+  if(actor?.charId!=='suiseiHoshimachi'||actor.hp>0||actor.suiseiRevivesRemaining<=0) return false;
+  actor.suiseiRevivesRemaining--;
+  actor.hp=Math.round(actor.maxHp*0.6);
+  actor._fx={variant:'heal',label:'Rinascita 60%'};
+  logMsg(`${actor.name} rinasce con il 60% dei PV (${actor.suiseiRevivesRemaining} rinascite rimaste).`);
+  return true;
+}
+
+async function triggerSuiseiFollowUp(b,actor){
+  if(!actor?.suiseiFollowUpReady||b.suiseiFollowUpActive) return false;
+  const targets=b.enemies.filter(enemy=>enemy.hp>0);
+  if(targets.length===0) return false;
+  actor.suiseiFollowUpReady=false;
+  b.suiseiFollowUpActive=true;
+  actor._fxAttack='ult';
+  for(const enemy of targets){
+    const vulnerability=enemy.vulnerableRounds>0?enemy.vulnerableToElement:null;
+    const damage=calcDamage(actor.maxHp*(actor.hpDamageMult||1),0.14,getEffectiveEnemyDefense(enemy),actor.element,enemy.elements||enemy.element,actor,'ult',vulnerability);
+    const applied=dealDamageToEnemy(enemy,damage);
+    logMsg(`${actor.name} attiva il Follow-up stellare su ${enemy.name}: ${applied} danni.`);
+  }
+  const healing=Math.round(actor.maxHp*0.15);
+  actor.hp=clamp(actor.hp+healing,0,actor.maxHp);
+  actor._fx={variant:'heal',label:'+'+healing};
+  logMsg(`${actor.name} recupera ${healing} PV dal Follow-up.`);
+  render();
+  await sleepMs(420);
+  b.suiseiFollowUpActive=false;
+  return true;
+}
+
 function dealDamageToAlly(ally, dmg, giveEnergy){
+  if(ally.suiseiGuardRounds>0) dmg=Math.round(dmg*0.6);
   let applied = dmg;
   let absorbed = 0;
   if(ally.shield>0){
@@ -760,8 +922,12 @@ function dealDamageToAlly(ally, dmg, giveEnergy){
     else { absorbed=ally.shield; applied-=ally.shield; ally.shield=0; }
   }
   ally.hp = clamp(ally.hp-applied,0,ally.maxHp);
+  const revived=applied>0&&ally.charId==='suiseiHoshimachi'&&(()=>{
+    recordSuiseiHpLoss(ally);
+    return reviveSuiseiIfNeeded(ally);
+  })();
   if(giveEnergy && !ally.hakosForm) ally.energy = clamp(ally.energy+Math.round(10*(ally.energyGainMult||1)),0,ally.energyMax);
-  ally._fx = applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbed};
+  if(!revived) ally._fx = applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbed};
   return {applied, absorbed};
 }
 
@@ -771,8 +937,13 @@ const HAKOS_FORM_ABILITIES={
   ult:{name:'Ultimate sigillata',desc:'Non disponibile durante la Rovina del Caos.',mult:0,target:'self',effect:'disabled',energyGain:0},
 };
 
+const SUISEI_GUARD_ABILITIES={
+  basic:{name:'Cometa Riflessa',desc:'Attacco singolo potenziato basato sui PV massimi; consuma il 3% dei PV massimi.',mult:0.3,target:'enemy',effect:'suisei_guard_basic_cost',hpBased:true,energyGain:20},
+  skill:{name:'Tecnica sigillata',desc:'Non disponibile durante la postura stellare.',mult:0,target:'self',effect:'disabled',energyGain:0},
+};
 function getAbilityForActor(actor,abKey){
   if(actor?.charId==='hakosBaels' && actor.hakosForm) return HAKOS_FORM_ABILITIES[abKey];
+  if(actor?.charId==='suiseiHoshimachi'&&actor.suiseiGuardRounds>0&&SUISEI_GUARD_ABILITIES[abKey]) return SUISEI_GUARD_ABILITIES[abKey];
   return CHAR_DB[actor.charId][abKey];
 }
 
@@ -836,7 +1007,9 @@ async function executeAbility(actor, abKey, targetId){
   const b = state.battle;
   const ability = getAbilityForActor(actor,abKey);
   if(!ability || ability.effect==='disabled') return;
-  const effAtk = Math.round(actor.atk*(actor.atkBuffMult||1));
+  const effAtk = ability.hpBased
+    ? actor.maxHp*(actor.hpDamageMult||1)
+    : Math.round(actor.atk*(actor.atkBuffMult||1));
   const buffPct = (ability.buffPct||0)+(actor.buffPctBonus||0);
   actor._fxAttack = abKey; // basic | skill | ult — consumed by the next render for a per-character animation
   if(abKey==='ult') b.screenFx = actor.color||'#f5b342';
@@ -852,14 +1025,40 @@ async function executeAbility(actor, abKey, targetId){
     const hitTargets=ability.target==='enemy_adjacent'
       ? livingEnemies.filter((enemy,index)=>Math.abs(index-targetIndex)<=1)
       : [t];
+    if(actor.charId==='ninomaeInaNis'&&ability.effect==='ina_mark') setInaMark(b,t);
     const hits = (abKey==='basic' && actor.basicHits) ? actor.basicHits : (ability.hits||1);
     for(const target of hitTargets){
       for(let i=0;i<hits;i++){
         if(target.hp<=0) break;
-        const dmg = calcDamage(effAtk, ability.mult, target.def, actor.element, target.elements || target.element, actor, abKey);
+        const targetVulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
+        const dmg = calcDamage(effAtk, ability.mult, getEffectiveEnemyDefense(target), actor.element, target.elements || target.element, actor, abKey, targetVulnerability);
         const applied = dealDamageToEnemy(target, dmg);
         logMsg(`${actor.name} usa ${ability.name}: ${applied} danni a ${target.name}.`);
         if(hits>1){ render(); await sleepMs(230); }
+        if(actor.charId!=='ninomaeInaNis'&&target.inaMarked&&(getInaActor(b)?.inaFollowUpsRemaining||0)>0){
+          render();
+          await sleepMs(220);
+        }
+        await triggerInaFollowUpAfterHit(b,target,actor);
+      }
+      if(actor.charId==='laplusDarkness'||actor.defDownBonus>0){
+        applyLaplusAttackEffects(actor,target,0,actor.charId==='laplusDarkness'&&ability.effect==='laplus_plant_weakness');
+      }
+    }
+    if(ability.effect==='suisei_guard_basic_cost'){
+      const lost=loseSuiseiHp(actor,actor.maxHp*0.03);
+      logMsg(`${actor.name} sacrifica ${lost} PV per il Basic potenziato.`);
+    }
+    if(ability.effect==='suisei_set_half_hp'){
+      const halfHp=Math.round(actor.maxHp*0.5);
+      if(actor.hp>halfHp){
+        const lost=loseSuiseiHp(actor,actor.hp-halfHp);
+        logMsg(`${actor.name} sacrifica ${lost} PV e scende al 50%.`);
+      } else if(actor.hp<halfHp){
+        const healed=halfHp-actor.hp;
+        actor.hp=halfHp;
+        actor._fx={variant:'heal',label:'+'+healed};
+        logMsg(`${actor.name} recupera ${healed} PV e raggiunge il 50%.`);
       }
     }
     if(abKey==='basic' && CHAR_DB[actor.charId].skill.effect==='boost_basic_hits'){
@@ -899,9 +1098,15 @@ async function executeAbility(actor, abKey, targetId){
       if(foes.length>0){
         const foe = foes.reduce((a,c)=>c.hp<a.hp?c:a);
         const bonusAtk = Math.round(target.atk*(target.atkBuffMult||1));
-        const dmg = calcDamage(bonusAtk, 1.0, foe.def, target.element, foe.elements || foe.element, target, 'basic');
+        const foeVulnerability=foe.vulnerableRounds>0?foe.vulnerableToElement:null;
+        const dmg = calcDamage(bonusAtk,1.0,getEffectiveEnemyDefense(foe),target.element,foe.elements||foe.element,target,'basic',foeVulnerability);
         const applied = dealDamageToEnemy(foe, dmg);
         logMsg(`${target.name} attacca una volta in più: ${applied} danni a ${foe.name}.`);
+        if(target.charId!=='ninomaeInaNis'&&foe.inaMarked&&(getInaActor(b)?.inaFollowUpsRemaining||0)>0){
+          render();
+          await sleepMs(220);
+        }
+        await triggerInaFollowUpAfterHit(b,foe,target);
         b.sp = clamp(b.sp+1,0,b.spMax);
         target.energy = clamp(target.energy+Math.round(20*(target.energyGainMult||1)),0,target.energyMax);
       }
@@ -910,6 +1115,11 @@ async function executeAbility(actor, abKey, targetId){
   else if(ability.target==='self'){
     if(ability.effect==='hakos_ultimate'){
       activateHakosUltimate(actor,b);
+    } else if(ability.effect==='suisei_guard'){
+      const lost=loseSuiseiHp(actor,actor.hp*0.5);
+      actor.suiseiGuardRounds=3;
+      actor.suiseiGuardFresh=true;
+      logMsg(`${actor.name} sacrifica ${lost} PV e attiva la postura stellare: danni subiti -40% per 3 round.`);
     } else if(ability.effect==='boost_basic_hits'){
       actor.basicHits = Math.min(10, (actor.basicHits||2)+1);
       actor._fx = {variant:'buff', label:'x'+actor.basicHits+' colpi'};
@@ -918,9 +1128,19 @@ async function executeAbility(actor, abKey, targetId){
   }
   else if(ability.target==='enemies_all'){
     for(const t of enemyTargets()){
-      const dmg = calcDamage(effAtk, ability.mult, t.def, actor.element, t.elements || t.element, actor, abKey);
+      const targetVulnerability=t.vulnerableRounds>0?t.vulnerableToElement:null;
+      const dmg = calcDamage(effAtk,ability.mult,getEffectiveEnemyDefense(t),actor.element,t.elements||t.element,actor,abKey,targetVulnerability);
       const applied = dealDamageToEnemy(t, dmg);
       logMsg(`${actor.name} colpisce ${t.name} per ${applied}.`);
+      if(actor.charId!=='ninomaeInaNis'&&t.inaMarked&&(getInaActor(b)?.inaFollowUpsRemaining||0)>0){
+        render();
+        await sleepMs(220);
+      }
+      await triggerInaFollowUpAfterHit(b,t,actor);
+      if(actor.charId==='laplusDarkness'||actor.defDownBonus>0){
+        const extraDefDown=actor.charId==='laplusDarkness'&&ability.effect==='laplus_ultimate'?0.15:0;
+        applyLaplusAttackEffects(actor,t,extraDefDown,false);
+      }
       if(ability.effect==='burn_all'){
         const dotName = CHAR_DB[actor.charId].dotName || 'Bruciatura';
         t.burnStacks=(t.burnStacks||0)+ability.burnStacks;
@@ -929,6 +1149,14 @@ async function executeAbility(actor, abKey, targetId){
         t.dotName = dotName;
       }
       render(); await sleepMs(260);
+    }
+    if(actor.charId==='ninomaeInaNis'&&ability.effect==='ina_ultimate'){
+      actor.inaFollowUpsRemaining=3;
+      const living=enemyTargets();
+      if(living.length>0) await performInaFollowUp(b,pick(living),false);
+      actor.inaFollowUpsRemaining=3;
+      logMsg(`${actor.name} recupera le 3 cariche di follow-up.`);
+      ensureInaMark(b);
     }
   }
   else if(ability.target==='team'){
@@ -969,15 +1197,16 @@ async function executeAbility(actor, abKey, targetId){
     const spGain = (ability.spGain!==undefined) ? ability.spGain : 1;
     b.sp = clamp(b.sp+spGain,0,b.spMax);
     if(actor.hakosForm) actor.energy=0;
-    else actor.energy = clamp(actor.energy+Math.round(ability.energyGain*(actor.energyGainMult||1)),0,actor.energyMax);
+    else actor.energy = clamp(actor.energy+Math.round((ability.energyGain||0)*(actor.energyGainMult||1)),0,actor.energyMax);
   } else if(abKey==='skill'){
     if(actor.skillFreeUses>0){ actor.skillFreeUses--; }
     else { b.sp = clamp(b.sp-1,0,b.spMax); }
     if(actor.hakosForm) actor.energy=0;
-    else actor.energy = clamp(actor.energy+Math.round(ability.energyGain*(actor.energyGainMult||1)),0,actor.energyMax);
+    else actor.energy = clamp(actor.energy+Math.round((ability.energyGain||0)*(actor.energyGainMult||1)),0,actor.energyMax);
   } else if(abKey==='ult'){
     actor.energy = 0;
   }
+  if(actor.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,actor);
 }
 
 async function playerChooseAbility(abKey){
@@ -987,6 +1216,7 @@ async function playerChooseAbility(abKey){
   const ability = getAbilityForActor(actor,abKey);
   if(!ability || ability.effect==='disabled') return;
   if(b.busy) return;
+  if(actor.charId==='suiseiHoshimachi'&&abKey==='skill'&&actor.hp<=1) return;
   if(abKey==='skill' && b.sp<1 && actor.skillFreeUses<=0) return;
   if(abKey==='ult' && actor.energy<actor.energyMax) return;
 
@@ -1028,25 +1258,45 @@ async function finishRound(){
     logMsg(`${e.name} subisce ${dot} danni da ${e.dotName||'Bruciatura'}.`);
     e.burnRounds--;
     if(e.burnRounds<=0){ e.burnStacks=0; }
+    if(checkBattleEnd()) return false;
     render();
     await sleepMs(280);
   }
   if(checkBattleEnd()) return false;
 
+  b.enemies.forEach(enemy=>{
+    if(enemy.defDownRounds>0){
+      enemy.defDownRounds--;
+      if(enemy.defDownRounds===0) enemy.defDownPct=0;
+    }
+    if(enemy.vulnerableRounds>0){
+      enemy.vulnerableRounds--;
+      if(enemy.vulnerableRounds===0) enemy.vulnerableToElement=null;
+    }
+  });
+
   b.allies.forEach(a=>{
     if(a.shieldRounds>0){ a.shieldRounds--; if(a.shieldRounds<=0) a.shield=0; }
     if(a.buffRounds>0){ a.buffRounds--; if(a.buffRounds<=0) a.atkBuffMult=1; }
+    if(a.suiseiGuardRounds>0){
+      if(a.suiseiGuardFresh) a.suiseiGuardFresh=false;
+      else {
+        a.suiseiGuardRounds--;
+        if(a.suiseiGuardRounds===0) logMsg(`${a.name} termina la postura stellare.`);
+      }
+    }
   });
   return true;
 }
 
-function summonBossEnemies(boss,b){
+function summonBossEnemies(boss,b,countOverride=null,addOwnerId=null){
   const aliveCount=b.enemies.filter(enemy=>enemy.hp>0).length;
   const slots=Math.max(0,MAX_ENEMIES_IN_BATTLE-aliveCount);
-  const summonCount=Math.min(boss.phase===2?2:1,slots);
+  const requestedCount=countOverride===null?(boss.phase===2?2:1):countOverride;
+  const summonCount=Math.min(requestedCount,slots);
   if(summonCount===0){
     logMsg(`${boss.name} tenta di evocare rinforzi, ma il campo è pieno.`);
-    return;
+    return [];
   }
 
   const summoned=[];
@@ -1058,8 +1308,10 @@ function summonBossEnemies(boss,b){
       id:'s'+(b.summonCounter++), name, hp, maxHp:hp,
       atk:Math.round(boss.atk*(boss.phase===2?0.55:0.45)),
       def:Math.round(boss.def*0.6), speed:90+Math.floor(Math.random()*31),
-      element:elements[0], elements, shield:0, burnStacks:0, burnRounds:0,
+      element:elements[0], elements, vulnerableToElement:null, vulnerableRounds:0,
+      defDownPct:0, defDownRounds:0, shield:0, burnStacks:0, burnRounds:0,
       burnSourceMult:1, isBoss:false, phase:0, bossTurns:0,
+      bossAddOwnerId:addOwnerId,bossAddResolved:false,
     };
     b.enemies.push(enemy);
     summoned.push(enemy);
@@ -1070,6 +1322,7 @@ function summonBossEnemies(boss,b){
   future.push(...summoned.map(enemy=>({side:'enemy',id:enemy.id,speed:enemy.speed})));
   future.sort((first,second)=>second.speed-first.speed);
   b.turnOrder.splice(b.turnIndex+1,b.turnOrder.length-b.turnIndex-1,...future);
+  return summoned;
 }
 
 async function runBossMechanic(boss,b){
@@ -1080,7 +1333,43 @@ async function runBossMechanic(boss,b){
   boss.bossTurns++;
   if(!shouldUseSpecial) return;
 
-  if(mechanic==='shield'){
+  if(mechanic==='shield_heal'){
+    const shield=Math.round(boss.maxHp*0.14);
+    boss.shield+=shield;
+    boss._fx={variant:'shield',label:'🛡+'+shield};
+    const healing=Math.min(boss.maxHp-boss.hp,Math.round(boss.maxHp*0.12));
+    boss.hp+=healing;
+    logMsg(`${boss.name} si protegge con ${shield} scudo e recupera ${healing} PV.`);
+  } else if(mechanic==='summon_burst'){
+    if(!boss.addsWaveStarted){
+      const summoned=summonBossEnemies(boss,b,2,boss.id);
+      if(summoned.length>0){
+        boss.addsWaveStarted=true;
+        boss.addsTurnsRemaining=2;
+        logMsg(`${boss.name} richiama due sentinelle: sconfiggile entro 2 turni o scatenerà un'AoE massiva!`);
+      }
+    } else if(!boss.addsWaveResolved){
+      const adds=b.enemies.filter(enemy=>enemy.bossAddOwnerId===boss.id&&!enemy.bossAddResolved&&enemy.hp>0);
+      if(adds.length===0){
+        boss.addsWaveResolved=true;
+        logMsg(`I rinforzi di ${boss.name} sono stati sconfitti: l'attacco ad area è annullato.`);
+      } else {
+        boss.addsTurnsRemaining--;
+        if(boss.addsTurnsRemaining<=0){
+          boss.addsWaveResolved=true;
+          adds.forEach(enemy=>{enemy.bossAddResolved=true;});
+          logMsg(`${boss.name} scatena l'ESONDAZIONE ABISSALE!`);
+          for(const ally of b.allies.filter(target=>target.hp>0)){
+            const damage=calcDamage(Math.round(boss.atk*1.8),1,ally.def,boss.element,ally.element);
+            const result=dealDamageToAlly(ally,damage,true);
+            logMsg(`${ally.name} subisce ${result.applied} danni dall'esplosione massiva.`);
+          }
+        } else {
+          logMsg(`${boss.name} carica l'esplosione: ${boss.addsTurnsRemaining} turno rimasto per fermarla!`);
+        }
+      }
+    }
+  } else if(mechanic==='shield'){
     const amount=Math.round(boss.maxHp*(boss.phase===2?0.2:0.14));
     boss.shield+=amount;
     boss._fx={variant:'shield',label:'🛡+'+amount};
@@ -1106,6 +1395,7 @@ async function runBossMechanic(boss,b){
       const dmg=calcDamage(Math.round(boss.atk*(boss.phase===2?0.8:0.65)),1,ally.def,boss.element,ally.element);
       const result=dealDamageToAlly(ally,dmg,true);
       logMsg(`${ally.name} subisce ${result.applied} danni dall'onda d'urto.`);
+      if(ally.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,ally);
     }
   }
   render();
@@ -1157,6 +1447,7 @@ async function runEnemyTurn(){
     }
     render();
     await sleepMs(420);
+    if(target.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,target);
     if(checkBattleEnd()){
       b.busy=false;
       render();
@@ -1180,7 +1471,7 @@ async function autoPlayTurn(){
   if(actor.energy>=actor.energyMax) abKey='ult';
   else if(b.sp>=1 || actor.skillFreeUses>0){
     const maxedHits = cdb.skill.effect==='boost_basic_hits' && actor.basicHits>=10;
-    abKey = maxedHits ? 'basic' : 'skill';
+    abKey = maxedHits||cdb.skill.effect==='disabled' ? 'basic' : 'skill';
   }
   const ability = cdb[abKey];
 
@@ -1942,13 +2233,16 @@ function renderAbilitaTab(){
       <div class="element-tag" style="margin-top:4px;">Elemento: ${ELEMENT_DATA[c.element].label}</div>
       <div class="hero-stars" style="color:${c.rarity===5?'#ffd700':'#9aa4c4'}">${'★'.repeat(c.rarity)}${unlocked?'':' · 🔒 Bloccato'}</div>
       ${c.passiveSpCapBonus?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: mentre è in squadra, il cap dei Punti Abilità sale da 5 a ${5+c.passiveSpCapBonus}.</div>`:''}
+      ${c.passiveInaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: marchia il nemico con meno PV. I colpi al marchiato attivano fino a ${c.passiveInaFollowUps} follow-up; la Ultimate ricarica le cariche.</div>`:''}
+      ${c.passiveHpLossFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni ${c.passiveHpLossFollowUps} perdite di PV attiva un follow-up ad area e cura il 15% dei PV massimi.</div>`:''}
+      ${c.revivesPerBattle?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: può rinascere ${c.revivesPerBattle} volte per battaglia con il 60% dei PV massimi.</div>`:''}
     </div>
   </div>`);
   wrap.appendChild(head);
 
   const cards = el(`<div class="ability-cards"></div>`);
   cards.appendChild(renderAbilityCard(c.basic, 'basic', 'Attacco Base',
-    `<span><b>Moltiplicatore:</b> ${Math.round(c.basic.mult*100)}% ATK${c.basic.hits?` x${c.basic.hits} colpi`:''}</span>
+    `<span><b>Moltiplicatore:</b> ${Math.round(c.basic.mult*100)}% ${c.basic.hpBased?'PV massimi':'ATK'}${c.basic.hits?` x${c.basic.hits} colpi`:''}</span>
      <span><b>Genera:</b> ${c.basic.spGain!==undefined?c.basic.spGain:1} Punto/i Abilità</span>
      <span><b>Energia:</b> +${c.basic.energyGain}</span>`));
   cards.appendChild(renderAbilityCard(c.skill, 'skill', 'Skill · 1 Punto Abilità',
@@ -1956,9 +2250,27 @@ function renderAbilitaTab(){
      ${c.skill.effect?`<span><b>Effetto:</b> ${effectLabel(c.skill)}</span>`:''}
      <span><b>Energia:</b> +${c.skill.energyGain}</span>`));
   cards.appendChild(renderAbilityCard(c.ult, 'ult', 'Ultimate · Energia Piena',
-    `<span><b>Moltiplicatore:</b> ${c.ult.mult>0?Math.round(c.ult.mult*100)+'% ATK':'—'}${c.ult.hits?` x${c.ult.hits} colpi`:''}</span>
+    `<span><b>Moltiplicatore:</b> ${c.ult.mult>0?Math.round(c.ult.mult*100)+'% '+(c.ult.hpBased?'PV massimi':'ATK'):'—'}${c.ult.hits?` x${c.ult.hits} colpi`:''}</span>
      ${c.ult.effect?`<span><b>Effetto:</b> ${effectLabel(c.ult)}</span>`:''}
      <span><b>Energia massima:</b> ${c.base.energyMax}</span>`));
+  if(id==='ninomaeInaNis'){
+    cards.appendChild(renderAbilityCard(
+      {name:'Tentacolo Inchiostrato',desc:'Un follow-up separato quando un alleato diverso da Ina colpisce il nemico marchiato.'},
+      'skill','Follow-up · Reazione',
+      `<span><b>Moltiplicatore:</b> 65% ATK</span><span><b>Cariche:</b> 3 per battaglia</span><span><b>Energia:</b> +10 per follow-up</span><span><b>Ricarica:</b> Ultimate</span><span>Il follow-up casuale della Ultimate non consuma cariche.</span>`
+    ));
+  }
+  if(id==='suiseiHoshimachi'){
+    cards.appendChild(renderAbilityCard(
+      {name:'Follow-up della Cometa',desc:'Ogni quarta perdita di PV attiva un colpo ad area e cura Susei.'},
+      'ult','Passiva · Follow-up',
+      `<span><b>Moltiplicatore:</b> 14% PV massimi su tutti i nemici</span><span><b>Cura:</b> 15% PV massimi</span><span><b>Attivazione:</b> ogni 4 eventi di perdita PV</span>`
+    ));
+    cards.appendChild(renderAbilityCard(SUISEI_GUARD_ABILITIES.basic,'basic','Basic · Postura stellare',
+      `<span><b>Moltiplicatore:</b> 30% PV massimi</span><span><b>Costo:</b> 3% PV massimi</span><span><b>Energia:</b> +${SUISEI_GUARD_ABILITIES.basic.energyGain}</span>`));
+    cards.appendChild(renderAbilityCard(SUISEI_GUARD_ABILITIES.skill,'skill','Skill · Bloccata',
+      `<span>Disabilitata per 3 round mentre è attiva la postura.</span>`));
+  }
   wrap.appendChild(cards);
   if(id==='hakosBaels'){
     wrap.appendChild(el(`<div class="screen-title" style="margin-top:20px;"><span class="eyebrow">Rovina del Caos</span><h2>Abilità trasformate</h2></div>`));
@@ -1990,6 +2302,13 @@ function effectLabel(ability){
     case 'grant_sp': return `Dona istantaneamente ${ability.spGrant} Punti Abilità alla squadra (nessun danno).`;
     case 'grant_sp_and_buff': return `Dona istantaneamente ${ability.spGrant} Punti Abilità e +${Math.round(ability.buffPct*100)}% ATK a tutta la squadra per 2 turni.`;
     case 'hakos_ultimate': return `Assorbe PV, ATK, DIF, VEL, scudi e buff ATK degli alleati. Hakos resta sola per cinque suoi turni; poi li richiama. Durante la forma non guadagna energia.`;
+    case 'suisei_guard': return `Sacrifica il 50% dei PV correnti e riduce del 40% i danni subiti per 3 round. Durante la postura la Skill è bloccata e il Basic viene potenziato.`;
+    case 'suisei_set_half_hp': return `Dopo il colpo porta i PV di Susei esattamente al 50%: cura se è sotto, sacrifica PV se è sopra.`;
+    case 'laplus_def_down': return `Riduce la DIF del nemico del 15% per 2 round. Il debuff si accumula fino al 75%.`;
+    case 'laplus_plant_weakness': return `Riduce la DIF del 15% e rende il bersaglio vulnerabile all'elemento del primo eroe in squadra per 2 round.`;
+    case 'laplus_ultimate': return `Colpisce tutti i nemici, riduce la DIF del 30% per 2 round e rinnova il debuff.`;
+    case 'ina_mark': return `Marca un nemico: quando viene colpito, Ina esegue un follow-up. Disponibili 3 cariche, recuperate con la Ultimate.`;
+    case 'ina_ultimate': return `Colpisce tutti i nemici, esegue un follow-up su un bersaglio casuale e recupera tutte le cariche.`;
     default: return '';
   }
 }
@@ -2636,17 +2955,26 @@ function renderBattle(){
   const pendingAbility=b.pendingAbility && currentAlly()?getAbilityForActor(currentAlly(),b.pendingAbility.key):null;
   const targetingEnemy = !auto && !busy && pendingAbility && (pendingAbility.target==='enemy' || pendingAbility.target==='enemy_adjacent');
   const targetingAlly = !auto && !busy && pendingAbility && pendingAbility.target==='ally';
-  const activeEntry = b.turnOrder[b.turnIndex];
+  const activeEntry = b.turnOrder[b.turnIndex]||null;
+  const activeAlly=b.phase==='ally_turn'?currentAlly():null;
+  const activeAllyElement=activeAlly?.element||null;
 
   const enemyRow = el(`<div class="hud-panel enemy-row"></div>`);
   b.enemies.filter(enemy=>enemy.hp>0).forEach(e=>{
-    const isActive = activeEntry.side==='enemy' && activeEntry.id===e.id;
+    const isActive = activeEntry?.side==='enemy' && activeEntry.id===e.id;
     const fx = consumeFx(e, 'menace');
     const card = el(`<div class="hud-panel enemy-card ${isActive?'active-turn':''} ${targetingEnemy?'targetable':''}" style="--char-glow:${hexToRgba('#ef5a7d',0.85)};--fx-scale:${fx.scale};position:relative;${fx.animation?'animation:'+fx.animation+';':''}">
       <div class="portrait">${e.isBoss?'☠':'◆'}</div>
       <div class="name">${e.name}</div>
+      ${e.inaMarked?'<div class="ina-mark-tag">✦ MARCHIATO · INA</div>':''}
       ${e.isBoss?`<div class="boss-tag">FASE ${e.phase||1}/2 · 2 ATTACCHI</div>`:''}
-      <div class="element-tags">${(e.elements||[e.element]).map(element=>`<span class="element-tag">${ELEMENT_DATA[element]?.label||element}</span>`).join('')}</div>
+      ${e.bossAddOwnerId&&!e.bossAddResolved?'<div class="boss-add-tag">RINFORZO · SCONFIGGI PER FERMARE L’ESPLOSIONE</div>':''}
+      <div class="element-tags">${(e.elements||[e.element]).map(element=>{
+        const affinity=getEnemyElementAffinity(e,element,activeAllyElement);
+        const affinityLabel=affinity==='element-strong'?'Forte contro questo nemico':'Non forte contro questo nemico';
+        return `<span class="element-tag ${affinity}" title="${activeAllyElement?`${affinityLabel} · ${ELEMENT_DATA[activeAllyElement].label}`:`Elemento ${ELEMENT_DATA[element]?.label||element}`} ">${ELEMENT_DATA[element]?.label||element}</span>`;
+      }).join('')}</div>
+      ${(e.defDownRounds>0||e.vulnerableRounds>0)?`<div class="enemy-status-tags">${e.defDownRounds>0?`<span class="enemy-defdown">DIF -${Math.round(e.defDownPct*100)}%</span>`:''}${e.vulnerableRounds>0&&e.vulnerableToElement?`<span class="enemy-vulnerability">Vulnerabile a ${ELEMENT_DATA[e.vulnerableToElement].label}</span>`:''}</div>`:''}
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(e.hp/e.maxHp*100)}%"></div></div>
       <div class="mini-lbl"><span>${e.hp}/${e.maxHp}</span></div>
       ${e.burnStacks>0?`<div class="burn-tag">${e.dotName==='Sanguinamento'?'🩸':'🔥'} x${e.burnStacks}</div>`:''}
@@ -2688,13 +3016,13 @@ function renderBattle(){
   const allyRow = el(`<div class="ally-row"></div>`);
   b.allies.forEach((a,i)=>{
     const dead = a.hp<=0;
-    const isActive = activeEntry.side==='ally' && activeEntry.id===a.charId && b.phase==='ally_turn' && !b.pendingAbility && !auto;
+    const isActive = activeEntry?.side==='ally' && activeEntry.id===a.charId && b.phase==='ally_turn' && !b.pendingAbility && !auto;
     const isTargetable = targetingAlly && !dead;
     const fx = consumeFx(a, CHAR_DB[a.charId].animStyle);
     const card = el(`<div class="hud-panel ally-card ${isActive?'active-turn':''} ${dead?'dead':''} ${isTargetable?'selectable-target':''}" style="--char-glow:${hexToRgba(a.color,0.85)};--fx-scale:${fx.scale};${isActive?'border-color:'+a.color+';box-shadow:0 0 0 1px '+a.color+' inset;':''}position:relative;${fx.animation?'animation:'+fx.animation+';':''}">
       <div class="ally-top">
         <div class="ally-portrait" style="background:${a.color}">${a.glyph}</div>
-        <div><div class="ally-name">${a.name}</div><div class="element-tag">${ELEMENT_DATA[a.element]?.label||a.element}</div>${a.hakosForm?`<div class="hakos-form-tag">FORMA CAOTICA · ${a.hakosFormTurns}/5</div>`:''}</div>
+        <div><div class="ally-name">${a.name}</div><div class="element-tag">${ELEMENT_DATA[a.element]?.label||a.element}</div>${a.hakosForm?`<div class="hakos-form-tag">FORMA CAOTICA · ${a.hakosFormTurns}/5</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiGuardRounds>0?`<div class="suisei-posture-tag">POSTURA STELLARE · ${a.suiseiGuardRounds}/3</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiFollowUpReady?'<div class="suisei-posture-tag">FOLLOW-UP PRONTO</div>':''}</div>
       </div>
       <div class="mini-lbl"><span>PV</span><span>${a.hp}/${a.maxHp}</span></div>
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(a.hp/a.maxHp*100)}%"></div></div>
@@ -2702,6 +3030,8 @@ function renderBattle(){
       <div class="bar-track"><div class="bar-fill energy-fill" style="width:${(a.energy/a.energyMax*100)}%"></div></div>
       ${a.shield>0?`<div class="shield-tag">🛡 Scudo ${a.shield}</div>`:''}
       ${a.buffRounds>0?`<div class="buff-tag">▲ ATK +${Math.round((a.atkBuffMult-1)*100)}%</div>`:''}
+      ${a.charId==='ninomaeInaNis'?`<div class="ina-charge-tag">FOLLOW-UP ${a.inaFollowUpsRemaining}/3</div>`:''}
+      ${a.charId==='suiseiHoshimachi'?`<div class="suisei-revive-tag">RINASCITE ${a.suiseiRevivesRemaining}/2</div>`:''}
       ${fx.floatHtml}
     </div>`);
     if(isTargetable) card.onclick=()=>playerChooseTarget(a.charId);
@@ -2710,6 +3040,7 @@ function renderBattle(){
   wrap.appendChild(allyRow);
 
   const actionBar = el(`<div class="hud-panel action-bar"></div>`);
+  if(b.log.length>0) actionBar.appendChild(el(`<div class="battle-feedback" aria-live="polite">${b.log[0]}</div>`));
   if(auto){
     actionBar.appendChild(el(`<div class="hint" style="margin:0;">🤖 Modalità automatica in corso…</div>`));
   } else if(busy){
@@ -2722,6 +3053,16 @@ function renderBattle(){
     if(b.pendingAbility){
       const abName = cdb[b.pendingAbility.key].name;
       actionBar.appendChild(el(`<div class="hint" style="margin:0;">Seleziona un bersaglio per <b style="color:var(--text)">${abName}</b>…</div>`));
+      if(targetingEnemy){
+        const targets=el(`<div class="mobile-target-list" aria-label="Seleziona un nemico"></div>`);
+        b.enemies.filter(enemy=>enemy.hp>0).forEach(enemy=>{
+          const affinityTags=(enemy.elements||[enemy.element]).map(element=>`<i class="element-tag ${getEnemyElementAffinity(enemy,element,activeAllyElement)}">${ELEMENT_DATA[element]?.label||element}</i>`).join('');
+          const targetButton=el(`<button class="mobile-target-btn" type="button"><span>${enemy.name}</span><small>${enemy.hp}/${enemy.maxHp} PV</small><span class="mobile-target-elements">${affinityTags}</span></button>`);
+          targetButton.onclick=()=>playerChooseTarget(enemy.id);
+          targets.appendChild(targetButton);
+        });
+        actionBar.appendChild(targets);
+      }
       const cancelBtn = el(`<button class="ghost small">Annulla</button>`);
       cancelBtn.onclick=()=>{ b.pendingAbility=null; render(); };
       actionBar.appendChild(cancelBtn);
@@ -2730,8 +3071,9 @@ function renderBattle(){
       basicBtn.onclick=()=>playerChooseAbility('basic');
 
       const maxedHits = cdb.skill.effect==='boost_basic_hits' && actor.basicHits>=10;
-      const skillDisabled = (b.sp<1 && actor.skillFreeUses<=0) || maxedHits;
-      const skillCostLabel = maxedHits ? 'Al massimo' : (actor.skillFreeUses>0 ? `Gratis · ${actor.skillFreeUses} rimasti` : '1 PA');
+      const suiseiHpGate=actor.charId==='suiseiHoshimachi'&&actor.hp<=1;
+      const skillDisabled = (b.sp<1 && actor.skillFreeUses<=0) || maxedHits || cdb.skill.effect==='disabled' || suiseiHpGate;
+      const skillCostLabel = cdb.skill.effect==='disabled'?'Postura attiva':suiseiHpGate?'PV insufficienti':maxedHits ? 'Al massimo' : (actor.skillFreeUses>0 ? `Gratis · ${actor.skillFreeUses} rimasti` : '1 PA');
       const skillBtn = el(`<button class="ability-btn" ${skillDisabled?'disabled':''}><span class="aname">✦ ${cdb.skill.name} (${skillCostLabel})</span></button>`);
       skillBtn.onclick=()=>playerChooseAbility('skill');
 

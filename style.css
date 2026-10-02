@@ -156,8 +156,16 @@ button.small{padding:5px 10px;font-size:12px;}
 .enemy-card .portrait{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#3a1f2c,#1c1128);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;}
 .enemy-card .name{font-family:'Rajdhani';font-weight:700;font-size:13px;margin-bottom:6px;}
 .boss-tag{margin:-2px 0 6px;color:var(--amber);font-size:9px;font-weight:700;letter-spacing:0.04em;}
+.boss-add-tag{margin:4px 0;padding:3px 5px;border:1px solid rgba(245,179,66,0.45);border-radius:4px;color:var(--amber);font-size:8px;line-height:1.25;}
 .element-tags{display:flex;justify-content:center;flex-wrap:wrap;gap:4px;margin:-2px 0 7px;}
 .element-tag{display:inline-block;padding:2px 6px;border:1px solid rgba(79,216,224,0.4);border-radius:4px;color:var(--cyan);font-size:9px;line-height:1.2;white-space:nowrap;}
+.element-tag.element-strong{border-color:var(--amber);background:rgba(245,179,66,0.14);color:var(--amber);box-shadow:0 0 0 1px rgba(245,179,66,0.12);}
+.element-tag.element-not-strong{border-color:#aa88e8;background:rgba(170,136,232,0.12);color:#cbbaff;}
+.enemy-status-tags{display:flex;justify-content:center;flex-wrap:wrap;gap:4px;margin:4px 0;}
+.enemy-defdown,.enemy-vulnerability{display:inline-block;padding:2px 5px;border:1px solid rgba(182,156,255,0.45);border-radius:4px;color:#cbbaff;font-size:8px;line-height:1.2;white-space:nowrap;}
+.enemy-vulnerability{border-color:rgba(79,216,224,0.45);color:var(--cyan);}
+.ina-mark-tag,.ina-charge-tag{margin:4px 0;color:#42c9b8;font-size:9px;font-weight:700;letter-spacing:0.04em;}
+.ina-mark-tag{padding:2px 5px;border:1px solid rgba(66,201,184,0.55);border-radius:4px;}
 .bar-track{height:6px;background:#1c2338;border-radius:3px;overflow:hidden;margin-top:3px;}
 .bar-fill{height:100%;border-radius:3px;transition:width .25s ease;}
 .hp-fill{background:linear-gradient(90deg,var(--rose),#ff8fa8);}
@@ -186,8 +194,11 @@ button.small{padding:5px 10px;font-size:12px;}
 .shield-tag{font-size:9px;color:var(--cyan);margin-top:3px;}
 .buff-tag{font-size:9px;color:var(--green);margin-top:2px;}
 .hakos-form-tag{font-size:9px;color:var(--rose);font-weight:700;margin-top:3px;}
+.suisei-posture-tag{font-size:9px;color:var(--cyan);font-weight:700;margin-top:3px;}
+.suisei-revive-tag{font-size:9px;color:var(--amber);font-weight:700;margin-top:3px;}
 
 .action-bar{display:flex;gap:10px;flex-wrap:wrap;padding:14px 16px;align-items:center;}
+.battle-feedback,.mobile-target-list{display:none;}
 .action-bar .who{font-family:'Rajdhani';font-weight:700;font-size:14px;margin-right:6px;color:var(--amber);}
 .ability-btn{display:flex;flex-direction:column;align-items:flex-start;min-width:150px;}
 .ability-btn .aname{font-size:13.5px;}
@@ -345,15 +356,30 @@ button.small{padding:5px 10px;font-size:12px;}
   .stage-card .num{font-size:20px;}
 
   .ally-row{grid-template-columns:repeat(2,1fr);}
-  .enemy-card{width:118px;padding:9px;}
+  .battle-wrap{gap:8px;padding-bottom:190px;}
+  .enemy-row{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:8px 4px;min-height:0;scrollbar-width:thin;}
+  .enemy-card{flex:0 0 116px;width:116px;padding:8px;scroll-snap-align:start;}
   .enemy-card .name{font-size:11.5px;}
 
-  .battle-mid-row{grid-template-columns:1fr;}
-  .log-panel{height:90px;}
+  .battle-mid-row{grid-template-columns:minmax(0,1fr) minmax(108px,0.65fr);gap:6px;}
+  .log-panel{grid-column:1/-1;height:58px;padding:8px 10px;font-size:11px;}
+  .turn-order-panel{grid-column:1/-1;padding:7px;}
+  .turn-order-list{flex-direction:row;max-height:none;overflow-x:auto;overscroll-behavior-x:contain;}
+  .turn-order-item{flex:0 0 112px;}
 
-  .action-bar{padding:10px 12px;gap:8px;}
-  .ability-btn{min-width:0;flex:1 1 100%;}
-  .action-bar .who{width:100%;margin-right:0;margin-bottom:2px;}
+  .battle-wrap>.action-bar{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:100;max-height:40vh;overflow-y:auto;overscroll-behavior:contain;display:flex;padding:8px;gap:6px;background:rgba(15,19,32,0.96);backdrop-filter:blur(12px);box-shadow:0 0 0 1px rgba(255,255,255,0.08),0 8px 30px rgba(0,0,0,0.5);}
+  .action-bar .who{width:100%;margin-right:0;margin-bottom:0;font-size:12px;}
+  .action-bar .hint{width:100%;text-align:left;}
+  .battle-feedback{display:-webkit-box;width:100%;overflow:hidden;color:var(--text-dim);font-size:10px;line-height:1.35;-webkit-box-orient:vertical;-webkit-line-clamp:2;}
+  .mobile-target-list{display:flex;width:100%;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;padding:2px 0;}
+  .mobile-target-btn{display:flex;flex:0 0 112px;min-width:0;flex-direction:column;align-items:flex-start;gap:2px;padding:7px;text-align:left;border-color:var(--rose);}
+  .mobile-target-btn span{width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mobile-target-btn small{color:var(--text-dim);font:9px 'Inter',sans-serif;}
+  .mobile-target-elements{display:flex;flex-wrap:wrap;gap:2px;width:100%;}
+  .mobile-target-elements .element-tag{padding:1px 3px;font-size:7px;}
+  .battle-wrap .ability-btn{min-width:0;min-height:46px;flex:1 1 calc(33.333% - 6px);padding:6px;}
+  .battle-wrap .ability-btn .aname{font-size:10.5px;line-height:1.15;}
+  .battle-wrap .auto-toggle{width:auto;min-height:36px;margin:0 0 0 auto;}
   .auto-toggle{margin-left:0;width:100%;}
 
   .modal-box{padding:14px;max-height:80vh;}
