@@ -22,13 +22,13 @@ const CHAR_DB = {
   kaelaKolvalskia: { name:'Kaela kolvalskia', title:'Baluardo di Ferro', role:'Tank', color:'#4fd8e0', glyph:'K', rarity:4, element:'physical', animStyle:'heavy',
     base:{hp:1450, atk:92, def:150, speed:100, energyMax:120},
     basic:{name:'Colpo di Scudo', desc:'Danno fisico a un bersaglio.', mult:1.0, target:'enemy', effect:null, energyGain:20},
-    skill:{name:'Presa Ferrea', desc:'Danno e si scherma per 2 turni.', mult:1.2, target:'enemy', effect:'shield_self', shieldPct:0.18, energyGain:30},
+    skill:{name:'Presa Ferrea', desc:'Danno, si scherma per 2 turni e scherma anche l\'alleato con meno PV.', mult:1.2, target:'enemy', effect:'shield_self', shieldPct:0.18, energyGain:30},
     ult:{name:'Muro Indistruttibile', desc:'Scherma tutta la squadra per 2 turni.', mult:0, target:'allies_all', effect:'shield_all', shieldPct:0.22} },
   ceciliaImmergreen: { name:'Cecilia Immergreen', title:"Luce dell'Aurora", role:'Supporto Curativo', color:'#6ee7a0', glyph:'C', rarity:4, element:'dendro', animStyle:'radiant-soft',
     base:{hp:980, atk:76, def:75, speed:100, energyMax:110},
-    basic:{name:'Raggio Guida', desc:'Danno leggero a un nemico.', mult:0.75, target:'enemy', effect:null, energyGain:20},
-    skill:{name:'Benedizione', desc:'Cura un alleato.', mult:1.4, target:'ally', effect:'heal', energyGain:30},
-    ult:{name:"Grazia dell'Alba", desc:'Cura tutta la squadra.', mult:1.9, target:'allies_all', effect:'heal_all'} },
+    basic:{name:'Raggio Guida', desc:'Danno leggero a un nemico, basato sui PV massimi.', mult:0.1, target:'enemy', effect:null, hpBased:true, energyGain:20},
+    skill:{name:'Benedizione', desc:'Cura un alleato, in base ai PV massimi.', mult:0.22, target:'ally', effect:'heal', hpBased:true, energyGain:30},
+    ult:{name:"Grazia dell'Alba", desc:'Cura tutta la squadra, in base ai PV massimi.', mult:0.3, target:'allies_all', effect:'heal_all', hpBased:true} },
   monaHoshinova: { name:'Mona Hoshinova', title:'Frattura Stellare', role:'DPS Arcano', color:'#a78bfa', glyph:'M', rarity:4, element:'quantum', animStyle:'arcane',
     base:{hp:1000, atk:132, def:68, speed:100, energyMax:130},
     basic:{name:'Scheggia Arcana', desc:'Danno magico a un bersaglio.', mult:0.95, target:'enemy', effect:null, energyGain:20},
@@ -74,11 +74,17 @@ const CHAR_DB = {
     basic:{name:'Luce della Cometa',desc:'Attacco singolo basato sui PV massimi.',mult:0.14,target:'enemy',effect:null,hpBased:true,energyGain:20},
     skill:{name:'Stella Cadente',desc:'Sacrifica metà dei PV correnti, riduce del 40% i danni subiti per 3 round e potenzia il Basic.',mult:0,target:'self',effect:'suisei_guard',energyGain:0},
     ult:{name:'Finale Stellare',desc:'Colpo singolo basato sui PV massimi. Porta i PV di Susei esattamente al 50% dopo il colpo.',mult:0.48,target:'enemy',effect:'suisei_set_half_hp',hpBased:true,energyGain:0} },
+  selenTatsuki: {name:'Selen Tatsuki',title:'Fulmine Sovrano',role:'DPS Electro',color:'#f5d90a',glyph:'S',rarity:4,element:'electro',animStyle:'swift',
+    base:{hp:1030,atk:130,def:66,speed:100,energyMax:125},
+    basic:{name:'Scarica Rapida',desc:'Infligge danno elettrico a un bersaglio.',mult:0.95,target:'enemy',effect:null,energyGain:20},
+    skill:{name:'Arco Voltaico',desc:'Danno elevato; molto più forte se il nemico è debole all\'Electro.',mult:1.9,weakMult:2.8,target:'enemy',effect:'selen_skill',energyGain:30},
+    ult:{name:'Giudizio del Tuono',desc:'Colpo singolo devastante. Se il nemico è debole all\'Electro (anche tramite il debuff di Laplus) lo Stordisce per 2 turni.',mult:3.0,target:'enemy',effect:'selen_ult'} },
 };
 
 const ENEMY_NAMES = ['Larva del Vuoto','Sentinella Corrotta','Sciame Spinato','Costrutto Infranto','Ombra Vagante'];
 const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra','Abisso Primordiale'];
 const MAX_ENEMIES_IN_BATTLE = 5;
+const BOSS_HP_FACTOR = 1.5, BOSS_ATK_FACTOR = 0.75;
 const BOSS_MECHANICS = {
   'Custode di Cristallo':{phase1:'shield',phase2:'area'},
   'Araldo del Vuoto':{phase1:'summon',phase2:'summon'},
@@ -98,6 +104,22 @@ const ENEMY_ELEMENT_SETS = {
   'Colosso Corroso':['dendro','physical','ether'],
   'Regina Ombra':['quantum','hydro','electro'],
   'Abisso Primordiale':['hydro','electro','physical'],
+  'Sacerdote Spezzato':['dendro','ether','hydro'],
+  'Custode Scudato':['physical','quantum','imaginary'],
+  'Araldo Infiammato':['electro','imaginary','ether'],
+  'Bombardiere Instabile':['quantum','electro','physical'],
+  'Ladro di Energia':['ether','dendro','hydro'],
+  'Lama Gemella':['physical','dendro','electro'],
+};
+
+// Special normal enemies, appearing from stage 3. `hpMult` trades durability for utility.
+const SPECIAL_ENEMIES = {
+  'Sacerdote Spezzato':{role:'healer', hpMult:0.85, label:'Supporto: cura gli alleati'},
+  'Custode Scudato':{role:'shielder', hpMult:0.85, label:'Supporto: scherma gli alleati'},
+  'Araldo Infiammato':{role:'buffer', hpMult:0.9, label:'Supporto: potenzia l\'ATK dei nemici'},
+  'Bombardiere Instabile':{role:'bomber', hpMult:0.8, label:'Si carica, poi colpisce tutta la squadra'},
+  'Ladro di Energia':{role:'thief', hpMult:1, label:'Colpisce e drena energia'},
+  'Lama Gemella':{role:'twin', hpMult:0.9, label:'Due attacchi rapidi per turno'},
 };
 
 /* ============ ARTIFACT / STAT SYSTEM ============ */
@@ -150,6 +172,10 @@ const ARTIFACT_SETS = {
     pieces:['Nucleo Runico','Placca Runica','Sigillo Runico','Anello Runico','Corona Runica'],
     bonus2:{label:'+12% PV Massimi', apply:(acc)=>{ acc.pctBonus.hp+=0.12; }},
     bonus4:{label:'+25% forza degli scudi', apply:(acc)=>{ acc.shieldMult+=0.25; }} },
+  vitale: { name:'Cuore Vitale', icon:'💗',
+    pieces:['Cuore Vitale','Calice Vitale','Veste Vitale','Pendente Vitale','Fascia Vitale'],
+    bonus2:{label:'+15% PV Massimi', apply:(acc)=>{ acc.pctBonus.hp+=0.15; }},
+    bonus4:{label:'+8% dei PV Massimi come ATK, +20% cure effettuate, +15% danni basati sui PV', apply:(acc)=>{ acc.hpToAtk+=0.08; acc.healMult+=0.20; acc.hpDamageMult=(acc.hpDamageMult||0)+0.15; }} },
 };
 
 function shuffleArr(arr){
@@ -221,10 +247,11 @@ const WEAPON_DEFINITIONS = {
   'Giuramento Cremisi': {ownerId:'vestiaZeta', effect:{stat:'burnMult', base:0.35, perAscension:0.05, describe:value=>`Danni da Sanguinamento +${Math.round(value*100)}%.`}},
   'Voce della Speranza': {ownerId:'IRyS', effect:{stat:'buffPctBonus', base:0.10, perAscension:0.02, describe:value=>`Efficacia dei buff ATK +${Math.round(value*100)}%.`}},
   'Eternita Meccanica': {ownerId:'ouroKronii', effect:{stat:'spGrantBonus', base:1, perAscension:1, ascensionStep:3, describe:value=>`Le Skill che donano PA ne forniscono ${value} in piu.`}},
-  'Caos Inevitabile': {ownerId:'hakosBaels', effect:{stat:'damageMult', base:0.15, perAscension:0.03, describe:value=>`Danni inflitti +${Math.round(value*100)}%.`}},
+  'Caos Inevitabile': {ownerId:'hakosBaels', effect:{stat:'damageMult', base:0.15, perAscension:0.03, extra:[{stat:'startEnergyBonus',value:100}], describe:value=>`Danni inflitti +${Math.round(value*100)}%. Inizia ogni battaglia con 100 energia.`}},
   'Sigillo del Disordine': {ownerId:'laplusDarkness', effect:{stat:'defDownBonus', base:0.05, perAscension:0.02, describe:value=>`Ogni attacco riduce la DIF nemica di ${Math.round(value*100)}% per 2 round.`}},
   'Scia della Cometa': {ownerId:'suiseiHoshimachi', effect:{stat:'hpDamageMult',base:0.15,perAscension:0.03,describe:value=>`Danni delle abilita basate sui PV massimi +${Math.round(value*100)}%.`}},
   'Reliquiario delle Profondita': {ownerId:'ninomaeInaNis', effect:{stat:'damageMult', base:0.12, perAscension:0.025, describe:value=>`Danni inflitti +${Math.round(value*100)}%.`}},
+  'Lampo Sovrano': {ownerId:'selenTatsuki', effect:{stat:'skillDamageMult', base:0.18, perAscension:0.03, describe:value=>`Danni di Skill e Ultimate +${Math.round(value*100)}%.`}},
 };
 const SIGNATURE_WEAPONS = [
   {name:'Aegis dell\'Ultima Alba', ownerId:'kaelaKolvalskia', atk:165, subStat:{key:'def_pct',value:0.16}},
@@ -238,6 +265,7 @@ const SIGNATURE_WEAPONS = [
   {name:'Sigillo del Disordine', ownerId:'laplusDarkness', atk:182, subStat:{key:'energy_pct',value:0.14}},
   {name:'Scia della Cometa',ownerId:'suiseiHoshimachi',atk:180,subStat:{key:'hp_pct',value:0.14}},
   {name:'Reliquiario delle Profondita', ownerId:'ninomaeInaNis', atk:176, subStat:{key:'atk_pct',value:0.12}},
+  {name:'Lampo Sovrano', ownerId:'selenTatsuki', atk:178, subStat:{key:'atk_pct',value:0.12}},
 ];
 
 function normalizeWeapon(weapon){
@@ -397,7 +425,7 @@ function getEffectiveStats(charId){
   const eq = state.roster[charId].equipment;
   const acc = {
     flatBonus:{atk:0,hp:0,def:0,speed:0}, pctBonus:{atk:0,hp:0,def:0},
-    energyGainMult:1, healMult:1, burnMult:1, shieldMult:1, startEnergyBonus:0,
+    energyGainMult:1, healMult:1, burnMult:1, shieldMult:1, startEnergyBonus:0, hpToAtk:0,
   };
   const setCounts = {};
   eq.forEach(it=>{
@@ -419,6 +447,7 @@ function getEffectiveStats(charId){
       else if(effect.stat==='speed') acc.flatBonus.speed+=value;
       else if(['healMult','burnMult','shieldMult','energyGainMult'].includes(effect.stat)) acc[effect.stat]+=value;
       else acc[effect.stat]=value;
+      (effect.extra||[]).forEach(bonus=>{ acc[bonus.stat]=(acc[bonus.stat]||0)+bonus.value; });
     }
   }
   Object.keys(setCounts).forEach(setId=>{
@@ -428,7 +457,7 @@ function getEffectiveStats(charId){
     if(cnt>=4) def.bonus4.apply(acc);
   });
   const hp  = Math.round((base.hp  + acc.flatBonus.hp ) * (1+acc.pctBonus.hp ));
-  const atk = Math.round((base.atk + acc.flatBonus.atk) * (1+acc.pctBonus.atk));
+  const atk = Math.round((base.atk + acc.flatBonus.atk) * (1+acc.pctBonus.atk) + hp*acc.hpToAtk);
   const def = Math.round((base.def + acc.flatBonus.def) * (1+acc.pctBonus.def));
   return {
     hp, atk, def, speed:base.speed+acc.flatBonus.speed, energyMax:base.energyMax,
@@ -438,7 +467,7 @@ function getEffectiveStats(charId){
     sameElementBonus:acc.sameElementBonus||0, basicDamageMult:1+(acc.basicDamageMult||0),
     buffPctBonus:acc.buffPctBonus||0, spGrantBonus:acc.spGrantBonus||0,
     formDamageMult:1+(acc.formDamageMult||0), defDownBonus:acc.defDownBonus||0,
-    hpDamageMult:1+(acc.hpDamageMult||0),
+    hpDamageMult:1+(acc.hpDamageMult||0), skillDamageMult:1+(acc.skillDamageMult||0),
   };
 }
 
@@ -458,6 +487,10 @@ let state = {
   pityCounter:0, // pulls since the last character obtained (4★ pity)
   pity5Counter:0, // pulls since the last 5★ obtained
   weaponBannerPulls:0,
+  weaponBannerPulls5:0,
+  pfDaily:null,
+  su:null,
+  suDaily:null,
   bannerType:'personaggi',
   lastPullBanner:'personaggi',
   lastPullResults:[],
@@ -496,6 +529,9 @@ function getSaveData(){
     pityCounter: state.pityCounter,
     pity5Counter: state.pity5Counter,
     weaponBannerPulls: state.weaponBannerPulls,
+    weaponBannerPulls5: state.weaponBannerPulls5,
+    pfDaily: state.pfDaily,
+    suDaily: state.suDaily,
     claimedQuests: state.claimedQuests,
     questTiers: state.questTiers,
     questExhausted: state.questExhausted,
@@ -555,6 +591,9 @@ function loadGame(){
     state.pityCounter = data.pityCounter || 0;
     state.pity5Counter = data.pity5Counter || 0;
     state.weaponBannerPulls = data.weaponBannerPulls || 0;
+    state.weaponBannerPulls5 = data.weaponBannerPulls5 || 0;
+    state.pfDaily = data.pfDaily || null;
+    state.suDaily = data.suDaily || null;
     state.claimedQuests = data.claimedQuests || {};
     state.questTiers = data.questTiers || {};
     state.questExhausted = data.questExhausted || {};
@@ -570,7 +609,7 @@ function resetSave(){
   try{ localStorage.removeItem(SAVE_KEY); } catch(e){}
   state.gold=0; state.stage=1; state.maxStageReached=1; state.inventory=[]; state.itemUidCounter=1;
   state.weaponInventory=[]; state.weaponUidCounter=1; state.pityCounter=0; state.pity5Counter=0; state.lastPullResults=[];
-  state.weaponBannerPulls=0; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
+  state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.suDaily=null; state.su=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
   state.claimedQuests={}; state.questTiers={}; state.questExhausted={}; state.totalPullsDone=0; state.totalArtifactsSold=0;
   initRoster();
   state.party=['kaelaKolvalskia'];
@@ -617,13 +656,16 @@ function generateEnemies(stageNum){
   const enemies=[];
   for(let i=0;i<count;i++){
     // Enemies hit hard and scale quadratically so the tower keeps getting tougher forever.
-    const hp  = boss ? Math.round(1100 + n*190 + n*n*2.6) : Math.round(260 + n*58 + n*n*1.5);
-    const atk = boss ? Math.round(150  + n*24  + n*n*0.22) : Math.round(95  + n*17  + n*n*0.14);
+    const hpBase = boss ? Math.round((1100 + n*190 + n*n*2.6)*0.65*BOSS_HP_FACTOR) : Math.round(260 + n*58 + n*n*1.5);
+    const atk = boss ? Math.round((150  + n*24  + n*n*0.22)*BOSS_ATK_FACTOR) : Math.round(95  + n*17  + n*n*0.14);
     const def = boss ? Math.round(35   + n*6   + n*n*0.05) : Math.round(10  + n*2.6  + n*n*0.02);
-    const name = boss ? BOSS_NAMES[(Math.floor(n/5)-1) % BOSS_NAMES.length] : ENEMY_NAMES[i % ENEMY_NAMES.length];
+    const special = !boss && n>=3 && Math.random()<0.5 ? pick(Object.keys(SPECIAL_ENEMIES)) : null;
+    const name = boss ? BOSS_NAMES[(Math.floor(n/5)-1) % BOSS_NAMES.length] : (special || ENEMY_NAMES[i % ENEMY_NAMES.length]);
+    const role = special ? SPECIAL_ENEMIES[special].role : null;
+    const hp = special ? Math.round(hpBase*SPECIAL_ENEMIES[special].hpMult) : hpBase;
     const elements = ENEMY_ELEMENT_SETS[name].slice();
     const speed = 90+Math.floor(Math.random()*31);
-    enemies.push({id:'e'+i,name,hp,maxHp:hp,atk,def,speed,element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,burnStacks:0,burnRounds:0,burnSourceMult:1,isBoss:boss,phase:boss?1:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0});
+    enemies.push({id:'e'+i,name,role,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed,element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,burnStacks:0,burnRounds:0,burnSourceMult:1,isBoss:boss,phase:boss?1:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0});
   }
   return enemies;
 }
@@ -643,8 +685,345 @@ function getTurnActor(b, entry=b.turnOrder[b.turnIndex]){
     : b.enemies.find(actor=>actor.id===entry.id);
 }
 
-function startBattle(){
-  const allies = state.party.map(id=>{
+/* ============ PURE FICTION ============ */
+const PF_UNLOCK_STAGE = 10; // unlocked once floor 10 is cleared
+const PF_ROUNDS = 12; // every hero acts once per round
+const PF_TIERS = [{points:1500,reward:600},{points:3000,reward:1200},{points:4500,reward:1800}];
+const PF_GENERAL_BUFFS = [
+  {name:'Furia del Vuoto', desc:'Tutta la squadra: +15% ATK.', apply:a=>{ a.atk=Math.round(a.atk*1.15); }},
+  {name:'Pelle di Cristallo', desc:'Tutta la squadra: +20% PV massimi.', apply:a=>{ a.maxHp=Math.round(a.maxHp*1.2); a.hp=a.maxHp; }},
+  {name:'Ritmo Incalzante', desc:'Tutta la squadra: +10 VEL.', apply:a=>{ a.speed+=10; }},
+  {name:'Scarica Iniziale', desc:'Tutta la squadra: +30 energia iniziale.', apply:a=>{ a.energy=clamp(a.energy+30,0,a.energyMax); }},
+  {name:'Bottino Esplosivo', desc:'Punti per ogni nemico sconfitto +25%.', pointsMult:1.25, apply:()=>{}},
+];
+// Team-wide for everyone, but each only pays off fully for a specific playstyle/hero.
+const PF_THEME_BUFFS = [
+  {name:'Eco Vitale', desc:'Danni basati sui PV massimi +35%, cure +20%.', hint:'Susei, Cecilia', apply:a=>{ a.hpDamageMult+=0.35; a.healMult+=0.2; }},
+  {name:'Nemici Instabili', desc:'Il danno contro le debolezze elementali aumenta del 50%.', hint:'Selen, Mona, Laplus', apply:a=>{ a.weaknessBonus+=0.5; }},
+  {name:'Frenesia', desc:'Danni degli Attacchi Base +40%.', hint:'Mumei, Ina, Hakos', apply:a=>{ a.basicDamageMult+=0.4; }},
+  {name:'Sangue Caldo', desc:'Danni da Sanguinamento +60%.', hint:'Vestia', apply:a=>{ a.burnMult+=0.6; }},
+  {name:'Segno Persistente', desc:'+2 cariche di follow-up iniziali.', hint:'Ina', apply:a=>{ if(a.inaFollowUpsRemaining>0) a.inaFollowUpsRemaining+=2; }},
+  {name:'Scudi Rinforzati', desc:'Forza degli scudi +60%.', hint:'Kaela', apply:a=>{ a.shieldMult+=0.6; }},
+  {name:'Eco di Comando', desc:'Efficacia dei buff ATK +30%, le Skill che donano PA ne danno 1 in più.', hint:'IRyS, Kronii', apply:a=>{ a.buffPctBonus+=0.3; a.spGrantBonus+=1; }},
+  {name:'Colpi Risolutivi', desc:'Danni di Skill e Ultimate +35%.', hint:'Selen, Mona, Laplus', apply:a=>{ a.skillDamageMult+=0.35; }},
+];
+
+function pfDateKey(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function pfHash(str){
+  let h=2166136261;
+  for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); }
+  return h>>>0;
+}
+// Rewards reset when the local date changes.
+function ensurePFDay(){
+  const key=pfDateKey();
+  if(!state.pfDaily || state.pfDaily.date!==key) state.pfDaily={date:key,best:0,claimed:[false,false,false]};
+  return state.pfDaily;
+}
+function getPFDailyBuffs(){
+  const key=pfDateKey();
+  return {general:PF_GENERAL_BUFFS[pfHash(key+'g')%PF_GENERAL_BUFFS.length], theme:PF_THEME_BUFFS[pfHash(key+'t')%PF_THEME_BUFFS.length]};
+}
+function applyPFBuffs(allies,buffs){
+  allies.forEach(a=>{
+    buffs.general.apply(a);
+    buffs.theme.apply(a);
+  });
+}
+function pfAllEnemyNames(){ return [...ENEMY_NAMES,...Object.keys(SPECIAL_ENEMIES)]; }
+
+let pfTimerHandle=null;
+function startPFTimer(node){
+  clearInterval(pfTimerHandle);
+  const tick=(first)=>{
+    if(!first && !node.isConnected){ clearInterval(pfTimerHandle); return; }
+    const now=new Date();
+    const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
+    const left=next-now;
+    if(left<=0){ clearInterval(pfTimerHandle); render(); return; }
+    const pad=n=>String(n).padStart(2,'0');
+    node.textContent=`${pad(Math.floor(left/3600000))}:${pad(Math.floor(left/60000)%60)}:${pad(Math.floor(left/1000)%60)}`;
+  };
+  tick(true);
+  pfTimerHandle=setInterval(tick,1000);
+}
+function buildPFEnemy(id,name){
+  const n=Math.max(10,Math.round(state.maxStageReached*0.8));
+  const special=SPECIAL_ENEMIES[name]||null;
+  const hpBase=Math.round((260+n*58+n*n*1.5)*0.5);
+  const hp=special?Math.round(hpBase*special.hpMult):hpBase;
+  const atk=Math.round((95+n*17+n*n*0.14)*0.25);
+  const def=Math.round(10+n*2.6+n*n*0.02);
+  const elements=ENEMY_ELEMENT_SETS[name].slice();
+  return {id,name,role:special?special.role:null,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed:90+Math.floor(Math.random()*31),element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,burnStacks:0,burnRounds:0,burnSourceMult:1,isBoss:false,phase:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0};
+}
+function generatePFEnemies(){
+  return shuffleArr(pfAllEnemyNames()).slice(0,5).map((name,i)=>buildPFEnemy('p'+i,name));
+}
+function pfProcessKills(b){
+  const pf=b.pf;
+  const spawned=[];
+  b.enemies.filter(e=>e.hp<=0&&!e._pfScored).forEach(e=>{
+    e._pfScored=true;
+    const pts=Math.round((SPECIAL_ENEMIES[e.name]?150:100)*(pf.buffs.general.pointsMult||1));
+    pf.score+=pts;
+    pf.kills++;
+    logMsg(`${e.name} sconfitto: +${pts} punti.`);
+    const aliveNames=b.enemies.filter(x=>x.hp>0).map(x=>x.name);
+    const pool=pfAllEnemyNames().filter(nm=>nm!==pf.lastSpawn&&!aliveNames.includes(nm));
+    const name=pick(pool.length?pool:pfAllEnemyNames());
+    pf.lastSpawn=name;
+    const fresh=buildPFEnemy('p'+(b.summonCounter++),name);
+    b.enemies.push(fresh);
+    spawned.push(fresh);
+    logMsg(`Un nuovo nemico entra in campo: ${name}.`);
+  });
+  if(spawned.length>0){
+    const future=b.turnOrder.slice(b.turnIndex+1);
+    future.push(...spawned.map(enemy=>({side:'enemy',id:enemy.id,speed:enemy.speed})));
+    future.sort((first,second)=>second.speed-first.speed);
+    b.turnOrder.splice(b.turnIndex+1,b.turnOrder.length-b.turnIndex-1,...future);
+  }
+}
+function endPureFiction(reason){
+  const b=state.battle;
+  b.phase='resolved';
+  state.autoBattle=false;
+  const day=ensurePFDay();
+  const score=b.pf.score;
+  day.best=Math.max(day.best,score);
+  const gained=[];
+  PF_TIERS.forEach((tier,i)=>{
+    if(score>=tier.points && !day.claimed[i]){
+      day.claimed[i]=true;
+      state.gold+=tier.reward;
+      gained.push(tier.reward);
+    }
+  });
+  b.pfResult={score,kills:b.pf.kills,gained,total:gained.reduce((sum,v)=>sum+v,0),reason};
+  state.screen='pfresult';
+}
+function startPureFiction(){
+  if(state.maxStageReached<=PF_UNLOCK_STAGE) return;
+  startBattle('pf');
+}
+
+/* ============ SIMULATED UNIVERSE (roguelike) ============ */
+const SU_UNLOCK_STAGE = 5; // unlocked once floor 5 is cleared
+const SU_WAVES = 10;
+const SU_REWARD = 1000;
+const SU_BLESSINGS = [
+  {name:'Vigore', desc:'ATK +20%.', apply:a=>{ a.atk=Math.round(a.atk*1.2); }},
+  {name:'Tempra', desc:'PV massimi +25%.', apply:a=>{ const m=Math.round(a.maxHp*1.25); a.hp+=m-a.maxHp; a.maxHp=m; }},
+  {name:'Corazza', desc:'DEF +25%.', apply:a=>{ a.def=Math.round(a.def*1.25); }},
+  {name:'Passo Leggero', desc:'VEL +8.', apply:a=>{ a.speed+=8; }},
+  {name:'Furia', desc:'Danni inflitti +20%.', apply:a=>{ a.damageMult+=0.2; }},
+  {name:'Fonte di Energia', desc:'Energia ottenuta +30%.', apply:a=>{ a.energyGainMult+=0.3; }},
+  {name:'Mani Guaritrici', desc:'Cure e scudi +30%.', apply:a=>{ a.healMult+=0.3; a.shieldMult+=0.3; }},
+  {name:'Rigenerazione', desc:'Dopo ogni ondata la squadra recupera il 10% di PV in più.', team:su=>{ su.regen+=0.1; }},
+  {name:'Occhio Acuto', desc:'Danno contro le debolezze +30%.', apply:a=>{ a.weaknessBonus+=0.3; }},
+  {name:'Maestria di Base', desc:'Danni degli Attacchi Base +30%.', apply:a=>{ a.basicDamageMult+=0.3; }},
+  {name:'Colpi Risolutivi', desc:'Danni di Skill e Ultimate +30%.', apply:a=>{ a.skillDamageMult+=0.3; }},
+  {name:'Brace Persistente', desc:'Danni da Sanguinamento +40%.', apply:a=>{ a.burnMult+=0.4; }},
+  {name:'Riserva Tattica', desc:'+1 Punto Abilità iniziale a ogni ondata.', team:su=>{ su.bonusSp+=1; }},
+  {name:'Cuore di Pietra', desc:'PV massimi +15% e DEF +15%.', apply:a=>{ const m=Math.round(a.maxHp*1.15); a.hp+=m-a.maxHp; a.maxHp=m; a.def=Math.round(a.def*1.15); }},
+  {name:'Eco di Comando', desc:'Efficacia dei buff ATK +25%.', apply:a=>{ a.buffPctBonus+=0.25; }},
+];
+const SU_OCCURRENCES = [
+  {id:'fontana', title:'La Fontana Oscura', text:'Tra le rovine trovate una fontana che sussurra: l\'acqua brilla di una luce inquieta.', choices:[
+    {label:'Bere l\'acqua', outcomes:[{p:0.6,text:'L\'acqua ti rinvigorisce: la squadra recupera il 40% dei PV.',do:{heal:0.4}},{p:0.4,text:'L\'acqua era avvelenata! La squadra perde il 20% dei PV.',do:{hurt:0.2}}]},
+    {label:'Gettare una moneta', outcomes:[{p:1,text:'La fontana accetta l\'offerta e ti concede una Benedizione.',do:{blessing:1}}]},
+    {label:'Ignorarla', outcomes:[{p:1,text:'Prosegui senza voltarti.',do:{}}]}]},
+  {id:'mercante', title:'Il Mercante Spettrale', text:'Una figura incappucciata espone tesori impossibili e chiede in cambio un po\' del tuo sangue.', choices:[
+    {label:'Pagare con i PV (-25%)', outcomes:[{p:1,text:'Il mercante sorride e ti consegna due Benedizioni.',do:{hurt:0.25,blessing:2}}]},
+    {label:'Derubarlo', outcomes:[{p:0.5,text:'Riesci a fuggire con un tesoro!',do:{blessing:1}},{p:0.5,text:'Il mercante si dissolve in un\'ombra furiosa: è battaglia!',do:{fight:true}}]},
+    {label:'Rifiutare', outcomes:[{p:1,text:'Il mercante svanisce nella nebbia.',do:{}}]}]},
+  {id:'altare', title:'L\'Altare Spezzato', text:'Un altare crepato pulsa di una vecchia energia. Qualcuno ha inciso un nome che non riesci a leggere.', choices:[
+    {label:'Pregare', outcomes:[{p:0.7,text:'Una luce calda ti avvolge: la squadra recupera il 30% dei PV.',do:{heal:0.3}},{p:0.3,text:'Non succede nulla. Solo silenzio.',do:{}}]},
+    {label:'Offrire sangue (-20% PV)', outcomes:[{p:1,text:'L\'altare accetta il sacrificio e ti dona una Benedizione.',do:{hurt:0.2,blessing:1}}]},
+    {label:'Spaccarlo', outcomes:[{p:1,text:'Dalle macerie emergono i custodi dell\'altare!',do:{fight:true}}]}]},
+  {id:'eco', title:'L\'Eco di un Eroe Caduto', text:'Una voce familiare riecheggia tra le pareti: sembra il ricordo di un eroe che non ce l\'ha fatta.', choices:[
+    {label:'Ascoltare', outcomes:[{p:0.5,text:'Il ricordo ti insegna una tecnica dimenticata: ottieni una Benedizione.',do:{blessing:1}},{p:0.5,text:'La voce è un inganno! L\'incubo ti ferisce: la squadra perde il 15% dei PV.',do:{hurt:0.15}}]},
+    {label:'Onorare i caduti', outcomes:[{p:1,text:'Un momento di quiete: la squadra recupera il 20% dei PV.',do:{heal:0.2}}]},
+    {label:'Andare avanti', outcomes:[{p:1,text:'L\'eco si spegne alle tue spalle.',do:{}}]}]},
+  {id:'uovo', title:'L\'Uovo Pulsante', text:'Un uovo gigantesco, caldo al tatto, pulsa a ritmo con il tuo cuore.', choices:[
+    {label:'Toccarlo', outcomes:[{p:0.5,text:'L\'uovo si schiude in luce pura: ottieni due Benedizioni!',do:{blessing:2}},{p:0.5,text:'Qualcosa dentro si sveglia furioso!',do:{fight:true}}]},
+    {label:'Osservarlo da lontano', outcomes:[{p:1,text:'Il calore dell\'uovo ti rilassa: la squadra recupera il 15% dei PV.',do:{heal:0.15}}]},
+    {label:'Allontanarsi', outcomes:[{p:1,text:'Meglio non svegliare ciò che dorme.',do:{}}]}]},
+  {id:'scrigno', title:'Lo Scrigno Maledetto', text:'Uno scrigno incatenato giace in mezzo alla stanza. Le catene tremano quando ti avvicini.', choices:[
+    {label:'Aprirlo', outcomes:[{p:0.6,text:'Dentro c\'è un tesoro luminoso: ottieni una Benedizione.',do:{blessing:1}},{p:0.4,text:'La maledizione colpisce! La squadra perde il 25% dei PV.',do:{hurt:0.25}}]},
+    {label:'Spezzare le catene', outcomes:[{p:1,text:'Le catene erano il sigillo di un guardiano: si risveglia!',do:{fight:true}}]},
+    {label:'Lasciarlo stare', outcomes:[{p:1,text:'Ti allontani con un brivido.',do:{}}]}]},
+];
+
+function ensureSUDay(){
+  const key=pfDateKey();
+  if(!state.suDaily || state.suDaily.date!==key) state.suDaily={date:key,claimed:false,bestWave:0};
+  return state.suDaily;
+}
+// Difficulty follows the highest cleared tower floor: wave 1 ~70% of it, wave 9 ~100%, boss at the nearest boss floor.
+function suClearedFloor(){ return Math.max(3,state.maxStageReached-1); }
+function generateSUEnemies(wave,fight){
+  const enemies=generateSUBaseEnemies(wave,fight);
+  // every Blessing taken makes enemies a bit tougher
+  const picked=state.su.blessings.length;
+  const hpMult=1+0.07*picked, atkMult=1+0.04*picked;
+  enemies.forEach(e=>{ e.hp=e.maxHp=Math.round(e.maxHp*hpMult); e.atk=Math.round(e.atk*atkMult); });
+  return enemies;
+}
+function generateSUBaseEnemies(wave,fight){
+  const cleared=suClearedFloor();
+  if(wave>=SU_WAVES && !fight){
+    const bossEnemies=generateEnemies(Math.max(5,Math.ceil(cleared/5)*5));
+    const boss=bossEnemies[0];
+    boss.name=state.su.bossName;
+    boss.elements=ENEMY_ELEMENT_SETS[boss.name].slice();
+    boss.element=boss.elements[0];
+    return bossEnemies;
+  }
+  let stage=Math.round(cleared*0.7+(Math.min(wave,9)-1)*cleared*0.3/8);
+  if(stage%5===0) stage++;
+  const baseStage=Math.max(3,stage);
+  const enemies=generateEnemies(baseStage);
+  while(enemies.length<3){
+    const extra=generateEnemies(baseStage)[0];
+    extra.id='e'+enemies.length;
+    extra.name=pick(ENEMY_NAMES.filter(n=>!enemies.some(e=>e.name===n))); 
+    extra.elements=ENEMY_ELEMENT_SETS[extra.name].slice();
+    extra.element=extra.elements[0];
+    extra.role=null;
+    enemies.push(extra);
+  }
+  enemies.length=3;
+  if(fight) enemies.forEach(e=>{ e.hp=e.maxHp=Math.round(e.maxHp*1.25); e.atk=Math.round(e.atk*1.1); });
+  return enemies;
+}
+function resetAlliesForWave(allies){
+  allies.forEach(a=>{
+    const c=CHAR_DB[a.charId];
+    a.shield=0; a.shieldRounds=0; a.atkBuffMult=1; a.buffRounds=0;
+    a.basicHits=c.basic.hits||1;
+    a.skillFreeUses=c.skillFreeUses||0;
+    a.inaFollowUpsRemaining=c.passiveInaFollowUps||0;
+    a.suiseiHpLossEvents=0; a.suiseiFollowUpReady=false; a.suiseiGuardRounds=0; a.suiseiGuardFresh=false;
+    a.suiseiRevivesRemaining=c.revivesPerBattle||0;
+    a.hakosForm=false;
+  });
+}
+function healAlliesBetweenWaves(fraction){
+  state.su.allies.forEach(a=>{
+    a.hp=clamp(Math.max(0,a.hp)+Math.round(a.maxHp*fraction),0,a.maxHp);
+  });
+}
+function applySUBlessing(blessing){
+  const su=state.su;
+  su.allies.forEach(a=>{ if(blessing.apply) blessing.apply(a); });
+  if(blessing.team) blessing.team(su);
+  su.blessings.push(blessing.name);
+}
+function grantRandomSUBlessings(count){
+  const names=[];
+  for(let i=0;i<count;i++){
+    const b=pick(SU_BLESSINGS);
+    applySUBlessing(b);
+    names.push(b.name);
+  }
+  return names;
+}
+function startSimulatedUniverse(){
+  if(state.maxStageReached<=SU_UNLOCK_STAGE) return;
+  state.su={wave:1,blessings:[],allies:null,bonusSp:0,regen:0,phase:'start',choices:[],startChoices:shuffleArr(SU_BLESSINGS).slice(0,3),pendingStart:null,bossName:pick(BOSS_NAMES),occ:null,result:null,lastOcc:false,seenOcc:[],reward:0,outcome:null};
+  state.screen='su';
+  render();
+}
+function startNextSUWave(){
+  resetAlliesForWave(state.su.allies);
+  state.su.phase=null;
+  startBattle('su');
+}
+function onSUWaveClear(){
+  const b=state.battle, su=state.su;
+  state.autoBattle=false;
+  if(b.hakosFormState) restoreHakosUltimate(b);
+  su.allies=b.allies;
+  if(b.suFight){
+    const names=grantRandomSUBlessings(1);
+    su.result={text:`Hai vinto lo scontro! Ottieni la Benedizione: ${names.join(', ')}.`,fight:false};
+    su.phase='occurrenceResult';
+    state.screen='su';
+    return;
+  }
+  if(su.wave>=SU_WAVES){ endSimulatedUniverse('win'); return; }
+  healAlliesBetweenWaves(0.3+su.regen);
+  su.choices=shuffleArr(SU_BLESSINGS).slice(0,3);
+  su.phase='blessing';
+  state.screen='su';
+}
+function suChooseBlessing(index){
+  const su=state.su;
+  applySUBlessing(su.choices[index]);
+  su.wave++;
+  const canOccur=!su.lastOcc && su.seenOcc.length<SU_OCCURRENCES.length && Math.random()<0.45;
+  if(canOccur){
+    const occ=pick(SU_OCCURRENCES.filter(o=>!su.seenOcc.includes(o.id)));
+    su.seenOcc.push(occ.id);
+    su.occ=occ;
+    su.lastOcc=true;
+    su.phase='occurrence';
+    render();
+  } else {
+    su.lastOcc=false;
+    startNextSUWave();
+  }
+}
+function suChooseOccurrence(index){
+  const su=state.su;
+  const choice=su.occ.choices[index];
+  let roll=Math.random(), outcome=choice.outcomes[choice.outcomes.length-1];
+  for(const o of choice.outcomes){ if(roll<o.p){ outcome=o; break; } roll-=o.p; }
+  const d=outcome.do||{};
+  let extra='';
+  if(d.hurt) state.su.allies.forEach(a=>{ if(a.hp>0) a.hp=Math.max(1,a.hp-Math.round(a.maxHp*d.hurt)); });
+  if(d.heal) state.su.allies.forEach(a=>{ if(a.hp>0) a.hp=clamp(a.hp+Math.round(a.maxHp*d.heal),0,a.maxHp); });
+  if(d.blessing) extra=` Benedizioni ottenute: ${grantRandomSUBlessings(d.blessing).join(', ')}.`;
+  su.result={text:outcome.text+extra,fight:!!d.fight};
+  su.phase='occurrenceResult';
+  render();
+}
+function suContinueAfterOccurrence(){
+  const su=state.su;
+  if(su.result.fight){ startBattle('su',true); return; }
+  startNextSUWave();
+}
+function endSimulatedUniverse(outcome){
+  const su=state.su, day=ensureSUDay();
+  state.autoBattle=false;
+  day.bestWave=Math.max(day.bestWave,outcome==='win'?SU_WAVES:su.wave);
+  su.reward=0;
+  if(outcome==='win' && !day.claimed){
+    day.claimed=true;
+    state.gold+=SU_REWARD;
+    su.reward=SU_REWARD;
+  }
+  su.outcome=outcome;
+  su.phase='end';
+  state.screen='su';
+}
+function suAbandon(){
+  if(!state.su) return;
+  state.battle=null;
+  endSimulatedUniverse('defeat');
+  render();
+}
+
+function startBattle(mode,fight){
+  const su = mode==='su';
+  const pf = mode==='pf';
+  const pfBuffs = pf ? getPFDailyBuffs() : null;
+  let allies = state.party.map(id=>{
     const eff = getEffectiveStats(id);
     return {
       charId:id, name:CHAR_DB[id].name, color:CHAR_DB[id].color, glyph:CHAR_DB[id].glyph, element:CHAR_DB[id].element,
@@ -653,7 +1032,7 @@ function startBattle(){
       energyGainMult:eff.energyGainMult, healMult:eff.healMult, burnMult:eff.burnMult, shieldMult:eff.shieldMult,
       damageMult:eff.damageMult, weaknessBonus:eff.weaknessBonus, sameElementBonus:eff.sameElementBonus,
       basicDamageMult:eff.basicDamageMult, buffPctBonus:eff.buffPctBonus, spGrantBonus:eff.spGrantBonus,
-      formDamageMult:eff.formDamageMult, defDownBonus:eff.defDownBonus, hpDamageMult:eff.hpDamageMult,
+      formDamageMult:eff.formDamageMult, defDownBonus:eff.defDownBonus, hpDamageMult:eff.hpDamageMult, skillDamageMult:eff.skillDamageMult,
       shield:0, shieldRounds:0, atkBuffMult:1, buffRounds:0,
       basicHits: CHAR_DB[id].basic.hits||1,
       skillFreeUses: CHAR_DB[id].skillFreeUses||0,
@@ -662,13 +1041,21 @@ function startBattle(){
       suiseiRevivesRemaining:CHAR_DB[id].revivesPerBattle||0,
     };
   });
-  const enemies = generateEnemies(state.stage);
+  if(pf) applyPFBuffs(allies,pfBuffs);
+  if(su){
+    if(state.su.allies) allies=state.su.allies;
+    else {
+      state.su.allies=allies;
+      if(state.su.pendingStart){ applySUBlessing(state.su.pendingStart); state.su.pendingStart=null; }
+    }
+  }
+  const enemies = pf ? generatePFEnemies() : su ? generateSUEnemies(state.su.wave,!!fight) : generateEnemies(state.stage);
   const turnOrder = buildTurnOrder(allies,enemies);
   const spMaxBonus = state.party.reduce((sum,id)=>sum+(CHAR_DB[id].passiveSpCapBonus||0),0);
   const spMax = 5+spMaxBonus;
   state.battle = {
     allies, enemies, turnOrder,
-    sp:Math.min(3,spMax), spMax,
+    sp:Math.min(3+(su?state.su.bonusSp:0),spMax), spMax,
     round:1,
     turnIndex:0,
     phase:turnOrder[0].side==='ally'?'ally_turn':'enemy_turn',
@@ -679,11 +1066,18 @@ function startBattle(){
     loot:[],
     inaFollowUpActive:false,
     suiseiFollowUpActive:false,
-    summonCounter:0,
+    summonCounter:pf?5:0,
+    mode:pf?'pf':su?'su':'tower',
+    suFight:su&&!!fight,
+    pf:pf?{score:0,kills:0,lastSpawn:null,buffs:pfBuffs}:null,
   };
   state.autoBattle=false;
   const firstActor = getTurnActor(state.battle);
-  logMsg(`Piano ${state.stage} — Round 1. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`);
+  logMsg(pf
+    ? `Pure Fiction — Turno 1/${PF_ROUNDS}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
+    : su
+    ? `Universo Simulato — Ondata ${state.su.wave}/${SU_WAVES}${fight?' (scontro)':''}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
+    : `Piano ${state.stage} — Round 1. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`);
   ensureInaMark(state.battle);
   state.screen='battle';
   render();
@@ -727,6 +1121,11 @@ async function advanceTurn(){
       render();
       return;
     }
+    if(b.mode==='pf' && b.round>=PF_ROUNDS){
+      endPureFiction('rounds');
+      render();
+      return;
+    }
     b.round++;
     b.turnOrder = buildTurnOrder(b.allies,b.enemies);
     b.turnIndex=0;
@@ -741,10 +1140,12 @@ async function advanceTurn(){
 
 function checkBattleEnd(){
   const b = state.battle;
+  if(b.mode==='pf') pfProcessKills(b);
   const bossDefeated=b.enemies.some(enemy=>enemy.isBoss && enemy.hp<=0);
   if(bossDefeated || b.enemies.every(e=>e.hp<=0)){
     b.phase='resolved';
-    onVictory();
+    if(b.mode==='su') onSUWaveClear();
+    else onVictory();
     return true;
   }
   b.allies.filter(ally=>ally.charId==='suiseiHoshimachi').forEach(reviveSuiseiIfNeeded);
@@ -754,7 +1155,9 @@ function checkBattleEnd(){
   }
   if(b.allies.every(a=>a.hp<=0)){
     b.phase='resolved';
-    onDefeat();
+    if(b.mode==='pf') endPureFiction('defeat');
+    else if(b.mode==='su') endSimulatedUniverse('defeat');
+    else onDefeat();
     return true;
   }
   return false;
@@ -836,16 +1239,26 @@ async function triggerInaFollowUpAfterHit(b,target,attacker){
   if(target) await performInaFollowUp(b,target,true);
 }
 
+function isEnemyWeakTo(element,enemy){
+  const vulnerability=enemy.vulnerableRounds>0?enemy.vulnerableToElement:null;
+  return getElementMultiplier(element,enemy.elements||enemy.element,0,0,vulnerability)>1;
+}
+
 function calcDamage(atk, mult, def, attackerElement, targetElement, attackerStats=null, abilityKey='', vulnerableToElement=null){
   let raw = atk*mult - def*0.5;
   raw = Math.max(raw, atk*mult*0.2);
   const variance = rnd(0.9,1.1);
   const elementMult = getElementMultiplier(attackerElement, targetElement, attackerStats?.weaknessBonus||0, attackerStats?.sameElementBonus||0, vulnerableToElement);
-  const weaponMult = (attackerStats?.damageMult||1)*(abilityKey==='basic'?(attackerStats?.basicDamageMult||1):1)*(attackerStats?.formDamageMult||1);
+  const weaponMult = (attackerStats?.damageMult||1)*(abilityKey==='basic'?(attackerStats?.basicDamageMult||1):1)*(abilityKey==='skill'||abilityKey==='ult'?(attackerStats?.skillDamageMult||1):1)*(attackerStats?.formDamageMult||1);
   return Math.max(1, Math.round(raw*variance*elementMult*weaponMult));
 }
 
+function isAbissoProtected(enemy){
+  return enemy.name==='Abisso Primordiale' && state.battle.enemies.some(e=>e!==enemy && e.hp>0);
+}
+
 function dealDamageToEnemy(enemy, dmg){
+  if(isAbissoProtected(enemy)) dmg=Math.max(1,Math.round(dmg*0.1));
   let applied = dmg;
   if(enemy.shield>0){
     if(enemy.shield>=applied){enemy.shield-=applied; applied=0;}
@@ -859,10 +1272,18 @@ function dealDamageToEnemy(enemy, dmg){
 }
 
 function updateBossPhase(enemy){
-  if(!enemy.isBoss || enemy.phase>=2 || enemy.hp<=0 || enemy.hp>enemy.maxHp*0.5) return false;
+  if(!enemy.isBoss || enemy.phase>=2 || enemy.hp>0) return false;
+  // First bar emptied: refill for the second bar and drop every unfinished phase-1 action.
   enemy.phase=2;
+  enemy.hp=enemy.maxHp;
+  enemy.shield=0;
   enemy.atk=Math.round(enemy.atk*1.2);
-  logMsg(`${enemy.name} entra nella Fase 2! ATK aumentato.`);
+  enemy.bossTurns=0;
+  enemy.addsWaveStarted=false;
+  enemy.addsWaveResolved=false;
+  enemy.addsTurnsRemaining=0;
+  state.battle.enemies.forEach(e=>{ if(e.bossAddOwnerId===enemy.id) e.bossAddResolved=true; });
+  logMsg(`${enemy.name} esaurisce la prima barra e entra nella Fase 2! Seconda barra di PV, ATK aumentato.`);
   return true;
 }
 
@@ -1037,11 +1458,13 @@ async function executeAbility(actor, abKey, targetId){
       : [t];
     if(actor.charId==='ninomaeInaNis'&&ability.effect==='ina_mark') setInaMark(b,t);
     const hits = (abKey==='basic' && actor.basicHits) ? actor.basicHits : (ability.hits||1);
+    const selenWeak = ability.effect==='selen_ult' && isEnemyWeakTo(actor.element,t);
     for(const target of hitTargets){
       for(let i=0;i<hits;i++){
         if(target.hp<=0) break;
         const targetVulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
-        const dmg = calcDamage(effAtk, ability.mult, getEffectiveEnemyDefense(target), actor.element, target.elements || target.element, actor, abKey, targetVulnerability);
+        const hitMult = ability.effect==='selen_skill' && isEnemyWeakTo(actor.element,target) ? ability.weakMult : ability.mult;
+        const dmg = calcDamage(effAtk, hitMult, getEffectiveEnemyDefense(target), actor.element, target.elements || target.element, actor, abKey, targetVulnerability);
         const applied = dealDamageToEnemy(target, dmg);
         logMsg(`${actor.name} usa ${ability.name}: ${applied} danni a ${target.name}.`);
         if(hits>1){ render(); await sleepMs(230); }
@@ -1054,6 +1477,11 @@ async function executeAbility(actor, abKey, targetId){
       if(actor.charId==='laplusDarkness'||actor.defDownBonus>0){
         applyLaplusAttackEffects(actor,target,0,actor.charId==='laplusDarkness'&&ability.effect==='laplus_plant_weakness');
       }
+    }
+    if(selenWeak && t.hp>0){
+      t.stunTurns=2;
+      t._fx={variant:'buff',label:'⚡ STORDITO'};
+      logMsg(`${t.name} è debole all'Electro: Stordito per 2 turni!`);
     }
     if(ability.effect==='suisei_guard_basic_cost'){
       const lost=loseSuiseiHp(actor,actor.maxHp*0.03);
@@ -1080,6 +1508,14 @@ async function executeAbility(actor, abKey, targetId){
       actor.shieldRounds = 2;
       actor._fx = {variant:'shield', label:'🛡+'+amt};
       logMsg(`${actor.name} ottiene uno scudo.`);
+      const weakest=allyTargets().filter(a=>a!==actor).sort((x,y)=>x.hp/x.maxHp-y.hp/y.maxHp)[0];
+      if(weakest){
+        const shared=Math.round(weakest.maxHp*ability.shieldPct*(actor.shieldMult||1));
+        weakest.shield+=shared;
+        weakest.shieldRounds=2;
+        weakest._fx={variant:'shield',label:'🛡+'+shared};
+        logMsg(`${actor.name} protegge anche ${weakest.name} con uno scudo.`);
+      }
     }
     if(ability.effect==='burn'){
       const dotName = CHAR_DB[actor.charId].dotName || 'Bruciatura';
@@ -1316,10 +1752,10 @@ function summonBossEnemies(boss,b,countOverride=null,addOwnerId=null){
   for(let i=0;i<summonCount;i++){
     const name=pick(ENEMY_NAMES);
     const elements=ENEMY_ELEMENT_SETS[name].slice();
-    const hp=Math.max(1,Math.round(boss.maxHp*(boss.phase===2?0.16:0.12)));
+    const hp=Math.max(1,Math.round(boss.maxHp/BOSS_HP_FACTOR*(boss.phase===2?0.16:0.12)));
     const enemy={
       id:'s'+(b.summonCounter++), name, hp, maxHp:hp,
-      atk:Math.round(boss.atk*(boss.phase===2?0.55:0.45)),
+      atk:Math.round(boss.atk/BOSS_ATK_FACTOR*(boss.phase===2?0.55:0.45)),
       def:Math.round(boss.def*0.6), speed:90+Math.floor(Math.random()*31),
       element:elements[0], elements, vulnerableToElement:null, vulnerableRounds:0,
       defDownPct:0, defDownRounds:0, shield:0, burnStacks:0, burnRounds:0,
@@ -1338,9 +1774,73 @@ function summonBossEnemies(boss,b,countOverride=null,addOwnerId=null){
   return summoned;
 }
 
+async function runEnemyRole(enemy,b){
+  enemy.specialTurns++;
+  const others=b.enemies.filter(e=>e!==enemy&&e.hp>0);
+  let acted=false;
+  if(enemy.role==='healer'){
+    const wounded=others.filter(e=>e.hp<e.maxHp).sort((a,c)=>a.hp/a.maxHp-c.hp/c.maxHp)[0];
+    if(wounded){
+      const amount=Math.min(wounded.maxHp-wounded.hp,Math.round(wounded.maxHp*0.3));
+      wounded.hp+=amount;
+      wounded._fx={variant:'heal',label:'+'+amount};
+      enemy._fxAttack='skill';
+      logMsg(`${enemy.name} cura ${wounded.name} di ${amount} PV.`);
+      acted=true;
+    }
+  } else if(enemy.role==='shielder'){
+    if(others.length>0 && enemy.specialTurns%2===1){
+      [enemy,...others].forEach(e=>{
+        const amount=Math.round(e.maxHp*0.12);
+        e.shield+=amount;
+        e._fx={variant:'shield',label:'🛡+'+amount};
+      });
+      enemy._fxAttack='skill';
+      logMsg(`${enemy.name} scherma tutti i nemici.`);
+      acted=true;
+    }
+  } else if(enemy.role==='buffer'){
+    if(others.length>0 && enemy.specialTurns%2===1){
+      [enemy,...others].forEach(e=>{
+        if((e.rageStacks||0)>=3) return;
+        e.rageStacks=(e.rageStacks||0)+1;
+        e.atk=Math.round(e.atk*1.15);
+        e._fx={variant:'buff',label:'+15% ATK'};
+      });
+      enemy._fxAttack='skill';
+      logMsg(`${enemy.name} infiamma i nemici: ATK +15% (max 3 volte).`);
+      acted=true;
+    }
+  } else if(enemy.role==='bomber'){
+    if(!enemy.bomberCharged){
+      enemy.bomberCharged=true;
+      enemy._fx={variant:'buff',label:'CARICA!'};
+      logMsg(`${enemy.name} si sta caricando: al prossimo turno colpirà tutta la squadra!`);
+      acted=true;
+    } else {
+      enemy.bomberCharged=false;
+      enemy._fxAttack='skill';
+      logMsg(`${enemy.name} esplode in un attacco ad area!`);
+      for(const ally of b.allies.filter(a=>a.hp>0)){
+        const dmg=calcDamage(Math.round(enemy.atk*0.9),1,ally.def,enemy.element,ally.element);
+        const result=dealDamageToAlly(ally,dmg,true);
+        logMsg(`${ally.name} subisce ${result.applied} danni dall'esplosione.`);
+        if(ally.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,ally);
+      }
+      acted=true;
+    }
+  }
+  if(!acted) return false;
+  render();
+  await sleepMs(700);
+  if(checkBattleEnd()){ b.busy=false; render(); return true; }
+  return true;
+}
+
 async function runBossMechanic(boss,b){
   const mechanics=BOSS_MECHANICS[boss.name];
   if(!mechanics) return;
+  const startPhase=boss.phase;
   const mechanic=boss.phase===2?mechanics.phase2:mechanics.phase1;
   const shouldUseSpecial=boss.phase===2 || boss.bossTurns%2===0;
   boss.bossTurns++;
@@ -1373,6 +1873,7 @@ async function runBossMechanic(boss,b){
           adds.forEach(enemy=>{enemy.bossAddResolved=true;});
           logMsg(`${boss.name} scatena l'ESONDAZIONE ABISSALE!`);
           for(const ally of b.allies.filter(target=>target.hp>0)){
+            if(boss.phase!==startPhase) break;
             const damage=calcDamage(Math.round(boss.atk*1.8),1,ally.def,boss.element,ally.element);
             const result=dealDamageToAlly(ally,damage,true);
             logMsg(`${ally.name} subisce ${result.applied} danni dall'esplosione massiva.`);
@@ -1405,6 +1906,7 @@ async function runBossMechanic(boss,b){
     const livingAllies=b.allies.filter(ally=>ally.hp>0);
     logMsg(`${boss.name} scatena un attacco ad area!`);
     for(const ally of livingAllies){
+      if(boss.phase!==startPhase) break;
       const dmg=calcDamage(Math.round(boss.atk*(boss.phase===2?0.8:0.65)),1,ally.def,boss.element,ally.element);
       const result=dealDamageToAlly(ally,dmg,true);
       logMsg(`${ally.name} subisce ${result.applied} danni dall'onda d'urto.`);
@@ -1433,6 +1935,24 @@ async function runEnemyTurn(){
   b.busy=true;
   render();
   await sleepMs(360);
+  if(enemy.stunTurns>0){
+    enemy.stunTurns--;
+    enemy._fx={variant:'buff',label:'⚡ STORDITO'};
+    logMsg(`${enemy.name} è stordito e salta il turno.`);
+    render();
+    await sleepMs(600);
+    b.busy=false;
+    await advanceTurn();
+    return;
+  }
+  const turnStartPhase=enemy.phase;
+  if(enemy.role && await runEnemyRole(enemy,b)){
+    b.busy=false;
+    if(b.phase!=='ally_turn'&&b.phase!=='enemy_turn') return;
+    if(b.allies.every(a=>a.hp<=0)){ checkBattleEnd(); render(); return; }
+    await advanceTurn();
+    return;
+  }
   if(enemy.isBoss){
     await runBossMechanic(enemy,b);
     if(checkBattleEnd()){
@@ -1442,15 +1962,21 @@ async function runEnemyTurn(){
     }
   }
 
-  const attackCount=enemy.isBoss?2:1;
+  const attackCount=(enemy.isBoss||enemy.role==='twin')?2:1;
   for(let attackIndex=0;attackIndex<attackCount;attackIndex++){
+    if(enemy.isBoss && enemy.phase!==turnStartPhase) break;
     const targets=b.allies.filter(ally=>ally.hp>0);
     if(targets.length===0) break;
     const target=pick(targets);
     enemy._fxAttack='basic';
-    const dmg=calcDamage(enemy.atk,1.0,target.def,enemy.element,target.element);
+    const dmg=calcDamage(enemy.atk,enemy.role==='twin'?0.7:1.0,target.def,enemy.element,target.element);
     const result=dealDamageToAlly(target,dmg,true);
-    const attackLabel=enemy.isBoss?` (${attackIndex+1}/2)`:'';
+    const attackLabel=attackCount>1?` (${attackIndex+1}/2)`:'';
+    if(enemy.role==='thief' && target.hp>0){
+      const drained=Math.min(target.energy,25);
+      target.energy-=drained;
+      if(drained>0) logMsg(`${enemy.name} drena ${drained} energia da ${target.name}.`);
+    }
     if(result.applied===0 && result.absorbed>0){
       logMsg(`${enemy.name}${attackLabel} attacca ${target.name}, ma lo scudo assorbe tutto il colpo (🛡 -${result.absorbed}).`);
     } else if(result.absorbed>0){
@@ -1672,6 +2198,77 @@ function unequipWeapon(charId){
 }
 const WEAPON_MAX_LEVEL = 20;
 const WEAPON_MAX_ASCENSION = 5;
+
+/* ---- Auto equip: picks the best weapon and artifacts among unequipped ones + the hero's current gear ---- */
+function getAutoEquipProfile(charId){
+  const c=CHAR_DB[charId];
+  const hpScaler=!!(c.basic.hpBased||c.ult.hpBased);
+  const tank=/Tank/.test(c.role);
+  const w = tank ? {hp:0.5,def:1.5,atk:0.2,speed:2}
+    : hpScaler ? {hp:1,atk:0.05,def:0.3,speed:2}
+    : /Supporto/.test(c.role) ? {atk:0.6,hp:0.3,def:0.3,speed:5}
+    : {atk:1,hp:0.1,def:0.3,speed:2};
+  return {w, heal:c.skill.effect==='heal'?1:0, shield:tank?0.5:0, burn:c.dotName?0.6:0, hpDamage:hpScaler?1:0};
+}
+function scoreAutoEquip(eff,p){
+  const base=eff.hp*p.w.hp+eff.atk*p.w.atk+eff.def*p.w.def+eff.speed*p.w.speed;
+  const mult=1+(eff.healMult-1)*p.heal+(eff.shieldMult-1)*p.shield+(eff.burnMult-1)*p.burn
+    +(eff.energyGainMult-1)*0.3+(eff.damageMult-1)+(eff.basicDamageMult-1)*0.4+(eff.skillDamageMult-1)*0.5
+    +eff.weaknessBonus*0.4+(eff.hpDamageMult-1)*p.hpDamage+eff.buffPctBonus*0.5;
+  return base*mult;
+}
+function autoEquip(charId){
+  const entry=state.roster[charId];
+  const p=getAutoEquipProfile(charId);
+  const score=()=>scoreAutoEquip(getEffectiveStats(charId),p);
+  const origWeapon=entry.weapon;
+  const origGear=entry.equipment.slice();
+
+  // an owner's signature gets a small bonus: its effect is tuned for them
+  const weapons=[...state.weaponInventory,...(origWeapon?[origWeapon]:[])];
+  let bestWeapon=origWeapon, bestWeaponScore=-1;
+  weapons.forEach(w=>{
+    entry.weapon=w;
+    const s=score()*(w.ownerId===charId?1.1:1);
+    if(s>bestWeaponScore){ bestWeaponScore=s; bestWeapon=w; }
+  });
+  entry.weapon=bestWeapon;
+
+  // artifacts: top items alone, plus combos built around 2 or 4 pieces of one set
+  entry.equipment=[null,null,null,null,null];
+  const baseline=score();
+  const pool=[...state.inventory,...origGear.filter(Boolean)];
+  const itemScore=new Map();
+  pool.forEach(it=>{ entry.equipment=[it,null,null,null,null]; itemScore.set(it,score()-baseline); });
+  const byScore=(a,b)=>itemScore.get(b)-itemScore.get(a);
+  const sorted=[...pool].sort(byScore);
+  const candidates=[sorted.slice(0,5)];
+  const bySet={};
+  pool.forEach(it=>{ (bySet[it.setId]=bySet[it.setId]||[]).push(it); });
+  Object.values(bySet).forEach(list=>{
+    list.sort(byScore);
+    [2,4].forEach(k=>{
+      if(list.length<k) return;
+      const core=list.slice(0,k);
+      candidates.push([...core,...sorted.filter(it=>!core.includes(it)).slice(0,5-k)]);
+    });
+  });
+  let best=candidates[0], bestScore=-1;
+  candidates.forEach(c=>{
+    entry.equipment=[...c,...Array(5-c.length).fill(null)];
+    const s=score();
+    if(s>bestScore){ bestScore=s; best=c; }
+  });
+
+  entry.equipment=[...best,...Array(5-best.length).fill(null)];
+  state.inventory=pool.filter(it=>!best.includes(it));
+  if(bestWeapon!==origWeapon){
+    state.weaponInventory=state.weaponInventory.filter(w=>w!==bestWeapon);
+    if(origWeapon) state.weaponInventory.push(origWeapon);
+  }
+  render();
+}
+
 function findWeapon(uid){
   const inventoryWeapon = state.weaponInventory.find(weapon=>weapon.uid===uid);
   if(inventoryWeapon) return {weapon:inventoryWeapon, ownerId:null};
@@ -1769,11 +2366,17 @@ const CHAR_PULL_CHANCE_4 = 0.05;
 const CHAR_PULL_CHANCE_5 = 0.02;
 const WEAPON_BANNER_PITY = 30;
 
-function drawWeaponBannerWeapon(){
+function getSignaturePool(type){
+  const heroRarity=type==='armi5'?5:4;
+  return SIGNATURE_WEAPONS.filter(weapon=>CHAR_DB[weapon.ownerId].rarity===heroRarity);
+}
+function pityKeyFor(type){ return type==='armi5'?'weaponBannerPulls5':'weaponBannerPulls'; }
+
+function drawWeaponBannerWeapon(type){
   const roll=Math.random();
   const rarity=roll<0.02?'leggendaria':roll<0.12?'epica':roll<0.47?'rara':'comune';
   const weaponNames=rarity==='leggendaria'
-    ? SIGNATURE_WEAPONS.map(weapon=>weapon.name)
+    ? getSignaturePool(type).map(weapon=>weapon.name)
     : WEAPON_NAMES.filter(name=>WEAPON_FIXED_STATS[name].rarity===rarity);
   return createWeapon(pick(weaponNames));
 }
@@ -1833,16 +2436,17 @@ async function doPulls(n){
   render();
 }
 
-function doSingleWeaponPull(){
+function doSingleWeaponPull(type){
   if(state.gold<PULL_COST) return null;
+  const pityKey=pityKeyFor(type);
   state.gold-=PULL_COST;
   state.totalPullsDone++;
-  state.weaponBannerPulls++;
+  state[pityKey]++;
 
   let result;
-  if(state.weaponBannerPulls>=WEAPON_BANNER_PITY){
-    const weapon=drawWeaponBannerWeaponForced5();
-    state.weaponBannerPulls=0;
+  if(state[pityKey]>=WEAPON_BANNER_PITY){
+    const weapon=createWeapon(pick(getSignaturePool(type)).name);
+    state[pityKey]=0;
     state.weaponInventory.push(weapon);
     return {type:'weapon',weapon,pity:true};
   }
@@ -1853,27 +2457,23 @@ function doSingleWeaponPull(){
   } else if(roll<CHAR_PULL_CHANCE_5+CHAR_PULL_CHANCE_4){
     result=grantCharacterOfRarity(4,false);
   } else {
-    const weapon=drawWeaponBannerWeapon();
+    const weapon=drawWeaponBannerWeapon(type);
     state.weaponInventory.push(weapon);
-    if(weapon.rarity==='leggendaria') state.weaponBannerPulls=0;
+    if(weapon.rarity==='leggendaria') state[pityKey]=0;
     result={type:'weapon',weapon};
   }
   return result;
 }
 
-function drawWeaponBannerWeaponForced5(){
-  return createWeapon(pick(SIGNATURE_WEAPONS).name);
-}
-
-async function doWeaponPulls(count){
+async function doWeaponPulls(count,type){
   const results=[];
   for(let index=0;index<count;index++){
-    const result=doSingleWeaponPull();
+    const result=doSingleWeaponPull(type);
     if(!result) break;
     results.push(result);
   }
   state.lastPullResults=results;
-  state.lastPullBanner='armi';
+  state.lastPullBanner=type;
   if(results.length>0) await playPullAnimation(results);
   render();
 }
@@ -2003,6 +2603,8 @@ function render(){
   else if(state.screen==='battle') app.appendChild(renderBattle());
   else if(state.screen==='victory') app.appendChild(renderVictory());
   else if(state.screen==='defeat') app.appendChild(renderDefeat());
+  else if(state.screen==='pfresult') app.appendChild(renderPFResult());
+  else if(state.screen==='su' && state.su) app.appendChild(renderSUScreen());
   if(state.screen!=='home') saveGame();
 }
 
@@ -2099,7 +2701,7 @@ function renderHeroCard(charId){
     <div id="wslot-${charId}"></div>
     <div class="equip-row" id="eqrow-${charId}"></div>
     <div class="set-bonus-list" id="setbonus-${charId}"></div>
-    <div style="margin-top:10px;"><button class="small ${selected?'danger':''}" id="toggle-${charId}">${selected?'Rimuovi dalla squadra':'Aggiungi alla squadra'}</button></div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><button class="small ${selected?'danger':''}" id="toggle-${charId}">${selected?'Rimuovi dalla squadra':'Aggiungi alla squadra'}</button><button class="small" id="auto-${charId}">⚙ Equip automatico</button></div>
   </div>`);
   const weapon = state.roster[charId].weapon;
   const wslot = card.querySelector(`#wslot-${charId}`);
@@ -2119,6 +2721,7 @@ function renderHeroCard(charId){
     setBonusEl.appendChild(el(`<div class="set-bonus-badge">${b.icon} ${b.name} (${b.tier}pz): ${b.label}</div>`));
   });
   card.querySelector(`#toggle-${charId}`).onclick=(ev)=>{ ev.stopPropagation(); togglePartyMember(charId); };
+  card.querySelector(`#auto-${charId}`).onclick=(ev)=>{ ev.stopPropagation(); autoEquip(charId); };
   return card;
 }
 
@@ -2131,6 +2734,8 @@ function renderTownTabs(){
     ['indice','Indice'],
     ['tutorial','Tutorial'],
     ['torre','Torre'],
+    ['purefiction','Pure Fiction'],
+    ['universo','Universo Simulato'],
     ['banner','Banner'],
     ['missioni','Missioni'],
   ];
@@ -2259,7 +2864,7 @@ function renderAbilitaTab(){
      <span><b>Genera:</b> ${c.basic.spGain!==undefined?c.basic.spGain:1} Punto/i Abilità</span>
      <span><b>Energia:</b> +${c.basic.energyGain}</span>`));
   cards.appendChild(renderAbilityCard(c.skill, 'skill', 'Skill · 1 Punto Abilità',
-    `<span><b>Moltiplicatore:</b> ${c.skill.mult>0?Math.round(c.skill.mult*100)+'% ATK':'—'}${c.skill.hits?` x${c.skill.hits} colpi`:''}</span>
+    `<span><b>Moltiplicatore:</b> ${c.skill.mult>0?Math.round(c.skill.mult*100)+'% '+(c.skill.hpBased?'PV massimi':'ATK'):'—'}${c.skill.hits?` x${c.skill.hits} colpi`:''}</span>
      ${c.skill.effect?`<span><b>Effetto:</b> ${effectLabel(c.skill)}</span>`:''}
      <span><b>Energia:</b> +${c.skill.energyGain}</span>`));
   cards.appendChild(renderAbilityCard(c.ult, 'ult', 'Ultimate · Energia Piena',
@@ -2302,7 +2907,7 @@ function renderAbilitaTab(){
 
 function effectLabel(ability){
   switch(ability.effect){
-    case 'shield_self': return `Scudo su se stesso pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni.`;
+    case 'shield_self': return `Scudo su se stesso pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni. Lo stesso scudo (sui PV massimi dell'alleato) va anche all'alleato con meno PV.`;
     case 'shield_all': return `Scudo su tutta la squadra pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni.`;
     case 'heal': return `Cura un alleato.`;
     case 'heal_all': return `Cura l'intera squadra.`;
@@ -2322,6 +2927,8 @@ function effectLabel(ability){
     case 'laplus_ultimate': return `Colpisce tutti i nemici, riduce la DIF del 30% per 2 round e rinnova il debuff.`;
     case 'ina_mark': return `Marca un nemico: quando viene colpito, Ina esegue un follow-up. Disponibili 3 cariche, recuperate con la Ultimate.`;
     case 'ina_ultimate': return `Colpisce tutti i nemici, esegue un follow-up su un bersaglio casuale e recupera tutte le cariche.`;
+    case 'selen_skill': return `Danno ${Math.round(ability.mult*100)}% ATK; ${Math.round(ability.weakMult*100)}% ATK se il nemico è debole all'Electro.`;
+    case 'selen_ult': return `Se il nemico è debole all'Electro (anche per il debuff di Laplus) lo Stordisce per 2 turni: salta le sue azioni.`;
     default: return '';
   }
 }
@@ -2541,15 +3148,15 @@ function renderIndiceTab(){
   }
 
   if(selected === 'tutto' || selected === 'nemici'){
-    const enemyCards = [...ENEMY_NAMES.map(name => el(`<div class="hud-panel artifact-card" style="border-color:#a1a1aa;">
+    const enemyCards = [...[...ENEMY_NAMES,...Object.keys(SPECIAL_ENEMIES)].map(name => el(`<div class="hud-panel artifact-card" style="border-color:#a1a1aa;">
       <div class="ac-head">
         <span class="ac-icon">◆</span>
         <div>
           <div class="ac-name">${name}</div>
-          <div class="ac-setname" style="color:#a1a1aa;">Nemico comune</div>
+          <div class="ac-setname" style="color:#a1a1aa;">${SPECIAL_ENEMIES[name]?'Nemico speciale':'Nemico comune'}</div>
         </div>
       </div>
-      <div class="ac-main">Scarto: minion di torre</div>
+      <div class="ac-main">${SPECIAL_ENEMIES[name]?SPECIAL_ENEMIES[name].label:'Scarto: minion di torre'}</div>
       <div class="ac-subs"><span>· Elementi: ${elementLabels(ENEMY_ELEMENT_SETS[name])}</span></div>
     </div>`)), ...BOSS_NAMES.map(name => el(`<div class="hud-panel artifact-card" style="border-color:#eab308;">
       <div class="ac-head">
@@ -2559,7 +3166,7 @@ function renderIndiceTab(){
           <div class="ac-setname" style="color:#eab308;">Boss</div>
         </div>
       </div>
-      <div class="ac-main">Due attacchi per turno · Fase 2 al 50% PV</div>
+      <div class="ac-main">Due attacchi per turno · Due barre di PV (Fase 2 alla seconda)</div>
       <div class="ac-subs"><span>· Elementi: ${elementLabels(ENEMY_ELEMENT_SETS[name])}</span><span>· Speciale: ${BOSS_MECHANIC_LABELS[BOSS_MECHANICS[name].phase1]} → ${BOSS_MECHANIC_LABELS[BOSS_MECHANICS[name].phase2]}</span></div>
     </div>`))];
     wrap.appendChild(renderCards('Nemici', enemyCards));
@@ -2573,14 +3180,14 @@ function renderTutorialTab(){
   wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Guida rapida</span><h2>Tutorial</h2></div>`));
   const sections = [
     ['Squadra e turni', `<p>Porta in battaglia fino a 4 eroi. Durante il turno della squadra scegli un'azione per l'eroe attivo; poi agiscono i nemici. Gli eroi sconfitti saltano il proprio turno.</p>`],
-    ['Boss e fasi', `<p>I boss hanno molti più PV, compiono due attacchi consecutivi a ogni turno e passano alla Fase 2 quando scendono al 50% dei PV: il loro ATK aumenta e la mossa speciale diventa più frequente. Ogni boss ha una meccanica propria; gli evocati non superano mai 5 nemici vivi in campo.</p>`],
+    ['Boss e fasi', `<p>I boss hanno molti più PV, compiono due attacchi consecutivi a ogni turno e passano alla Fase 2 quando esauriscono la prima barra di PV: la seconda barra si riempie, lo scudo e i rinforzi in corso vengono annullati, il loro ATK aumenta e la mossa speciale diventa più frequente. Ogni boss ha una meccanica propria; gli evocati non superano mai 5 nemici vivi in campo.</p>`],
     ['Velocità e ordine', `<p>Ogni round mostra l'ordine completo delle azioni: chi ha più VEL agisce prima, eroi e nemici possono alternarsi. Gli eroi partono da 100 VEL; i nemici hanno da 90 a 120. Gli artefatti possono aggiungere VEL: le statistiche VEL partono da 1–4 e, potenziando una secondaria, possono arrivare fino a 12.</p>`],
     ['Attacco, Skill e Ultimate', `<ul><li><b>Attacco Base:</b> infligge danno, genera Punti Abilità e ricarica energia.</li><li><b>Skill:</b> di norma costa 1 Punto Abilità; alcune abilità hanno usi gratuiti o effetti speciali.</li><li><b>Ultimate:</b> si attiva quando l'energia è al massimo e consuma tutta l'energia accumulata.</li></ul><p>La squadra parte con 3 Punti Abilità, ne può conservare fino a 5; Ouro Kronii aumenta il limite se è in squadra.</p>`],
     ['Elementi e danni', `<p>Ogni eroe ha un elemento; ogni nemico ha sempre gli stessi 3 elementi, mostrati nell'Indice e in battaglia. Un attacco dello stesso elemento infligge metà danno. Un elemento forte contro uno dei tipi del nemico infligge il doppio; gli altri attacchi infliggono danno normale.</p><ul>${Object.keys(ELEMENT_DATA).map(element=>`<li><b>${ELEMENT_DATA[element].label}</b> è forte contro ${ELEMENT_DATA[ELEMENT_DATA[element].strongAgainst].label}.</li>`).join('')}</ul>`],
     ['Manufatti e set', `<p>Equipaggia fino a 5 manufatti per eroe. Le statistiche principali e secondarie aumentano i parametri; i bonus set si attivano con 2 e 4 pezzi dello stesso set. Puoi potenziare un manufatto fino al livello 20; ogni 5 livelli migliora una statistica secondaria casuale.</p>`],
-    ['Armi', `<p>Ogni eroe ha uno slot arma. Ogni arma ha rarità, ATK, statistica secondaria ed effetto fissi. Potenziala fino al livello 20 spendendo Frammenti; ascendi fino al grado 5 consumando un doppione identico e vendila dall'Armeria. Il Banner armi contiene anche le sette firme 5 stelle dedicate agli eroi esistenti.</p>`],
+    ['Armi', `<p>Ogni eroe ha uno slot arma. Ogni arma ha rarità, ATK, statistica secondaria ed effetto fissi. Potenziala fino al livello 20 spendendo Frammenti; ascendi fino al grado 5 consumando un doppione identico e vendila dall'Armeria. Ci sono due Banner armi: uno con le armi esclusive degli eroi 4 stelle e uno con quelle degli eroi 5 stelle.</p>`],
     ['Torre e ricompense', `<p>Avanza nella Torre Infinita: ogni piano aumenta la difficoltà e ogni 5 piani affronti un boss. Le vittorie danno Frammenti e manufatti; usa i Frammenti per evocare dal Banner o potenziare l'equipaggiamento.</p>`],
-    ['Banner e missioni', `<p>Un'evocazione costa 300 Frammenti. Il Banner personaggi garantisce un personaggio 4 stelle entro 10 evocazioni e uno 5 stelle entro 50. Nel Banner armi i personaggi hanno le stesse probabilità base ma nessuna garanzia: un'arma 5 stelle è invece garantita ogni 30 evocazioni. Le missioni offrono Frammenti aggiuntivi.</p>`],
+    ['Banner e missioni', `<p>Un'evocazione costa 300 Frammenti. Il Banner personaggi garantisce un personaggio 4 stelle entro 10 evocazioni e uno 5 stelle entro 50. Nei Banner armi i personaggi hanno le stesse probabilità base ma nessuna garanzia: un'arma esclusiva (4 o 5 stelle a seconda del banner) è invece garantita ogni 30 evocazioni su quel banner. Le missioni offrono Frammenti aggiuntivi.</p>`],
   ];
   const grid = el(`<div class="tutorial-grid"></div>`);
   sections.forEach(([title, content])=>{
@@ -2656,36 +3263,37 @@ function renderMissioniTab(){
 
 function renderBannerTab(){
   const wrap = document.createElement('div');
-  const weaponBanner=state.bannerType==='armi';
-  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Evocazioni</span><h2>${weaponBanner?'Arsenale delle Stelle':'Richiamo degli Eroi'}</h2></div>`));
+  const weaponBanner=state.bannerType!=='personaggi';
+  const bannerTitles={personaggi:'Richiamo degli Eroi',armi4:'Arsenale degli Eroi ★★★★',armi5:'Arsenale delle Stelle ★★★★★'};
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Evocazioni</span><h2>${bannerTitles[state.bannerType]}</h2></div>`));
   const modeBar=el(`<div class="subtab-bar banner-mode"></div>`);
-  [['personaggi','Banner personaggi'],['armi','Banner armi']].forEach(([type,label])=>{
+  [['personaggi','Banner personaggi'],['armi4','Armi eroi ★★★★'],['armi5','Armi eroi ★★★★★']].forEach(([type,label])=>{
     const button=el(`<button class="subtab-btn ${state.bannerType===type?'active':''}">${label}</button>`);
     button.onclick=()=>setBannerType(type);
     modeBar.appendChild(button);
   });
   wrap.appendChild(modeBar);
   const bannerDescription=weaponBanner
-    ? `Ogni evocazione costa ${PULL_COST} Frammenti. Il pool include tutti i personaggi, le ${WEAPON_NAMES.length} armi standard e le ${SIGNATURE_WEAPONS.length} firme 5 stelle. Personaggi ★★★★★: 2%; ★★★★: 5%, senza garanzie. Un'arma 5 stelle è garantita ogni ${WEAPON_BANNER_PITY} evocazioni.`
+    ? `Ogni evocazione costa ${PULL_COST} Frammenti. Le armi esclusive 5 stelle in palio sono quelle degli eroi ${state.bannerType==='armi5'?'5':'4'} stelle (${getSignaturePool(state.bannerType).map(weapon=>weapon.name).join(', ')}), più le ${WEAPON_NAMES.length} armi standard. Personaggi ★★★★★: 2%; ★★★★: 5%, senza garanzie. Un'arma esclusiva è garantita ogni ${WEAPON_BANNER_PITY} evocazioni su questo banner.`
     : `Ogni evocazione costa ${PULL_COST} Frammenti. Personaggi ★★★★★: 2% (garantito ogni ${PITY_LIMIT_5}); ★★★★: 5% (garantito ogni ${PITY_LIMIT_4} senza averne ottenuto uno). Il resto sono armi.`;
   wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${bannerDescription}</div>`));
 
   const info = el(`<div class="hud-panel section" style="padding:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center;">
     <div>
       <div class="hero-name" style="font-size:20px;">💠 ${state.gold} Frammenti</div>
-      <div class="hint" style="margin:4px 0 0;text-align:left;">${weaponBanner?`Garanzia arma ★★★★★: ${state.weaponBannerPulls}/${WEAPON_BANNER_PITY}`:`Garanzia ★★★★: ${state.pityCounter}/${PITY_LIMIT_4} · Garanzia ★★★★★: ${state.pity5Counter}/${PITY_LIMIT_5}`}</div>
+      <div class="hint" style="margin:4px 0 0;text-align:left;">${weaponBanner?`Garanzia arma esclusiva: ${state[pityKeyFor(state.bannerType)]}/${WEAPON_BANNER_PITY}`:`Garanzia ★★★★: ${state.pityCounter}/${PITY_LIMIT_4} · Garanzia ★★★★★: ${state.pity5Counter}/${PITY_LIMIT_5}`}</div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <button class="primary" id="pull1" ${state.gold<PULL_COST?'disabled':''}>Evoca x1 (${PULL_COST})</button>
       <button class="primary" id="pull10" ${state.gold<PULL_COST*10?'disabled':''}>Evoca x10 (${PULL_COST*10})</button>
     </div>
   </div>`);
-  info.querySelector('#pull1').onclick=()=>weaponBanner?doWeaponPulls(1):doPulls(1);
-  info.querySelector('#pull10').onclick=()=>weaponBanner?doWeaponPulls(10):doPulls(10);
+  info.querySelector('#pull1').onclick=()=>weaponBanner?doWeaponPulls(1,state.bannerType):doPulls(1);
+  info.querySelector('#pull10').onclick=()=>weaponBanner?doWeaponPulls(10,state.bannerType):doPulls(10);
   wrap.appendChild(info);
 
   if(state.lastPullResults.length>0){
-    const resultBanner=state.lastPullBanner==='armi'?'Banner armi':'Banner personaggi';
+    const resultBanner={personaggi:'Banner personaggi',armi4:'Armi eroi ★★★★',armi5:'Armi eroi ★★★★★'}[state.lastPullBanner]||'Banner';
     wrap.appendChild(el(`<div class="screen-title" style="margin-top:22px;"><span class="eyebrow">${resultBanner}</span><h2>Ultime evocazioni</h2></div>`));
     const grid = el(`<div class="artifact-grid"></div>`);
     state.lastPullResults.forEach(r=>{
@@ -2706,7 +3314,7 @@ function renderTorreTab(){
 
   const towerPanel = el(`<div class="hud-panel section" style="padding:16px;"></div>`);
   const scroller = el(`<div class="tower-scroller"></div>`);
-  const windowStart = Math.max(1, state.maxStageReached-6);
+  const windowStart = 1;
   const windowEnd = state.maxStageReached;
   for(let n=windowStart;n<=windowEnd;n++){
     const boss = isBossStage(n);
@@ -2721,14 +3329,20 @@ function renderTorreTab(){
     scroller.appendChild(card);
   }
   towerPanel.appendChild(scroller);
+  requestAnimationFrame(()=>{ scroller.querySelector('.current')?.scrollIntoView({inline:'center',block:'nearest'}); });
   wrap.appendChild(towerPanel);
 
   const info = el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;text-align:center;">
     <div class="hero-name" style="font-size:20px;">Piano selezionato: ${state.stage} ${isBossStage(state.stage)?'· BOSS':''}</div>
     <div class="hint">Massimo raggiunto: piano ${state.maxStageReached}</div>
+    <div style="margin-top:8px;"><label class="hint">Vai al piano <input type="number" id="stageJump" min="1" value="${state.stage}" style="width:80px;"></label> <button id="stageJumpBtn">Vai</button></div>
     <button class="primary" id="deployBtn2" style="margin-top:12px;padding:12px 26px;font-size:15px;">Avvia Piano ${state.stage} ▶</button>
   </div>`);
   info.querySelector('#deployBtn2').onclick=()=>startBattle();
+  info.querySelector('#stageJumpBtn').onclick=()=>{
+    const n=parseInt(info.querySelector('#stageJump').value,10);
+    if(n>=1){ state.stage=n; render(); }
+  };
   wrap.appendChild(info);
   return wrap;
 }
@@ -2743,6 +3357,8 @@ function renderTown(){
   else if(state.townTab==='indice') wrap.appendChild(renderIndiceTab());
   else if(state.townTab==='tutorial') wrap.appendChild(renderTutorialTab());
   else if(state.townTab==='torre') wrap.appendChild(renderTorreTab());
+  else if(state.townTab==='purefiction') wrap.appendChild(renderPureFictionTab());
+  else if(state.townTab==='universo') wrap.appendChild(renderUniversoTab());
   else if(state.townTab==='banner') wrap.appendChild(renderBannerTab());
   else if(state.townTab==='missioni') wrap.appendChild(renderMissioniTab());
 
@@ -2990,7 +3606,10 @@ function renderBattle(){
       <div class="portrait">${e.isBoss?'☠':'◆'}</div>
       <div class="name">${e.name}</div>
       ${e.inaMarked?'<div class="ina-mark-tag">✦ MARCHIATO · INA</div>':''}
-      ${e.isBoss?`<div class="boss-tag">FASE ${e.phase||1}/2 · 2 ATTACCHI</div>`:''}
+      ${e.isBoss?`<div class="boss-tag">BARRA ${e.phase||1}/2 · 2 ATTACCHI</div>`:''}
+      ${e.stunTurns>0?`<div class="boss-add-tag" style="color:var(--amber);">⚡ STORDITO · ${e.stunTurns} TURNI</div>`:''}
+      ${e.role?`<div class="boss-add-tag" style="color:var(--cyan);">${SPECIAL_ENEMIES[e.name].label.toUpperCase()}${e.role==='bomber'&&e.bomberCharged?' · CARICO!':''}</div>`:''}
+      ${isAbissoProtected(e)?'<div class="boss-add-tag">PROTETTO · DANNI -90% FINCHÉ ESISTONO ALTRI NEMICI</div>':''}
       ${e.bossAddOwnerId&&!e.bossAddResolved?'<div class="boss-add-tag">RINFORZO · SCONFIGGI PER FERMARE L’ESPLOSIONE</div>':''}
       <div class="element-tags">${(e.elements||[e.element]).map(element=>{
         const affinity=getEnemyElementAffinity(e,element,activeAllyElement);
@@ -2999,6 +3618,7 @@ function renderBattle(){
       }).join('')}</div>
       ${(e.defDownRounds>0||e.vulnerableRounds>0)?`<div class="enemy-status-tags">${e.defDownRounds>0?`<span class="enemy-defdown">DIF -${Math.round(e.defDownPct*100)}%</span>`:''}${e.vulnerableRounds>0&&e.vulnerableToElement?`<span class="enemy-vulnerability">Vulnerabile a ${ELEMENT_DATA[e.vulnerableToElement].label}</span>`:''}</div>`:''}
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(e.hp/e.maxHp*100)}%"></div></div>
+      ${e.isBoss&&e.phase<2?'<div class="bar-track" style="height:4px;margin-top:2px;opacity:.55;"><div class="bar-fill hp-fill" style="width:100%"></div></div>':''}
       <div class="mini-lbl"><span>${e.hp}/${e.maxHp}</span></div>
       ${e.burnStacks>0?`<div class="burn-tag">${e.dotName==='Sanguinamento'?'🩸':'🔥'} x${e.burnStacks}</div>`:''}
       ${e.shield>0?`<div class="shield-tag">🛡 ${e.shield}</div>`:''}
@@ -3016,7 +3636,7 @@ function renderBattle(){
   const spPanel = el(`<div class="hud-panel" style="padding:12px;display:flex;flex-direction:column;justify-content:center;gap:8px;">
     <div class="mini-lbl" style="font-size:10px;">PUNTI ABILITÀ</div>
     <div style="display:flex;gap:6px;" id="spPips"></div>
-    <div class="mini-lbl" style="font-size:10px;margin-top:8px;">ROUND ${b.round}</div>
+    <div class="mini-lbl" style="font-size:10px;margin-top:8px;">${b.mode==='pf'?`TURNO ${b.round}/${PF_ROUNDS} · PUNTI ${b.pf.score}`:b.mode==='su'?`ONDATA ${state.su.wave}/${SU_WAVES}${b.suFight?' · SCONTRO':''} · ROUND ${b.round}`:`ROUND ${b.round}`}</div>
   </div>`);
   const pipsWrap = spPanel.querySelector('#spPips');
   for(let i=0;i<b.spMax;i++){
@@ -3116,6 +3736,176 @@ function renderBattle(){
   actionBar.appendChild(autoBtn);
   wrap.appendChild(actionBar);
 
+  return wrap;
+}
+
+function renderPureFictionTab(){
+  const wrap = document.createElement('div');
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Modalità a punteggio</span><h2>Pure Fiction</h2></div>`));
+  if(state.maxStageReached<=PF_UNLOCK_STAGE){
+    wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;text-align:center;"><div class="hero-name" style="font-size:18px;">🔒 Bloccata</div><div class="hint">Si sblocca dopo aver superato il Piano ${PF_UNLOCK_STAGE} della Torre. Massimo raggiunto: piano ${state.maxStageReached}.</div></div>`));
+    return wrap;
+  }
+  const day=ensurePFDay();
+  const buffs=getPFDailyBuffs();
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Cinque nemici in campo: ogni nemico sconfitto dà punti (100, 150 per i nemici speciali) e viene subito sostituito da uno diverso. Ogni eroe ha ${PF_ROUNDS} turni: quando finiscono la sfida termina e ottieni il risultato. Puoi rigiocare quanto vuoi, ma ogni ricompensa si ottiene una sola volta al giorno (reset a mezzanotte).</div>`));
+  wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;">
+    <div class="eyebrow">Potenziamenti di oggi</div>
+    <div style="margin-top:8px;"><b>${buffs.general.name}</b> · <span class="hint">${buffs.general.desc}</span></div>
+    <div style="margin-top:6px;"><b>${buffs.theme.name}</b> · <span class="hint">${buffs.theme.desc}</span></div>
+  </div>`));
+  const tiers=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense di oggi · Miglior punteggio: ${day.best}</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="pfTimer"></b></div></div>`);
+  startPFTimer(tiers.querySelector('#pfTimer'));
+  PF_TIERS.forEach((tier,i)=>{
+    tiers.appendChild(el(`<div class="stat-row"><span>${tier.points} punti</span><b style="color:${day.claimed[i]?'var(--green)':'var(--amber)'}">${day.claimed[i]?'✓ riscossa':'+'+tier.reward+' 💠'}</b></div>`));
+  });
+  wrap.appendChild(tiers);
+  const startRow=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="pfStart" style="padding:12px 26px;font-size:15px;">Avvia Pure Fiction ▶</button></div>`);
+  startRow.querySelector('#pfStart').onclick=()=>startPureFiction();
+  wrap.appendChild(startRow);
+  return wrap;
+}
+
+function renderUniversoTab(){
+  const wrap = document.createElement('div');
+  wrap.appendChild(el(`<div class=\"screen-title\"><span class=\"eyebrow\">Modalit\u00e0 roguelike</span><h2>Universo Simulato</h2></div>`));
+  if(state.maxStageReached<=SU_UNLOCK_STAGE){
+    wrap.appendChild(el(`<div class=\"hud-panel section\" style=\"padding:16px;text-align:center;\"><div class=\"hero-name\" style=\"font-size:18px;\">\ud83d\udd12 Bloccata</div><div class=\"hint\">Si sblocca dopo aver superato il Piano ${SU_UNLOCK_STAGE} della Torre. Massimo raggiunto: piano ${state.maxStageReached}.</div></div>`));
+    return wrap;
+  }
+  const day=ensureSUDay();
+  wrap.appendChild(el(`<div class=\"hint\" style=\"margin-bottom:14px;\">Affronta ${SU_WAVES} ondate di nemici sempre pi\u00f9 forti, con un boss all'ultima. Alla fine di ogni ondata scegli una Benedizione, un potenziamento permanente per la run; a volte ti imbatti in un Evento che pu\u00f2 darti altri benefici, ferirti o portarti a combattere. I PV non si ripristinano del tutto tra un'ondata e l'altra e, se la squadra cade, la run finisce. Puoi rifarla quante volte vuoi, ma la ricompensa si ottiene una sola volta al giorno.</div>`));
+  const info=el(`<div class=\"hud-panel section\" style=\"padding:16px;\">
+    <div class=\"eyebrow\">Ricompensa giornaliera</div>
+    <div class=\"stat-row\"><span>Completa tutte le ${SU_WAVES} ondate</span><b style=\"color:${day.claimed?'var(--green)':'var(--amber)'}\">${day.claimed?'\u2713 riscossa':'+'+SU_REWARD+' \ud83d\udca0'}</b></div>
+    <div class=\"stat-row\"><span>Ondata massima di oggi</span><b>${day.bestWave}/${SU_WAVES}</b></div>
+    <div class=\"hint\" style=\"margin-top:6px;text-align:left;\">Reset tra <b id=\"suTimer\"></b></div>
+  </div>`);
+  startPFTimer(info.querySelector('#suTimer'));
+  wrap.appendChild(info);
+  const startRow=el(`<div style=\"text-align:center;margin-top:14px;\"><button class=\"primary\" id=\"suStart\" style=\"padding:12px 26px;font-size:15px;\">Avvia Universo Simulato \u25b6</button></div>`);
+  startRow.querySelector('#suStart').onclick=()=>startSimulatedUniverse();
+  wrap.appendChild(startRow);
+  return wrap;
+}
+
+const SU_BLESSING_ICONS = {'Vigore':'\u2694','Tempra':'\u2764','Corazza':'\ud83d\udee1','Passo Leggero':'\ud83d\udca8','Furia':'\ud83d\udd25','Fonte di Energia':'\u26a1','Mani Guaritrici':'\u271a','Rigenerazione':'\ud83c\udf3f','Occhio Acuto':'\ud83d\udc41','Maestria di Base':'\ud83d\udde1','Colpi Risolutivi':'\ud83d\udca5','Brace Persistente':'\ud83e\ude78','Riserva Tattica':'\u2666','Cuore di Pietra':'\ud83e\udea8','Eco di Comando':'\ud83d\udce3'};
+
+function suChooseStart(index){
+  state.su.pendingStart=state.su.startChoices[index];
+  startBattle('su');
+}
+function suCancelStart(){
+  state.su=null;
+  state.screen='town';
+  render();
+}
+
+function renderSUScreen(){
+  const su=state.su;
+  const ended=su.phase==='end';
+  const win=ended&&su.outcome==='win';
+  const wrap=el(`<div class="hud-panel su-screen ${win?'win':ended?'lose':''}"></div>`);
+
+  // waves already cleared decide how the progress track is drawn
+  const cleared=win?SU_WAVES:su.phase==='blessing'?su.wave:su.wave-1;
+  const pips=Array.from({length:SU_WAVES},(_,i)=>{
+    const n=i+1;
+    const cls=n<=cleared?'done':(!ended&&n===cleared+1)?'current':'';
+    return `<span class="su-pip ${cls} ${n===SU_WAVES?'boss':''}">${n===SU_WAVES?'\u2620':n}</span>`;
+  }).join('');
+  wrap.appendChild(el(`<div class="su-progress">${pips}</div>`));
+
+  const head=(eyebrow,title,text)=>wrap.appendChild(el(`<div class="su-head"><div class="eyebrow">${eyebrow}</div><h2>${title}</h2><p>${text}</p></div>`));
+
+  const team=el(`<div class="su-team"></div>`);
+  const members=su.allies||state.party.map(id=>({name:CHAR_DB[id].name,color:CHAR_DB[id].color,glyph:CHAR_DB[id].glyph,hp:null}));
+  members.forEach(a=>{
+    const hpBlock=a.hp===null?'':`<div class="bar-track"><div class="bar-fill hp-fill" style="width:${Math.max(0,a.hp)/a.maxHp*100}%"></div></div><div class="su-ally-hp">${Math.max(0,a.hp)}/${a.maxHp} PV</div>`;
+    team.appendChild(el(`<div class="su-ally ${a.hp!==null&&a.hp<=0?'down':''}"><div class="su-ally-glyph" style="background:${a.color}">${a.glyph}</div><div class="su-ally-info"><div class="su-ally-name">${a.name}</div>${hpBlock}</div></div>`));
+  });
+
+  const choiceGrid=(list,onPick)=>{
+    const grid=el(`<div class="su-choices"></div>`);
+    list.forEach((bl,i)=>{
+      const card=el(`<button class="su-choice"><span class="su-choice-icon">${SU_BLESSING_ICONS[bl.name]||'\u2728'}</span><span class="su-choice-name">${bl.name}</span><span class="su-choice-desc">${bl.desc}</span><span class="su-choice-cta">Scegli</span></button>`);
+      card.onclick=()=>onPick(i);
+      grid.appendChild(card);
+    });
+    return grid;
+  };
+
+  if(su.phase==='start'){
+    head('Inizio run','Scegli la Benedizione iniziale','Ti accompagner\u00e0 per tutta la run, insieme a quelle che sceglierai dopo ogni ondata.');
+    wrap.appendChild(team);
+    wrap.appendChild(choiceGrid(su.startChoices,suChooseStart));
+  } else if(su.phase==='blessing'){
+    head(`Ondata ${su.wave} superata`,'Scegli una Benedizione',`La squadra recupera un po' di PV. Il potenziamento durer\u00e0 fino alla fine della run${su.wave+1===SU_WAVES?" \u2014 la prossima ondata \u00e8 il boss!":'.'}`);
+    wrap.appendChild(team);
+    wrap.appendChild(choiceGrid(su.choices,suChooseBlessing));
+  } else if(su.phase==='occurrence'){
+    head('Evento',su.occ.title,su.occ.text);
+    wrap.appendChild(team);
+    const list=el(`<div class="su-options"></div>`);
+    su.occ.choices.forEach((ch,i)=>{
+      const btn=el(`<button class="su-option">${ch.label}</button>`);
+      btn.onclick=()=>suChooseOccurrence(i);
+      list.appendChild(btn);
+    });
+    wrap.appendChild(list);
+  } else if(su.phase==='occurrenceResult'){
+    head('Evento',su.occ?su.occ.title:'Evento','');
+    wrap.appendChild(el(`<div class="su-result">${su.result.text}</div>`));
+    wrap.appendChild(team);
+    const btn=el(`<button class="primary su-continue">${su.result.fight?'Combatti \u25b6':'Continua \u25b6'}</button>`);
+    btn.onclick=()=>suContinueAfterOccurrence();
+    wrap.appendChild(btn);
+  } else if(ended){
+    head(win?'Vittoria':'Fine della run',win?'Universo Simulato completato!':'Run terminata',win?`Hai sconfitto il boss dell'ondata ${SU_WAVES}.`:`La squadra \u00e8 caduta all'ondata ${su.wave}/${SU_WAVES}.`);
+    wrap.appendChild(el(`<div class="su-result">${su.reward>0?`Ricompensa: +${su.reward} \ud83d\udca0 Frammenti`:win?'Ricompensa giornaliera gi\u00e0 riscossa.':'Completa tutte le ondate per ottenere la ricompensa.'}</div>`));
+  }
+
+  if(su.blessings.length>0){
+    const counts={};
+    su.blessings.forEach(name=>{ counts[name]=(counts[name]||0)+1; });
+    const chips=Object.entries(counts).map(([name,n])=>`<span class="su-chip" title="${(SU_BLESSINGS.find(b=>b.name===name)||{}).desc||''}">${SU_BLESSING_ICONS[name]||'\u2728'} ${name}${n>1?` \u00d7${n}`:''}</span>`).join('');
+    wrap.appendChild(el(`<div class="su-active"><div class="eyebrow">Benedizioni attive</div><div class="su-chips">${chips}</div></div>`));
+  }
+
+  if(ended){
+    const btn=el(`<button class="primary su-continue">Torna alla base \u25b6</button>`);
+    btn.onclick=()=>{ state.battle=null; state.su=null; state.screen='town'; state.townTab='universo'; render(); };
+    wrap.appendChild(btn);
+  } else if(su.phase==='start'){
+    const btn=el(`<button class="small su-abandon">Annulla</button>`);
+    btn.onclick=suCancelStart;
+    wrap.appendChild(btn);
+  } else {
+    const btn=el(`<button class="small danger su-abandon">Abbandona la run</button>`);
+    btn.onclick=()=>{ if(confirm('Abbandonare la run? Perderai i progressi.')) suAbandon(); };
+    wrap.appendChild(btn);
+  }
+  return wrap;
+}
+
+function renderPFResult(){
+  const r=state.battle.pfResult;
+  const day=ensurePFDay();
+  const wrap=el(`<div class="hud-panel center-msg ${r.gained.length>0?'win':'lose'}">
+    <h2>Pure Fiction · Risultato</h2>
+    <div class="hint">${r.reason==='defeat'?'La squadra è stata sconfitta.':`I ${PF_ROUNDS} turni sono finiti.`}</div>
+    <div class="hero-name" style="font-size:26px;margin:10px 0;">${r.score} punti</div>
+    <div class="hint">Nemici sconfitti: ${r.kills} · Miglior punteggio di oggi: ${day.best}</div>
+    <div class="hint" style="margin-top:8px;">${r.total>0?`Ricompensa ottenuta: +${r.total} 💠 Frammenti`:'Nessuna nuova ricompensa (già riscosse oggi o soglia non raggiunta).'}</div>
+  </div>`);
+  const tiers=el(`<div style="margin:10px 0;"></div>`);
+  PF_TIERS.forEach((tier,i)=>{
+    tiers.appendChild(el(`<div class="stat-row"><span>${tier.points} punti</span><b style="color:${day.claimed[i]?'var(--green)':'var(--text-dim)'}">${day.claimed[i]?'✓ riscossa':'—'}</b></div>`));
+  });
+  wrap.appendChild(tiers);
+  const btnRow=el(`<div style="text-align:center;"><button class="primary" id="pfBack">Torna alla base ▶</button></div>`);
+  btnRow.querySelector('#pfBack').onclick=()=>{ state.battle=null; state.screen='town'; state.townTab='purefiction'; render(); };
+  wrap.appendChild(btnRow);
   return wrap;
 }
 

@@ -134,7 +134,7 @@ button.small{padding:5px 10px;font-size:12px;}
 .ability-card .anumbers b{color:var(--text);}
 
 /* Tower / stage select */
-.tower-scroller{display:flex;gap:10px;flex-wrap:wrap;}
+.tower-scroller{display:flex;gap:10px;flex-wrap:wrap;max-height:260px;overflow-y:auto;}
 .stage-card{padding:14px 16px;min-width:140px;text-align:center;}
 .stage-card .num{font-size:26px;font-family:'Rajdhani';font-weight:700;}
 .stage-card .lbl{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;}
@@ -208,6 +208,49 @@ button.small{padding:5px 10px;font-size:12px;}
 .center-msg h2{font-size:30px;margin-bottom:8px;}
 .center-msg.win h2{color:var(--green);}
 .center-msg.lose h2{color:var(--rose);}
+
+/* ===== Simulated Universe screen ===== */
+.su-screen{max-width:760px;margin:0 auto;padding:22px 20px 26px;display:flex;flex-direction:column;gap:18px;animation:fx-fade-in .45s ease;}
+.su-screen.win{border-color:var(--green);}
+.su-screen.lose{border-color:var(--rose);}
+.su-progress{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;}
+.su-pip{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:50%;font-size:12px;color:var(--text-dim);background:var(--bg-panel-2);}
+.su-pip.done{border-color:var(--green);color:var(--green);background:rgba(110,231,160,.1);}
+.su-pip.current{border-color:var(--amber);color:var(--amber);box-shadow:0 0 10px rgba(245,179,66,.45);}
+.su-pip.boss{border-color:var(--rose);}
+.su-head{text-align:center;}
+.su-head .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--violet);}
+.su-head h2{font-size:28px;margin:6px 0;}
+.su-head p{margin:0 auto;max-width:520px;font-size:13px;line-height:1.5;color:var(--text-dim);}
+.su-team{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;}
+.su-ally{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-panel-2);}
+.su-ally.down{opacity:.45;filter:grayscale(1);}
+.su-ally-glyph{width:34px;height:34px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;color:#0b0f1d;}
+.su-ally-info{flex:1;min-width:0;}
+.su-ally-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.su-ally-hp{font-size:10px;color:var(--text-dim);margin-top:2px;}
+.su-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+.su-choice{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 14px 16px;text-align:center;border:1px solid var(--amber);border-radius:10px;background:linear-gradient(180deg,rgba(245,179,66,.1),rgba(22,29,56,.9));transition:transform .15s ease,box-shadow .15s ease;}
+.su-choice:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(245,179,66,.25);}
+.su-choice-icon{font-size:34px;line-height:1;filter:drop-shadow(0 0 8px rgba(245,179,66,.6));}
+.su-choice-name{font-family:'Rajdhani',sans-serif;font-size:19px;font-weight:700;color:var(--amber);}
+.su-choice-desc{font-size:12.5px;line-height:1.5;color:var(--text);font-weight:400;letter-spacing:0;}
+.su-choice-cta{margin-top:auto;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);}
+.su-options{display:flex;flex-direction:column;gap:10px;}
+.su-option{padding:13px 16px;text-align:left;font-size:15px;border-color:var(--cyan);background:rgba(79,216,224,.07);}
+.su-option:hover{background:rgba(79,216,224,.16);}
+.su-result{padding:14px 16px;border-left:3px solid var(--amber);background:rgba(245,179,66,.08);border-radius:0 8px 8px 0;font-size:14px;line-height:1.55;}
+.su-active{padding-top:14px;border-top:1px dashed var(--border);}
+.su-active .eyebrow{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);}
+.su-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.su-chip{padding:4px 10px;border:1px solid var(--border);border-radius:999px;font-size:12px;background:var(--bg-panel-2);}
+.su-continue{align-self:center;padding:12px 30px;font-size:15px;}
+.su-abandon{align-self:center;}
+@media (max-width:640px){
+  .su-screen{padding:16px 12px 20px;gap:14px;}
+  .su-head h2{font-size:22px;}
+  .su-pip{width:26px;height:26px;font-size:11px;}
+}
 .loot-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:18px 0;}
 
 /* ============ BATTLE ANIMATIONS ============ */
