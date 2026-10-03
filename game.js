@@ -54,7 +54,7 @@ const CHAR_DB = {
     basic:{name:'Impulso Armonico', desc:'Danno a un bersaglio. Genera 2 Punti Abilità invece di 1.', mult:0.8, target:'enemy', effect:null, energyGain:20, spGain:2},
     skill:{name:'Dono del Tempo', desc:'Non infligge danno: dona 3 Punti Abilità alla squadra.', mult:0, target:'team', effect:'grant_sp', spGrant:3, energyGain:25},
     ult:{name:'Convergenza Assoluta', desc:'Dona 3 Punti Abilità e +25% ATK alla squadra per 2 turni.', mult:0, target:'team', effect:'grant_sp_and_buff', spGrant:3, buffPct:0.25} },
-  hakosBaels: { name:'Hakos Baels', title:'Arbitra del Caos', role:'DPS Trasformazione', color:'#ef5a7d', glyph:'H', rarity:5, element:'ether', animStyle:'swift',
+  hakosBaels: { name:'Hakos Baels', title:'Arbitra del Caos', role:'DPS Trasformazione', color:'#ef5a7d', glyph:'H', rarity:5, element:'ether', animStyle:'swift', passiveSelfHeal:0.03,
     base:{hp:1220, atk:142, def:86, speed:100, energyMax:150},
     basic:{name:'Dado Impazzito', desc:'Infligge danno normale a un nemico.', mult:1.0, target:'enemy', effect:null, energyGain:20},
     skill:{name:'Caos Concentrato', desc:'Infligge danno maggiore a un nemico.', mult:1.35, target:'enemy', effect:null, energyGain:30},
@@ -66,9 +66,9 @@ const CHAR_DB = {
     ult:{name:'Dominio della Disordine', desc:'Danneggia tutti i nemici, riduce la DIF del 30% per 2 round e rinnova il debuff.', mult:1.6, target:'enemies_all', effect:'laplus_ultimate'} },
   ninomaeInaNis: {name:"Ninomae Ina'Nis",title:'Sacerdotessa del Vuoto',role:'DPS Follow-up',color:'#42c9b8',glyph:'I',rarity:4,element:'hydro',animStyle:'radiant-soft',passiveInaFollowUps:3,
     base:{hp:1120,atk:128,def:82,speed:100,energyMax:135},
-    basic:{name:'Inchiostro Abissale',desc:'Infligge danno a un singolo nemico.',mult:0.9,target:'enemy',effect:null,energyGain:20},
-    skill:{name:'Marchio Tentacolare',desc:'Infligge danno e marca un nemico. Gli attacchi successivi contro il bersaglio marcato attivano un follow-up di Ina, fino a 3 volte.',mult:1.3,target:'enemy',effect:'ina_mark',energyGain:30},
-    ult:{name:'Oltre il Mare',desc:'Infligge danno a tutti i nemici, esegue un follow-up casuale e recupera le 3 cariche di follow-up.',mult:1.55,target:'enemies_all',effect:'ina_ultimate'} },
+    basic:{name:'Inchiostro Abissale',desc:'Infligge danno a un singolo nemico, basato sui PV massimi.',mult:0.1,target:'enemy',effect:null,hpBased:true,energyGain:20},
+    skill:{name:'Marchio Tentacolare',desc:'Infligge danno e marca un nemico. Gli attacchi successivi contro il bersaglio marcato attivano un follow-up di Ina, fino a 3 volte.',mult:0.15,target:'enemy',effect:'ina_mark',hpBased:true,energyGain:30},
+    ult:{name:'Oltre il Mare',desc:'Infligge danno a tutti i nemici, esegue un follow-up casuale e recupera le 3 cariche di follow-up.',mult:0.18,target:'enemies_all',effect:'ina_ultimate',hpBased:true} },
   suiseiHoshimachi: {name:'Susei Hoshimachi',title:'Cometa Cremisi',role:'DPS PV Massimi',color:'#4c91ff',glyph:'S',rarity:5,element:'imaginary',animStyle:'surge',passiveHpLossFollowUps:4,revivesPerBattle:2,
     base:{hp:1420,atk:88,def:84,speed:100,energyMax:145},
     basic:{name:'Luce della Cometa',desc:'Attacco singolo basato sui PV massimi.',mult:0.14,target:'enemy',effect:null,hpBased:true,energyGain:20},
@@ -81,9 +81,9 @@ const CHAR_DB = {
     ult:{name:'Giudizio del Tuono',desc:'Colpo singolo devastante. Se il nemico è debole all\'Electro (anche tramite il debuff di Laplus) lo Stordisce per 2 turni.',mult:3.0,target:'enemy',effect:'selen_ult'} },
   finanaRyugu: {name:'Finana Ryugu',title:'Marea Gentile',role:'DPS Area',color:'#38bdf8',glyph:'F',rarity:4,element:'hydro',animStyle:'radiant-soft',passiveFinanaFollowUp:true,
     base:{hp:1010,atk:118,def:70,speed:100,energyMax:120},
-    basic:{name:'Onda Spumeggiante',desc:'Danno leggero a tutti i nemici.',mult:0.5,target:'enemies_all',effect:null,energyGain:20},
-    skill:{name:'Marea Montante',desc:'Danno ad area superiore al Basic.',mult:0.9,target:'enemies_all',effect:null,energyGain:30},
-    ult:{name:'Tsunami Cristallino',desc:'Danno a tutti i nemici.',mult:1.5,target:'enemies_all',effect:null} },
+    basic:{name:'Onda Spumeggiante',desc:'Danno leggero a tutti i nemici, basato sui PV massimi.',mult:0.06,target:'enemies_all',effect:null,hpBased:true,energyGain:20},
+    skill:{name:'Marea Montante',desc:'Danno ad area superiore al Basic.',mult:0.11,target:'enemies_all',effect:null,hpBased:true,energyGain:30},
+    ult:{name:'Tsunami Cristallino',desc:'Danno a tutti i nemici.',mult:0.18,target:'enemies_all',effect:null,hpBased:true} },
 };
 
 const ENEMY_NAMES = ['Larva del Vuoto','Sentinella Corrotta','Sciame Spinato','Costrutto Infranto','Ombra Vagante'];
@@ -144,14 +144,14 @@ const RARITY_COLOR = {comune:'#8791b3', rara:'#4fd8e0', epica:'#f5b342', leggend
 const RARITY_LABEL = {comune:'Comune', rara:'Rara', epica:'Epica', leggendaria:'5 stelle'};
 
 const MAIN_VALUES = {
-  flat:   {comune:{atk:20,hp:200,def:24}, rara:{atk:36,hp:360,def:42}, epica:{atk:60,hp:600,def:70}},
-  pct:    {comune:0.08, rara:0.14, epica:0.20},
-  energy: {comune:0.06, rara:0.10, epica:0.14},
+  flat:   {comune:{atk:20,hp:200,def:24}, rara:{atk:36,hp:360,def:42}, epica:{atk:60,hp:600,def:70}, leggendaria:{atk:90,hp:900,def:105}},
+  pct:    {comune:0.08, rara:0.14, epica:0.20, leggendaria:0.27},
+  energy: {comune:0.06, rara:0.10, epica:0.14, leggendaria:0.19},
 };
 const SUB_VALUES = {
-  flat:   {comune:{atk:6,hp:60,def:8}, rara:{atk:11,hp:110,def:14}, epica:{atk:18,hp:180,def:22}},
-  pct:    {comune:0.03, rara:0.05, epica:0.08},
-  energy: {comune:0.03, rara:0.05, epica:0.07},
+  flat:   {comune:{atk:6,hp:60,def:8}, rara:{atk:11,hp:110,def:14}, epica:{atk:18,hp:180,def:22}, leggendaria:{atk:27,hp:270,def:33}},
+  pct:    {comune:0.03, rara:0.05, epica:0.08, leggendaria:0.11},
+  energy: {comune:0.03, rara:0.05, epica:0.07, leggendaria:0.10},
 };
 
 // Manufatti (artifact sets). Equipping 2 pieces of the same set grants a generic bonus,
@@ -181,6 +181,18 @@ const ARTIFACT_SETS = {
     pieces:['Cuore Vitale','Calice Vitale','Veste Vitale','Pendente Vitale','Fascia Vitale'],
     bonus2:{label:'+15% PV Massimi', apply:(acc)=>{ acc.pctBonus.hp+=0.15; }},
     bonus4:{label:'+8% dei PV Massimi come ATK, +20% cure effettuate, +15% danni basati sui PV', apply:(acc)=>{ acc.hpToAtk+=0.08; acc.healMult+=0.20; acc.hpDamageMult=(acc.hpDamageMult||0)+0.15; }} },
+  danza: { name:'Danza Instancabile', icon:'🌀',
+    pieces:['Lama della Danza','Fascia della Danza','Calzari della Danza','Sigillo della Danza','Nastro della Danza'],
+    bonus2:{label:'+12% ATK', apply:(acc)=>{ acc.pctBonus.atk+=0.12; }},
+    bonus4:{label:'+10% danni per ogni Skill usata nello stesso turno', apply:(acc)=>{ acc.fxSkillSp=true; }} },
+  assenza: { name:'Assenza Siderale', icon:'🌌',
+    pieces:['Nucleo Siderale','Velo Siderale','Orbita Siderale','Frammento Siderale','Corona Siderale'],
+    bonus2:{label:'+12% ATK', apply:(acc)=>{ acc.pctBonus.atk+=0.12; }},
+    bonus4:{label:'+30% danni per ogni compagno assente in battaglia (Hakos, squadre con meno di 4 eroi)', apply:(acc)=>{ acc.fxAbsent=true; }} },
+  furia: { name:'Furia del Colpito', icon:'💢',
+    pieces:['Corazza Furente','Guanto Furente','Elmo Furente','Schinieri Furenti','Medaglione Furente'],
+    bonus2:{label:'+20% DIF', apply:(acc)=>{ acc.pctBonus.def+=0.20; }},
+    bonus4:{label:'Ogni volta che vieni colpito: +15% danni per 2 round (cumulabile)', apply:(acc)=>{ acc.fxHitStack=true; }} },
 };
 
 function shuffleArr(arr){
@@ -201,10 +213,10 @@ function valueForRarity(kind, meta, rarity, tier, stageLevel){
   return tier==='main' ? MAIN_VALUES.energy[rarity] : SUB_VALUES.energy[rarity]; // 'energy'
 }
 
-function generateArtifact(stageLevel){
-  const rarityRoll = Math.random() + stageLevel*0.012;
-  const rarity = rarityRoll>0.93 ? 'epica' : rarityRoll>0.65 ? 'rara' : 'comune';
-  const setId = pick(Object.keys(ARTIFACT_SETS));
+function generateArtifact(stageLevel,forcedSetId=null,rarityBonus=0){
+  const rarityRoll = Math.random() + stageLevel*0.012 + rarityBonus;
+  const rarity = rarityRoll>1.3 ? 'leggendaria' : rarityRoll>0.93 ? 'epica' : rarityRoll>0.65 ? 'rara' : 'comune';
+  const setId = forcedSetId || pick(Object.keys(ARTIFACT_SETS));
   const allKeys = Object.keys(STAT_KEYS);
   const mainKey = pick(allKeys);
   const mainMeta = STAT_KEYS[mainKey];
@@ -269,7 +281,7 @@ const SIGNATURE_WEAPONS = [
   {name:'Caos Inevitabile', ownerId:'hakosBaels', atk:188, subStat:{key:'atk_pct',value:0.14}},
   {name:'Sigillo del Disordine', ownerId:'laplusDarkness', atk:182, subStat:{key:'energy_pct',value:0.14}},
   {name:'Scia della Cometa',ownerId:'suiseiHoshimachi',atk:180,subStat:{key:'hp_pct',value:0.14}},
-  {name:'Reliquiario delle Profondita', ownerId:'ninomaeInaNis', atk:176, subStat:{key:'atk_pct',value:0.12}},
+  {name:'Reliquiario delle Profondita', ownerId:'ninomaeInaNis', atk:176, subStat:{key:'hp_pct',value:0.12}},
   {name:'Lampo Sovrano', ownerId:'selenTatsuki', atk:178, subStat:{key:'atk_pct',value:0.12}},
 ];
 
@@ -473,6 +485,7 @@ function getEffectiveStats(charId){
     buffPctBonus:acc.buffPctBonus||0, spGrantBonus:acc.spGrantBonus||0,
     formDamageMult:1+(acc.formDamageMult||0), defDownBonus:acc.defDownBonus||0,
     hpDamageMult:1+(acc.hpDamageMult||0), skillDamageMult:1+(acc.skillDamageMult||0),
+    fxSkillSp:!!acc.fxSkillSp, fxAbsent:!!acc.fxAbsent, fxHitStack:!!acc.fxHitStack,
   };
 }
 
@@ -696,7 +709,7 @@ function getTurnActor(b, entry=b.turnOrder[b.turnIndex]){
 /* ============ PURE FICTION ============ */
 const PF_UNLOCK_STAGE = 10; // unlocked once floor 10 is cleared
 const PF_ROUNDS = 12; // every hero acts once per round
-const PF_TIERS = [{points:1500,reward:600},{points:3000,reward:1200},{points:4500,reward:1800}];
+const PF_TIERS = [{points:2000,reward:600},{points:5000,reward:1200},{points:10000,reward:1800}];
 const PF_GENERAL_BUFFS = [
   {name:'Furia del Vuoto', desc:'Tutta la squadra: +15% ATK.', apply:a=>{ a.atk=Math.round(a.atk*1.15); }},
   {name:'Pelle di Cristallo', desc:'Tutta la squadra: +20% PV massimi.', apply:a=>{ a.maxHp=Math.round(a.maxHp*1.2); a.hp=a.maxHp; }},
@@ -771,6 +784,17 @@ function buildPFEnemy(id,name){
 function generatePFEnemies(){
   return shuffleArr(pfAllEnemyNames()).slice(0,5).map((name,i)=>buildPFEnemy('p'+i,name));
 }
+function spawnPFEnemy(b,spawned){
+  const pf=b.pf;
+  const aliveNames=b.enemies.filter(x=>x.hp>0).map(x=>x.name);
+  const pool=pfAllEnemyNames().filter(nm=>nm!==pf.lastSpawn&&!aliveNames.includes(nm));
+  const name=pick(pool.length?pool:pfAllEnemyNames());
+  pf.lastSpawn=name;
+  const fresh=buildPFEnemy('p'+(b.summonCounter++),name);
+  b.enemies.push(fresh);
+  spawned.push(fresh);
+  logMsg(`Un nuovo nemico entra in campo: ${name}.`);
+}
 function pfProcessKills(b){
   const pf=b.pf;
   const spawned=[];
@@ -780,15 +804,10 @@ function pfProcessKills(b){
     pf.score+=pts;
     pf.kills++;
     logMsg(`${e.name} sconfitto: +${pts} punti.`);
-    const aliveNames=b.enemies.filter(x=>x.hp>0).map(x=>x.name);
-    const pool=pfAllEnemyNames().filter(nm=>nm!==pf.lastSpawn&&!aliveNames.includes(nm));
-    const name=pick(pool.length?pool:pfAllEnemyNames());
-    pf.lastSpawn=name;
-    const fresh=buildPFEnemy('p'+(b.summonCounter++),name);
-    b.enemies.push(fresh);
-    spawned.push(fresh);
-    logMsg(`Un nuovo nemico entra in campo: ${name}.`);
+    spawnPFEnemy(b,spawned);
   });
+  // safety net: the field must always hold 5 living enemies
+  while(b.enemies.filter(x=>x.hp>0).length<5) spawnPFEnemy(b,spawned);
   if(spawned.length>0){
     const future=b.turnOrder.slice(b.turnIndex+1);
     future.push(...spawned.map(enemy=>({side:'enemy',id:enemy.id,speed:enemy.speed})));
@@ -919,6 +938,7 @@ function resetAlliesForWave(allies){
     a.suiseiHpLossEvents=0; a.suiseiFollowUpReady=false; a.suiseiGuardRounds=0; a.suiseiGuardFresh=false; a.tauntRounds=0; a.tauntFresh=false;
     a.suiseiRevivesRemaining=c.revivesPerBattle||0;
     a.hakosForm=false;
+    a.hitStacks=[]; a.turnSkillCount=0;
   });
 }
 function healAlliesBetweenWaves(fraction){
@@ -1031,8 +1051,38 @@ function suAbandon(){
   render();
 }
 
+/* ============ DOMAINS ============ */
+// Pick a set, fight a tower-scaled battle, get artifacts of that set (with a boosted legendary chance).
+function domainStage(){
+  let stage=Math.max(3,state.maxStageReached-1);
+  if(stage%5===0) stage++;
+  return stage;
+}
+function generateDomainEnemies(){
+  const enemies=generateEnemies(domainStage());
+  enemies.forEach(e=>{ e.hp=e.maxHp=Math.round(e.maxHp*1.15); });
+  return enemies;
+}
+function startDomain(setId){
+  if(!ARTIFACT_SETS[setId]) return;
+  startBattle('domain',setId);
+}
+function onDomainVictory(){
+  const b=state.battle;
+  const stage=domainStage();
+  const loot=[];
+  for(let i=0;i<3;i++) loot.push(generateArtifact(stage,b.domainSet,0.3));
+  b.loot=loot;
+  state.inventory.push(...loot);
+  b.goldReward=Math.round(getStageGoldReward(stage)*0.6);
+  state.gold+=b.goldReward;
+  state.autoBattle=false;
+  state.screen='victory';
+}
+
 function startBattle(mode,fight){
   const su = mode==='su';
+  const domain = mode==='domain';
   const pf = mode==='pf';
   const pfBuffs = pf ? getPFDailyBuffs() : null;
   let allies = state.party.map(id=>{
@@ -1045,6 +1095,7 @@ function startBattle(mode,fight){
       damageMult:eff.damageMult, weaknessBonus:eff.weaknessBonus, sameElementBonus:eff.sameElementBonus,
       basicDamageMult:eff.basicDamageMult, buffPctBonus:eff.buffPctBonus, spGrantBonus:eff.spGrantBonus,
       formDamageMult:eff.formDamageMult, defDownBonus:eff.defDownBonus, hpDamageMult:eff.hpDamageMult, skillDamageMult:eff.skillDamageMult,
+      fxSkillSp:eff.fxSkillSp, fxAbsent:eff.fxAbsent, fxHitStack:eff.fxHitStack, turnSkillCount:0, hitStacks:[],
       shield:0, shieldRounds:0, atkBuffMult:1, buffRounds:0,
       basicHits: CHAR_DB[id].basic.hits||1,
       skillFreeUses: CHAR_DB[id].skillFreeUses||0,
@@ -1061,7 +1112,7 @@ function startBattle(mode,fight){
       if(state.su.pendingStart){ applySUBlessing(state.su.pendingStart); state.su.pendingStart=null; }
     }
   }
-  const enemies = pf ? generatePFEnemies() : su ? generateSUEnemies(state.su.wave,!!fight) : generateEnemies(state.stage);
+  const enemies = pf ? generatePFEnemies() : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage);
   const turnOrder = buildTurnOrder(allies,enemies);
   const spMaxBonus = state.party.reduce((sum,id)=>sum+(CHAR_DB[id].passiveSpCapBonus||0),0);
   const spMax = 5+spMaxBonus;
@@ -1079,7 +1130,8 @@ function startBattle(mode,fight){
     inaFollowUpActive:false,
     suiseiFollowUpActive:false,
     summonCounter:pf?5:0,
-    mode:pf?'pf':su?'su':'tower',
+    mode:pf?'pf':su?'su':domain?'domain':'tower',
+    domainSet:domain?fight:null,
     suFight:su&&!!fight,
     pf:pf?{score:0,kills:0,lastSpawn:null,buffs:pfBuffs}:null,
   };
@@ -1089,6 +1141,8 @@ function startBattle(mode,fight){
     ? `Pure Fiction — Turno 1/${PF_ROUNDS}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : su
     ? `Universo Simulato — Ondata ${state.su.wave}/${SU_WAVES}${fight?' (scontro)':''}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
+    : domain
+    ? `Dominio ${ARTIFACT_SETS[fight].name} — Livello ${domainStage()}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : `Piano ${state.stage} — Round 1. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`);
   ensureInaMark(state.battle);
   state.screen='battle';
@@ -1110,8 +1164,10 @@ function currentAlly(){
 async function advanceTurn(){
   const b = state.battle;
   if(!b) return;
+  b.inaFollowUpActive=false; b.suiseiFollowUpActive=false; b.finanaActive=false; // follow-ups are always finished between turns
   if(b.phase!=='resolved') await processFinanaFollowUps(b);
   const completedActor=getTurnActor(b);
+  if(completedActor) completedActor.turnSkillCount=0;
   if(completedActor?.hakosForm){
     if(completedActor.hakosFormFresh) completedActor.hakosFormFresh=false;
     else {
@@ -1159,6 +1215,7 @@ function checkBattleEnd(){
   if(bossDefeated || b.enemies.every(e=>e.hp<=0)){
     b.phase='resolved';
     if(b.mode==='su') onSUWaveClear();
+    else if(b.mode==='domain') onDomainVictory();
     else onVictory();
     return true;
   }
@@ -1227,8 +1284,8 @@ async function performInaFollowUp(b,target,consumeCharge=true){
   if(consumeCharge) ina.inaFollowUpsRemaining--;
   b.inaFollowUpActive=true;
   const vulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
-  const attack=Math.round(ina.atk*(ina.atkBuffMult||1));
-  const dmg=calcDamage(attack,0.65,getEffectiveEnemyDefense(target),ina.element,target.elements||target.element,ina,'basic',vulnerability);
+  const attack=Math.round(ina.maxHp*(ina.hpDamageMult||1));
+  const dmg=calcDamage(attack,0.1,getEffectiveEnemyDefense(target),ina.element,target.elements||target.element,ina,'basic',vulnerability);
   const applied=dealDamageToEnemy(target,dmg);
   ina._fxAttack='basic';
   ina.energy=clamp(ina.energy+Math.round(10*(ina.energyGainMult||1)),0,ina.energyMax);
@@ -1265,12 +1322,21 @@ function isEnemyWeakTo(element,enemy){
   return getElementMultiplier(element,enemy.elements||enemy.element,0,0,vulnerability)>1;
 }
 
+function getSetDynamicMult(attacker){
+  if(!attacker || !state.battle) return 1;
+  let mult=1;
+  if(attacker.fxSkillSp) mult*=1+0.1*(attacker.turnSkillCount||0);
+  if(attacker.fxAbsent) mult*=1+0.3*Math.max(0,4-state.battle.allies.length);
+  if(attacker.fxHitStack) mult*=1+0.15*(attacker.hitStacks||[]).length;
+  return mult;
+}
+
 function calcDamage(atk, mult, def, attackerElement, targetElement, attackerStats=null, abilityKey='', vulnerableToElement=null){
   let raw = atk*mult - def*0.5;
   raw = Math.max(raw, atk*mult*0.2);
   const variance = rnd(0.9,1.1);
   const elementMult = getElementMultiplier(attackerElement, targetElement, attackerStats?.weaknessBonus||0, attackerStats?.sameElementBonus||0, vulnerableToElement);
-  const weaponMult = (attackerStats?.damageMult||1)*(abilityKey==='basic'?(attackerStats?.basicDamageMult||1):1)*(abilityKey==='skill'||abilityKey==='ult'?(attackerStats?.skillDamageMult||1):1)*(attackerStats?.formDamageMult||1);
+  const weaponMult = (attackerStats?.damageMult||1)*(abilityKey==='basic'?(attackerStats?.basicDamageMult||1):1)*(abilityKey==='skill'||abilityKey==='ult'?(attackerStats?.skillDamageMult||1):1)*(attackerStats?.formDamageMult||1)*getSetDynamicMult(attackerStats);
   return Math.max(1, Math.round(raw*variance*elementMult*weaponMult));
 }
 
@@ -1288,6 +1354,7 @@ function dealDamageToEnemy(enemy, dmg){
   enemy.hp = clamp(enemy.hp-applied,0,enemy.maxHp);
   updateBossPhase(enemy);
   noteFinanaThreshold(enemy);
+  if(enemy.hp<=0 && state.battle?.mode==='pf') pfProcessKills(state.battle); // respawn right away so chained follow-ups never find an empty field
   const absorbedE = dmg-applied;
   enemy._fx = applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbedE};
   return applied;
@@ -1314,7 +1381,7 @@ async function processFinanaFollowUps(b){
     logMsg(`${finana.name} lancia un follow-up: ${ability.name}!`);
     for(const t of targets){
       const vulnerability=t.vulnerableRounds>0?t.vulnerableToElement:null;
-      const dmg=calcDamage(Math.round(finana.atk*(finana.atkBuffMult||1)),ability.mult,getEffectiveEnemyDefense(t),finana.element,t.elements||t.element,finana,'basic',vulnerability);
+      const dmg=calcDamage(Math.round(finana.maxHp*(finana.hpDamageMult||1)),ability.mult,getEffectiveEnemyDefense(t),finana.element,t.elements||t.element,finana,'basic',vulnerability);
       const applied=dealDamageToEnemy(t,dmg);
       logMsg(`${finana.name} colpisce ${t.name} per ${applied}.`);
     }
@@ -1396,6 +1463,10 @@ function dealDamageToAlly(ally, dmg, giveEnergy){
   if(ally.shield>0){
     if(ally.shield>=applied){ absorbed=applied; ally.shield-=applied; applied=0; }
     else { absorbed=ally.shield; applied-=ally.shield; ally.shield=0; }
+  }
+  if(ally.fxHitStack){
+    ally.hitStacks=ally.hitStacks||[];
+    ally.hitStacks.push({r:2});
   }
   ally.hp = clamp(ally.hp-applied,0,ally.maxHp);
   const revived=applied>0&&ally.charId==='suiseiHoshimachi'&&(()=>{
@@ -1701,6 +1772,7 @@ async function executeAbility(actor, abKey, targetId){
     if(actor.hakosForm) actor.energy=0;
     else actor.energy = clamp(actor.energy+Math.round((ability.energyGain||0)*(actor.energyGainMult||1)),0,actor.energyMax);
   } else if(abKey==='skill'){
+    actor.turnSkillCount=(actor.turnSkillCount||0)+1;
     if(actor.skillFreeUses>0){ actor.skillFreeUses--; }
     else { b.sp = clamp(b.sp-1,0,b.spMax); }
     if(actor.hakosForm) actor.energy=0;
@@ -1709,6 +1781,13 @@ async function executeAbility(actor, abKey, targetId){
     actor.energy = 0;
   }
   if(actor.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,actor);
+  if(actor.charId==='hakosBaels' && actor.hp>0 && ['enemy','enemy_adjacent','enemies_all'].includes(ability.target)){
+    const baseMaxHp=actor.hakosBaseSnapshot?.maxHp||actor.maxHp;
+    const heal=Math.round(baseMaxHp*0.03);
+    actor.hp=clamp(actor.hp+heal,0,actor.maxHp);
+    actor._fx={variant:'heal',label:'+'+heal};
+    logMsg(`${actor.name} recupera ${heal} PV attaccando.`);
+  }
   await processFinanaFollowUps(b);
   // let pending animations play out before the turn advances (a render would cut them)
   if([...b.allies,...b.enemies].some(x=>x._fx||x._fxAttack)) render();
@@ -1786,6 +1865,7 @@ async function finishRound(){
   b.allies.forEach(a=>{
     if(a.shieldRounds>0){ a.shieldRounds--; if(a.shieldRounds<=0) a.shield=0; }
     if(a.buffRounds>0){ a.buffRounds--; if(a.buffRounds<=0) a.atkBuffMult=1; }
+    if(a.hitStacks?.length){ a.hitStacks.forEach(s=>s.r--); a.hitStacks=a.hitStacks.filter(s=>s.r>0); }
     if(a.suiseiGuardRounds>0){
       if(a.suiseiGuardFresh) a.suiseiGuardFresh=false;
       else {
@@ -2178,7 +2258,7 @@ const ARTIFACT_MAX_LEVEL = 20;
 const ARTIFACT_SUBSTAT_MILESTONE = 5; // every 5 levels, a random substat gets upgraded again
 function getArtifactLevelUpCost(level){ return 30 + level*22; }
 function getArtifactSellValue(it){
-  const base = {comune:40, rara:90, epica:180}[it.rarity]||40;
+  const base = {comune:40, rara:90, epica:180, leggendaria:400}[it.rarity]||40;
   return base + (it.level||0)*12;
 }
 function findArtifactByUid(uid){
@@ -2805,6 +2885,7 @@ function renderTownTabs(){
     ['torre','Torre'],
     ['purefiction','Pure Fiction'],
     ['universo','Universo Simulato'],
+    ['domini','Domini'],
     ['banner','Banner'],
     ['missioni','Missioni'],
   ];
@@ -2920,6 +3001,7 @@ function renderAbilitaTab(){
       <div class="element-tag" style="margin-top:4px;">Elemento: ${ELEMENT_DATA[c.element].label}</div>
       <div class="hero-stars" style="color:${c.rarity===5?'#ffd700':'#9aa4c4'}">${'★'.repeat(c.rarity)}${unlocked?'':' · 🔒 Bloccato'}</div>
       ${c.passiveSpCapBonus?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: mentre è in squadra, il cap dei Punti Abilità sale da 5 a ${5+c.passiveSpCapBonus}.</div>`:''}
+      ${c.passiveSelfHeal?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che attacca recupera il ${Math.round(c.passiveSelfHeal*100)}% dei PV massimi.</div>`:''}
       ${c.passiveFinanaFollowUp?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che un nemico scende al 50% dei PV per la prima volta, lancia un follow-up identico al Basic.</div>`:''}
       ${c.passiveInaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: marchia il nemico con meno PV. I colpi al marchiato attivano fino a ${c.passiveInaFollowUps} follow-up; la Ultimate ricarica le cariche. Ogni volta che un alleato colpisce il nemico marchiato, Ina rigenera 10 energia.</div>`:''}
       ${c.passiveHpLossFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni ${c.passiveHpLossFollowUps} perdite di PV attiva un follow-up ad area e cura il 15% dei PV massimi.</div>`:''}
@@ -2945,7 +3027,7 @@ function renderAbilitaTab(){
     cards.appendChild(renderAbilityCard(
       {name:'Tentacolo Inchiostrato',desc:'Un follow-up separato quando un alleato diverso da Ina colpisce il nemico marchiato.'},
       'skill','Follow-up · Reazione',
-      `<span><b>Moltiplicatore:</b> 65% ATK</span><span><b>Cariche:</b> 3 per battaglia</span><span><b>Energia:</b> +10 per follow-up</span><span><b>Ricarica:</b> Ultimate</span><span>Il follow-up casuale della Ultimate non consuma cariche.</span>`
+      `<span><b>Moltiplicatore:</b> 10% PV massimi</span><span><b>Cariche:</b> 3 per battaglia</span><span><b>Energia:</b> +10 per follow-up</span><span><b>Ricarica:</b> Ultimate</span><span>Il follow-up casuale della Ultimate non consuma cariche.</span>`
     ));
   }
   if(id==='suiseiHoshimachi'){
@@ -3429,6 +3511,7 @@ function renderTown(){
   else if(state.townTab==='torre') wrap.appendChild(renderTorreTab());
   else if(state.townTab==='purefiction') wrap.appendChild(renderPureFictionTab());
   else if(state.townTab==='universo') wrap.appendChild(renderUniversoTab());
+  else if(state.townTab==='domini') wrap.appendChild(renderDominiTab());
   else if(state.townTab==='banner') wrap.appendChild(renderBannerTab());
   else if(state.townTab==='missioni') wrap.appendChild(renderMissioniTab());
 
@@ -3735,7 +3818,7 @@ function renderBattle(){
     const card = el(`<div class="hud-panel ally-card ${isActive?'active-turn':''} ${dead?'dead':''} ${isTargetable?'selectable-target':''}" style="--char-glow:${hexToRgba(a.color,0.85)};--fx-scale:${fx.scale};${isActive?'border-color:'+a.color+';box-shadow:0 0 0 1px '+a.color+' inset;':''}position:relative;${fx.animation?'animation:'+fx.animation+';':''}">
       <div class="ally-top">
         <div class="ally-portrait" style="background:${a.color}">${a.glyph}</div>
-        <div><div class="ally-name">${a.name}</div><div class="element-tag">${ELEMENT_DATA[a.element]?.label||a.element}</div>${a.hakosForm?`<div class="hakos-form-tag">FORMA CAOTICA · ${a.hakosFormTurns}/5</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiGuardRounds>0?`<div class="suisei-posture-tag">POSTURA STELLARE · ${a.suiseiGuardRounds}/3</div>`:''}${a.tauntRounds>0?`<div class="suisei-posture-tag">PROVOCAZIONE · ${a.tauntRounds}</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiFollowUpReady?'<div class="suisei-posture-tag">FOLLOW-UP PRONTO</div>':''}</div>
+        <div><div class="ally-name">${a.name}</div><div class="element-tag">${ELEMENT_DATA[a.element]?.label||a.element}</div>${a.hakosForm?`<div class="hakos-form-tag">FORMA CAOTICA · ${a.hakosFormTurns}/5</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiGuardRounds>0?`<div class="suisei-posture-tag">POSTURA STELLARE · ${a.suiseiGuardRounds}/3</div>`:''}${a.tauntRounds>0?`<div class="suisei-posture-tag">PROVOCAZIONE · ${a.tauntRounds}</div>`:''}${a.hitStacks?.length?`<div class="suisei-posture-tag">FURIA ×${a.hitStacks.length}</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiFollowUpReady?'<div class="suisei-posture-tag">FOLLOW-UP PRONTO</div>':''}</div>
       </div>
       <div class="mini-lbl"><span>PV</span><span>${a.hp}/${a.maxHp}</span></div>
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(a.hp/a.maxHp*100)}%"></div></div>
@@ -3833,6 +3916,25 @@ function renderPureFictionTab(){
   const startRow=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="pfStart" style="padding:12px 26px;font-size:15px;">Avvia Pure Fiction ▶</button></div>`);
   startRow.querySelector('#pfStart').onclick=()=>startPureFiction();
   wrap.appendChild(startRow);
+  return wrap;
+}
+
+function renderDominiTab(){
+  const wrap = document.createElement('div');
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Farming manufatti</span><h2>Domini</h2></div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Scegli un dominio: affronta una battaglia a parte, con nemici scalati sul tuo piano della Torre (livello ${domainStage()}), e ottieni 3 manufatti del set scelto, più un po' di Frammenti. In un dominio i manufatti hanno una probabilità maggiore di essere Leggendari.</div>`));
+  const grid=el(`<div class="artifact-grid"></div>`);
+  Object.entries(ARTIFACT_SETS).forEach(([setId,set])=>{
+    const card=el(`<div class="hud-panel artifact-card" style="border-color:${RARITY_COLOR.leggendaria};">
+      <div class="ac-head"><span class="ac-icon">${set.icon}</span><div><div class="ac-name">Dominio: ${set.name}</div><div class="ac-setname" style="color:${RARITY_COLOR.leggendaria};">Livello ${domainStage()}</div></div></div>
+      <div class="ac-setbonus">2 pz: ${set.bonus2.label}<br>4 pz: ${set.bonus4.label}</div>
+    </div>`);
+    const btn=el(`<button class="small primary" style="margin-top:8px;width:100%;">Sfida il dominio ▶</button>`);
+    btn.onclick=()=>startDomain(setId);
+    card.appendChild(btn);
+    grid.appendChild(card);
+  });
+  wrap.appendChild(grid);
   return wrap;
 }
 
@@ -3986,8 +4088,8 @@ function renderPFResult(){
 function renderVictory(){
   const b = state.battle;
   const wrap = el(`<div class="hud-panel center-msg win">
-    <h2>Piano Superato</h2>
-    <div class="hint">Hai sconfitto tutti i nemici del Piano ${state.stage}. +${b.goldReward||0} 💠 Frammenti</div>
+    <h2>${b.mode==='domain'?'Dominio Superato':'Piano Superato'}</h2>
+    <div class="hint">${b.mode==='domain'?`Hai completato il Dominio ${ARTIFACT_SETS[b.domainSet].name}.`:`Hai sconfitto tutti i nemici del Piano ${state.stage}.`} +${b.goldReward||0} 💠 Frammenti</div>
   </div>`);
   const loot = el(`<div class="artifact-grid"></div>`);
   b.loot.forEach(it=>{
@@ -3995,7 +4097,18 @@ function renderVictory(){
   });
   wrap.appendChild(loot);
   const btnRow = el(`<div style="text-align:center;"><button class="primary" id="continueBtn">Torna alla base ▶</button></div>`);
-  btnRow.querySelector('#continueBtn').onclick=()=>goToTown(true);
+  btnRow.querySelector('#continueBtn').onclick=()=>{
+    if(b.mode==='domain'){ state.townTab='domini'; goToTown(false); }
+    else goToTown(true);
+  };
+  const nextBtn=el(`<button class="primary" style="margin-left:8px;">${b.mode==='domain'?'Ripeti dominio ▶':`Piano ${state.stage+1} ▶`}</button>`);
+  nextBtn.onclick=()=>{
+    if(b.mode==='domain'){ startDomain(b.domainSet); return; }
+    state.stage=state.stage+1;
+    state.battle=null;
+    startBattle();
+  };
+  btnRow.appendChild(nextBtn);
   wrap.appendChild(btnRow);
   return wrap;
 }
@@ -4003,10 +4116,17 @@ function renderVictory(){
 function renderDefeat(){
   const wrap = el(`<div class="hud-panel center-msg lose">
     <h2>Squadra Sconfitta</h2>
-    <div class="hint">Il Piano ${state.stage} ti ha respinto. Migliora l'equipaggiamento e riprova.</div>
+    <div class="hint">${state.battle?.mode==='domain'?`Il dominio ti ha respinto. Migliora l'equipaggiamento e riprova.`:`Il Piano ${state.stage} ti ha respinto. Migliora l'equipaggiamento e riprova.`}</div>
   </div>`);
   const btnRow = el(`<div style="text-align:center;"><button class="primary" id="retryBtn">Torna alla base ▶</button></div>`);
   btnRow.querySelector('#retryBtn').onclick=()=>retryStage();
+  const again=el(`<button class="primary" style="margin-left:8px;">Riprova ▶</button>`);
+  again.onclick=()=>{
+    const domainSet=state.battle?.mode==='domain'?state.battle.domainSet:null;
+    state.battle=null;
+    if(domainSet) startDomain(domainSet); else startBattle();
+  };
+  btnRow.appendChild(again);
   wrap.appendChild(btnRow);
   return wrap;
 }
