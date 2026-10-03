@@ -277,12 +277,110 @@ button.small{padding:5px 10px;font-size:12px;}
   100%{transform:translateX(0);}
 }
 
-.fx-float{position:absolute;top:4px;left:50%;transform:translateX(-50%);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;pointer-events:none;animation:fx-float-up 1.4s ease forwards;z-index:5;text-shadow:0 1px 4px rgba(0,0,0,0.7);white-space:nowrap;}
+.fx-float{position:absolute;top:4px;left:50%;transform:translateX(-50%);font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;pointer-events:none;animation:fx-float-up 2.1s ease forwards;z-index:5;text-shadow:0 1px 4px rgba(0,0,0,0.7);white-space:nowrap;}
 .fx-float.damage{color:var(--rose);}
 .fx-float.heal{color:var(--green);}
 .fx-float.shield{color:var(--cyan);}
 .fx-float.spgrant{color:var(--violet);}
 .fx-float.buff{color:var(--green);}
+
+/* ===== Layered attack effects (drawn inside the card, which clips overflow) ===== */
+.fx-layer,.fx-impact{position:absolute;inset:0;pointer-events:none;z-index:4;overflow:hidden;}
+.fx-layer i,.fx-impact i{position:absolute;display:block;opacity:0;}
+.fx-layer.tier-skill{--t:1.4s;--k:1.25;}
+.fx-layer.tier-basic{--t:.95s;--k:1;}
+.fx-layer.tier-ult{--t:2s;--k:1.6;}
+
+/* heavy (Kael): shockwave rings + ground cracks */
+.fx-layer-heavy i:nth-child(1),.fx-layer-heavy i:nth-child(2){left:50%;top:60%;width:20px;height:20px;margin:-10px;border:3px solid var(--char-glow);border-radius:50%;animation:fxl-ring var(--t) ease-out forwards;}
+.fx-layer-heavy i:nth-child(2){animation-delay:.18s;}
+.fx-layer-heavy i:nth-child(3){left:10%;right:10%;bottom:6px;height:3px;background:var(--char-glow);box-shadow:0 0 10px var(--char-glow);animation:fxl-crack var(--t) ease-out forwards;}
+
+/* arcane: rotating rune ring + sparkles */
+.fx-layer-arcane i:nth-child(1){left:50%;top:50%;width:70%;aspect-ratio:1;margin-left:-35%;margin-top:-35%;border:2px dashed var(--char-glow);border-radius:50%;animation:fxl-rune var(--t) ease-out forwards;}
+.fx-layer-arcane i:nth-child(n+2){width:7px;height:7px;background:#fff;border-radius:50%;box-shadow:0 0 8px 3px var(--char-glow);animation:fxl-spark var(--t) ease-out forwards;}
+.fx-layer-arcane i:nth-child(2){left:15%;top:70%;}
+.fx-layer-arcane i:nth-child(3){left:80%;top:60%;animation-delay:.15s;}
+.fx-layer-arcane i:nth-child(4){left:35%;top:80%;animation-delay:.3s;}
+.fx-layer-arcane i:nth-child(5){left:65%;top:75%;animation-delay:.45s;}
+
+/* swift (Sable): three quick diagonal slashes */
+.fx-layer-swift i{left:-10%;width:120%;height:3px;background:linear-gradient(90deg,transparent,#fff,var(--char-glow),transparent);box-shadow:0 0 10px var(--char-glow);transform:rotate(-28deg) scaleX(0);animation:fxl-slash calc(var(--t)*.45) ease-out forwards;}
+.fx-layer-swift i:nth-child(1){top:25%;}
+.fx-layer-swift i:nth-child(2){top:50%;animation-delay:.14s;transform:rotate(24deg) scaleX(0);}
+.fx-layer-swift i:nth-child(3){top:75%;animation-delay:.3s;}
+
+/* bleed (Riven): red slashes + falling drops */
+.fx-layer-bleed i:nth-child(1),.fx-layer-bleed i:nth-child(2){left:-10%;width:120%;height:4px;background:linear-gradient(90deg,transparent,#ffb3c0,var(--char-glow),transparent);transform:rotate(-35deg) scaleX(0);animation:fxl-slash calc(var(--t)*.4) ease-out forwards;top:35%;}
+.fx-layer-bleed i:nth-child(2){top:60%;animation-delay:.2s;}
+.fx-layer-bleed i:nth-child(n+3){top:-8px;width:6px;height:10px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:var(--char-glow);animation:fxl-drip var(--t) ease-in forwards;}
+.fx-layer-bleed i:nth-child(3){left:25%;animation-delay:.3s;}
+.fx-layer-bleed i:nth-child(4){left:55%;animation-delay:.5s;}
+.fx-layer-bleed i:nth-child(5){left:78%;animation-delay:.4s;}
+
+/* radiant-soft (Lyra): rising motes */
+.fx-layer-radiant-soft i{bottom:-6px;width:8px;height:8px;border-radius:50%;background:radial-gradient(circle,#fff,var(--char-glow));box-shadow:0 0 10px 3px var(--char-glow);animation:fxl-rise var(--t) ease-out forwards;}
+.fx-layer-radiant-soft i:nth-child(1){left:12%;}
+.fx-layer-radiant-soft i:nth-child(2){left:30%;animation-delay:.2s;}
+.fx-layer-radiant-soft i:nth-child(3){left:48%;animation-delay:.1s;}
+.fx-layer-radiant-soft i:nth-child(4){left:65%;animation-delay:.3s;}
+.fx-layer-radiant-soft i:nth-child(5){left:82%;animation-delay:.15s;}
+.fx-layer-radiant-soft i:nth-child(6){left:92%;animation-delay:.4s;}
+
+/* surge (Vex): light pillar + ring */
+.fx-layer-surge i:nth-child(1){left:50%;bottom:0;width:36%;height:100%;margin-left:-18%;background:linear-gradient(0deg,var(--char-glow),transparent);transform-origin:bottom;animation:fxl-pillar var(--t) ease-out forwards;}
+.fx-layer-surge i:nth-child(2),.fx-layer-surge i:nth-child(3){left:50%;bottom:10%;width:16px;height:16px;margin-left:-8px;border:2px solid #fff;border-radius:50%;animation:fxl-ring var(--t) ease-out forwards;}
+.fx-layer-surge i:nth-child(3){animation-delay:.25s;}
+
+/* celestial (Aurelia): golden rings, rays, rotating star */
+.fx-layer-celestial i:nth-child(1),.fx-layer-celestial i:nth-child(2){left:50%;top:50%;width:24px;height:24px;margin:-12px;border:2px solid gold;border-radius:50%;box-shadow:0 0 14px gold;animation:fxl-ring var(--t) ease-out forwards;}
+.fx-layer-celestial i:nth-child(2){animation-delay:.3s;}
+.fx-layer-celestial i:nth-child(3){left:50%;top:50%;width:90%;height:90%;margin:-45%;background:conic-gradient(from 0deg,transparent 0 8%,rgba(255,215,0,.55) 9% 11%,transparent 12% 25%,rgba(255,215,0,.55) 26% 28%,transparent 29% 50%,rgba(255,215,0,.55) 51% 53%,transparent 54% 75%,rgba(255,215,0,.55) 76% 78%,transparent 79%);border-radius:50%;animation:fxl-rune var(--t) ease-out forwards;}
+.fx-layer-celestial i:nth-child(n+4){width:6px;height:6px;background:gold;border-radius:50%;box-shadow:0 0 10px 3px gold;animation:fxl-spark var(--t) ease-out forwards;}
+.fx-layer-celestial i:nth-child(4){left:20%;top:30%;}
+.fx-layer-celestial i:nth-child(5){left:78%;top:25%;animation-delay:.2s;}
+.fx-layer-celestial i:nth-child(6){left:50%;top:80%;animation-delay:.4s;}
+
+/* menace (enemies): red claw marks */
+.fx-layer-menace i{top:-10%;width:4px;height:120%;background:linear-gradient(180deg,transparent,#ff8aa0,#ef5a7d,transparent);transform:rotate(22deg) scaleY(0);transform-origin:top;animation:fxl-claw calc(var(--t)*.5) ease-out forwards;}
+.fx-layer-menace i:nth-child(1){left:30%;}
+.fx-layer-menace i:nth-child(2){left:50%;animation-delay:.08s;}
+.fx-layer-menace i:nth-child(3){left:70%;animation-delay:.16s;}
+
+/* impact on the target */
+.fx-impact i{left:50%;top:50%;width:14px;height:14px;margin:-7px;border-radius:50%;}
+.fx-impact.damage i:nth-child(1){background:radial-gradient(circle,#fff,rgba(239,90,125,.8) 50%,transparent 70%);animation:fxl-burst 1s ease-out forwards;}
+.fx-impact.damage i:nth-child(2){border:2px solid #fff;animation:fxl-ring 1s ease-out .1s forwards;}
+.fx-impact.damage i:nth-child(3){width:100%;height:3px;margin:0;left:0;top:50%;border-radius:0;background:linear-gradient(90deg,transparent,#fff,transparent);animation:fxl-slash .5s ease-out forwards;transform:rotate(-20deg) scaleX(0);}
+.fx-impact.heal i,.fx-impact.shield i,.fx-impact.buff i,.fx-impact.spgrant i{border:2px solid currentColor;animation:fxl-ring 1.2s ease-out forwards;}
+.fx-impact.heal{color:var(--green);}
+.fx-impact.shield{color:var(--cyan);}
+.fx-impact.buff{color:var(--green);}
+.fx-impact.spgrant{color:var(--violet);}
+.fx-impact.heal i:nth-child(2),.fx-impact.shield i:nth-child(2),.fx-impact.buff i:nth-child(2),.fx-impact.spgrant i:nth-child(2){animation-delay:.2s;}
+.fx-impact.heal i:nth-child(3),.fx-impact.shield i:nth-child(3),.fx-impact.buff i:nth-child(3),.fx-impact.spgrant i:nth-child(3){animation-delay:.4s;}
+
+@keyframes fxl-ring{0%{opacity:.95;transform:scale(.3);}100%{opacity:0;transform:scale(calc(6*var(--k,1)));}}
+@keyframes fxl-crack{0%{opacity:0;transform:scaleX(0);}30%{opacity:1;transform:scaleX(1);}100%{opacity:0;transform:scaleX(1);}}
+@keyframes fxl-rune{0%{opacity:0;transform:rotate(0) scale(.5);}25%{opacity:.95;}100%{opacity:0;transform:rotate(300deg) scale(1.3);}}
+@keyframes fxl-spark{0%{opacity:0;transform:translateY(0) scale(.3);}30%{opacity:1;transform:translateY(-14px) scale(1.2);}100%{opacity:0;transform:translateY(-44px) scale(.4);}}
+@keyframes fxl-slash{0%{opacity:1;}60%{opacity:1;}100%{opacity:0;}}
+@keyframes fxl-drip{0%{opacity:0;transform:translateY(0);}20%{opacity:1;}100%{opacity:0;transform:translateY(130px);}}
+@keyframes fxl-rise{0%{opacity:0;transform:translateY(0) scale(.4);}25%{opacity:1;}100%{opacity:0;transform:translateY(-110px) scale(1);}}
+@keyframes fxl-pillar{0%{opacity:0;transform:scaleY(0);}30%{opacity:.9;transform:scaleY(1);}100%{opacity:0;transform:scaleY(1) scaleX(.3);}}
+@keyframes fxl-claw{0%{opacity:1;transform:rotate(22deg) scaleY(0);}40%{transform:rotate(22deg) scaleY(1);}100%{opacity:0;transform:rotate(22deg) scaleY(1);}}
+@keyframes fxl-burst{0%{opacity:1;transform:scale(.4);}100%{opacity:0;transform:scale(5);}}
+
+/* ===== Ultimate cut-in + skill callout ===== */
+.ult-cutin{position:absolute;left:0;right:0;top:34%;z-index:30;pointer-events:none;overflow:hidden;height:92px;animation:cutin-life 1.1s ease forwards;}
+.ult-cutin-band{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;padding:0 8%;gap:2px;background:linear-gradient(100deg,transparent 0%,rgba(8,10,20,.92) 18%,var(--cut-glow) 100%);border-top:2px solid var(--cut-color);border-bottom:2px solid var(--cut-color);box-shadow:0 0 30px var(--cut-glow);transform:translateX(-110%) skewX(-12deg);animation:cutin-slide 1.1s cubic-bezier(.2,.9,.2,1) forwards;}
+.ult-cutin-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:34px;letter-spacing:.12em;text-transform:uppercase;color:#fff;text-shadow:0 0 14px var(--cut-color),0 2px 0 rgba(0,0,0,.6);}
+.ult-cutin-ability{font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--cut-color);}
+@keyframes cutin-slide{0%{transform:translateX(-110%) skewX(-12deg);}25%{transform:translateX(0) skewX(-12deg);}80%{transform:translateX(2%) skewX(-12deg);opacity:1;}100%{transform:translateX(30%) skewX(-12deg);opacity:0;}}
+@keyframes cutin-life{0%,85%{opacity:1;}100%{opacity:0;}}
+.skill-callout{position:absolute;left:50%;top:30%;z-index:30;pointer-events:none;padding:6px 20px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;letter-spacing:.14em;text-transform:uppercase;color:#fff;background:rgba(8,10,20,.85);border:1px solid var(--cut-color);box-shadow:0 0 18px var(--cut-color);transform:translateX(-50%);animation:callout-pop .75s ease forwards;white-space:nowrap;}
+@keyframes callout-pop{0%{opacity:0;transform:translateX(-50%) scale(.6);}25%{opacity:1;transform:translateX(-50%) scale(1.08);}75%{opacity:1;transform:translateX(-50%) scale(1);}100%{opacity:0;transform:translateX(-50%) translateY(-14px) scale(1);}}
+@media (max-width:640px){.ult-cutin-name{font-size:24px;}.ult-cutin{height:72px;}}
 
 .hint{font-size:11.5px;color:var(--text-dim);text-align:center;margin-top:4px;}
 .flexbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}

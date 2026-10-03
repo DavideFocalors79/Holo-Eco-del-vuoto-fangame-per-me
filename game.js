@@ -605,7 +605,8 @@ function hexToRgba(hex, alpha){
   const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
   return `rgba(${r},${g},${b},${alpha})`;
 }
-function sleepMs(ms){ return new Promise(resolve=>setTimeout(resolve, ms)); }
+const BATTLE_PACE = 1.7; // global multiplier: higher = slower battle flow
+function sleepMs(ms){ return new Promise(resolve=>setTimeout(resolve, ms*BATTLE_PACE)); }
 
 /* ============ TOWER (INFINITE) ============ */
 function isBossStage(n){return n%5===0;}
@@ -686,7 +687,7 @@ function startBattle(){
   ensureInaMark(state.battle);
   state.screen='battle';
   render();
-  if(state.battle.phase==='enemy_turn') setTimeout(runEnemyTurn,450);
+  if(state.battle.phase==='enemy_turn') setTimeout(runEnemyTurn,450*BATTLE_PACE);
 }
 
 function logMsg(msg){
@@ -735,7 +736,7 @@ async function advanceTurn(){
   b.phase = b.turnOrder[b.turnIndex].side==='ally' ? 'ally_turn' : 'enemy_turn';
   render();
   if(b.phase==='enemy_turn') await runEnemyTurn();
-  else if(state.autoBattle) setTimeout(autoPlayTurn,550);
+  else if(state.autoBattle) setTimeout(autoPlayTurn,550*BATTLE_PACE);
 }
 
 function checkBattleEnd(){
@@ -1011,8 +1012,17 @@ async function executeAbility(actor, abKey, targetId){
     ? actor.maxHp*(actor.hpDamageMult||1)
     : Math.round(actor.atk*(actor.atkBuffMult||1));
   const buffPct = (ability.buffPct||0)+(actor.buffPctBonus||0);
+  if(abKey==='ult'){
+    // cut-in: show the banner alone first, then start the attack animation
+    b.screenFx = {color:actor.color||'#f5b342', name:actor.name, ability:ability.name, style:CHAR_DB[actor.charId]?.animStyle||'heavy'};
+    render();
+    await sleepMs(900);
+  } else if(abKey==='skill'){
+    b.skillCall = {name:actor.name, ability:ability.name, color:actor.color||'#f5b342'};
+    render();
+    await sleepMs(380);
+  }
   actor._fxAttack = abKey; // basic | skill | ult — consumed by the next render for a per-character animation
-  if(abKey==='ult') b.screenFx = actor.color||'#f5b342';
 
   const enemyTargets = () => b.enemies.filter(e=>e.hp>0);
   const allyTargets = () => b.allies.filter(a=>a.hp>0);
@@ -1207,6 +1217,9 @@ async function executeAbility(actor, abKey, targetId){
     actor.energy = 0;
   }
   if(actor.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,actor);
+  // let pending animations play out before the turn advances (a render would cut them)
+  if([...b.allies,...b.enemies].some(x=>x._fx||x._fxAttack)) render();
+  await sleepMs(abKey==='ult'?900:abKey==='skill'?650:480);
 }
 
 async function playerChooseAbility(abKey){
@@ -2909,10 +2922,11 @@ const ANIM_STYLE_KEYFRAME = {
   'radiant-soft':'fx-radiant-soft', surge:'fx-surge', celestial:'fx-celestial', menace:'fx-menace',
 };
 const ANIM_TIER_TIMING = {
-  basic:{dur:0.75, scale:1},
-  skill:{dur:1.1,  scale:1.35},
-  ult:  {dur:1.6,  scale:1.8},
+  basic:{dur:0.95, scale:1},
+  skill:{dur:1.4,  scale:1.35},
+  ult:  {dur:2.0,  scale:1.8},
 };
+const FX_LAYER_PARTS = {heavy:3, arcane:5, swift:3, bleed:5, 'radiant-soft':6, surge:3, celestial:6, menace:3};
 const HIT_ANIM = {
   damage:  d=>`fx-shake ${d}s ease, fx-flash-damage ${d+0.15}s ease`,
   heal:    d=>`fx-flash-heal ${d+0.15}s ease`,
@@ -2930,11 +2944,13 @@ function consumeFx(entity, styleKey){
     const keyframeName = ANIM_STYLE_KEYFRAME[styleKey] || 'fx-lunge';
     anims.push(`${keyframeName} ${timing.dur}s cubic-bezier(.34,1.15,.64,1)`);
     scale = timing.scale;
+    const parts = FX_LAYER_PARTS[styleKey] || 3;
+    floatHtml += `<div class="fx-layer fx-layer-${styleKey} tier-${entity._fxAttack}">${'<i></i>'.repeat(parts)}</div>`;
     entity._fxAttack = null;
   }
   if(entity._fx){
-    anims.push(HIT_ANIM[entity._fx.variant](0.8));
-    floatHtml = `<div class="fx-float ${entity._fx.variant}">${entity._fx.label}</div>`;
+    anims.push(HIT_ANIM[entity._fx.variant](1.0));
+    floatHtml += `<div class="fx-impact ${entity._fx.variant}"><i></i><i></i><i></i></div><div class="fx-float ${entity._fx.variant}">${entity._fx.label}</div>`;
     entity._fx = null;
   }
   return {animation: anims.join(', '), scale, floatHtml};
@@ -2948,8 +2964,15 @@ function renderBattle(){
   const busy = !!b.busy;
 
   if(b.screenFx){
-    wrap.appendChild(el(`<div class="ult-flash-overlay" style="background:radial-gradient(circle, ${hexToRgba(b.screenFx,0.5)}, transparent 70%);"></div>`));
+    const sf = b.screenFx;
+    wrap.appendChild(el(`<div class="ult-flash-overlay" style="background:radial-gradient(circle, ${hexToRgba(sf.color,0.5)}, transparent 70%);"></div>`));
+    wrap.appendChild(el(`<div class="ult-cutin style-${sf.style}" style="--cut-color:${sf.color};--cut-glow:${hexToRgba(sf.color,0.6)};"><div class="ult-cutin-band"><span class="ult-cutin-name">${sf.name}</span><span class="ult-cutin-ability">${sf.ability}</span></div></div>`));
     b.screenFx = null;
+  }
+  if(b.skillCall){
+    const sc = b.skillCall;
+    wrap.appendChild(el(`<div class="skill-callout" style="--cut-color:${sc.color};">${sc.ability}</div>`));
+    b.skillCall = null;
   }
 
   const pendingAbility=b.pendingAbility && currentAlly()?getAbilityForActor(currentAlly(),b.pendingAbility.key):null;
