@@ -84,6 +84,11 @@ const CHAR_DB = {
     basic:{name:'Onda Spumeggiante',desc:'Danno leggero a tutti i nemici, basato sui PV massimi.',mult:0.06,target:'enemies_all',effect:null,hpBased:true,energyGain:20},
     skill:{name:'Marea Montante',desc:'Danno ad area superiore al Basic.',mult:0.11,target:'enemies_all',effect:null,hpBased:true,energyGain:30},
     ult:{name:'Tsunami Cristallino',desc:'Danno a tutti i nemici.',mult:0.18,target:'enemies_all',effect:null,hpBased:true} },
+  takanashiKiara: {name:'Kiara Takanashi',title:'Guardiana del Sole',role:'DPS DEF Follow-up',color:'#f97316',glyph:'K',rarity:4,element:'imaginary',animStyle:'heavy',passiveKiaraCounter:true,
+    base:{hp:1220,atk:82,def:160,speed:98,energyMax:120},
+    basic:{name:'Fendente Solare',desc:'Attacco singolo basato sulla DIF.',mult:0.8,target:'enemy',effect:null,defBased:true,energyGain:20},
+    skill:{name:'Giudizio Cremisi',desc:'Colpisce un singolo nemico in base alla DIF e cura Kiara del 35% della sua DIF.',mult:1.35,target:'enemy',effect:'kiara_skill_heal',healPct:0.35,defBased:true,energyGain:30},
+    ult:{name:'Alba Inestinguibile',desc:'Aumenta la DIF di Kiara del 40% per 2 turni.',mult:0,target:'self',effect:'kiara_def_buff',defBuffPct:0.4} },
 };
 
 const ENEMY_NAMES = ['Larva del Vuoto','Sentinella Corrotta','Sciame Spinato','Costrutto Infranto','Ombra Vagante'];
@@ -269,6 +274,8 @@ const WEAPON_DEFINITIONS = {
   'Scia della Cometa': {ownerId:'suiseiHoshimachi', effect:{stat:'hpDamageMult',base:0.15,perAscension:0.03,describe:value=>`Danni delle abilita basate sui PV massimi +${Math.round(value*100)}%.`}},
   'Reliquiario delle Profondita': {ownerId:'ninomaeInaNis', effect:{stat:'damageMult', base:0.12, perAscension:0.025, describe:value=>`Danni inflitti +${Math.round(value*100)}%.`}},
   'Lampo Sovrano': {ownerId:'selenTatsuki', effect:{stat:'skillDamageMult', base:0.18, perAscension:0.03, describe:value=>`Danni di Skill e Ultimate +${Math.round(value*100)}%.`}},
+  'Scintilla della Fenice': {ownerId:'takanashiKiara',effect:{stat:'defPct',base:0.1,perAscension:0.02,describe:value=>`DIF +${Math.round(value*100)}%.`}},
+  'Canto della Marea': {ownerId:'finanaRyugu',effect:{stat:'hpDamageMult',base:0.15,perAscension:0.03,describe:value=>`Danni delle abilita basate sui PV massimi +${Math.round(value*100)}%.`}},
 };
 const SIGNATURE_WEAPONS = [
   {name:'Aegis dell\'Ultima Alba', ownerId:'kaelaKolvalskia', atk:165, subStat:{key:'def_pct',value:0.16}},
@@ -283,6 +290,8 @@ const SIGNATURE_WEAPONS = [
   {name:'Scia della Cometa',ownerId:'suiseiHoshimachi',atk:180,subStat:{key:'hp_pct',value:0.14}},
   {name:'Reliquiario delle Profondita', ownerId:'ninomaeInaNis', atk:176, subStat:{key:'hp_pct',value:0.12}},
   {name:'Lampo Sovrano', ownerId:'selenTatsuki', atk:178, subStat:{key:'atk_pct',value:0.12}},
+  {name:'Scintilla della Fenice',ownerId:'takanashiKiara',atk:180,subStat:{key:'def_pct',value:0.16}},
+  {name:'Canto della Marea',ownerId:'finanaRyugu',atk:172,subStat:{key:'hp_pct',value:0.14}},
 ];
 
 function normalizeWeapon(weapon){
@@ -507,6 +516,10 @@ let state = {
   weaponBannerPulls:0,
   weaponBannerPulls5:0,
   pfDaily:null,
+  pfCleared:false,
+  mocDaily:null,
+  mocTeams:[[],[]],
+  moc:null,
   suCleared:false,
   su:null,
   suDaily:null,
@@ -514,6 +527,7 @@ let state = {
   lastPullBanner:'personaggi',
   lastPullResults:[],
   townTab:'squadra', // squadra | personaggi | abilita | inventario | indice | torre | banner | missioni
+  travelTab:'purefiction',
   abilityTabChar: 'kaelaKolvalskia',
   indexCategory:'tutto',
   autoBattle:false,
@@ -550,6 +564,9 @@ function getSaveData(){
     weaponBannerPulls: state.weaponBannerPulls,
     weaponBannerPulls5: state.weaponBannerPulls5,
     pfDaily: state.pfDaily,
+    pfCleared: state.pfCleared,
+    mocDaily: state.mocDaily,
+    mocTeams: state.mocTeams,
     suCleared: state.suCleared,
     suDaily: state.suDaily,
     claimedQuests: state.claimedQuests,
@@ -613,6 +630,9 @@ function loadGame(){
     state.weaponBannerPulls = data.weaponBannerPulls || 0;
     state.weaponBannerPulls5 = data.weaponBannerPulls5 || 0;
     state.pfDaily = data.pfDaily || null;
+    state.pfCleared = !!data.pfCleared;
+    state.mocDaily = data.mocDaily || null;
+    state.mocTeams = Array.isArray(data.mocTeams) && data.mocTeams.length===2 ? data.mocTeams : [[],[]];
     state.suCleared = !!data.suCleared;
     state.suDaily = data.suDaily || null;
     state.claimedQuests = data.claimedQuests || {};
@@ -630,7 +650,7 @@ function resetSave(){
   try{ localStorage.removeItem(SAVE_KEY); } catch(e){}
   state.gold=0; state.stage=1; state.maxStageReached=1; state.inventory=[]; state.itemUidCounter=1;
   state.weaponInventory=[]; state.weaponUidCounter=1; state.pityCounter=0; state.pity5Counter=0; state.lastPullResults=[];
-  state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.suCleared=false; state.suDaily=null; state.su=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
+  state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.pfCleared=false; state.mocDaily=null; state.mocTeams=[[],[]]; state.moc=null; state.travelTab='purefiction'; state.suCleared=false; state.suDaily=null; state.su=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
   state.claimedQuests={}; state.questTiers={}; state.questExhausted={}; state.totalPullsDone=0; state.totalArtifactsSold=0;
   initRoster();
   state.party=['kaelaKolvalskia'];
@@ -819,6 +839,7 @@ function endPureFiction(reason){
   const b=state.battle;
   b.phase='resolved';
   state.autoBattle=false;
+  if(reason==='rounds') state.pfCleared=true;
   const day=ensurePFDay();
   const score=b.pf.score;
   day.best=Math.max(day.best,score);
@@ -836,6 +857,96 @@ function endPureFiction(reason){
 function startPureFiction(){
   if(state.maxStageReached<=PF_UNLOCK_STAGE) return;
   startBattle('pf');
+}
+
+/* ============ MEMORY OF CHAOS ============ */
+const MOC_UNLOCK_STAGE = 10;
+const MOC_TIERS = [{clears:1,reward:600},{clears:2,reward:1200},{clears:2,maxRounds:12,reward:1800}];
+function ensureMOCDay(){
+  const key=pfDateKey();
+  if(!state.mocDaily || state.mocDaily.date!==key) state.mocDaily={date:key,clears:0,bestRounds:null,claimed:[false,false,false]};
+  return state.mocDaily;
+}
+function getMOCSetup(){
+  const key=pfDateKey();
+  const first=pfHash(key+'moc-boss-a')%BOSS_NAMES.length;
+  const second=(first+1+pfHash(key+'moc-boss-b')%(BOSS_NAMES.length-1))%BOSS_NAMES.length;
+  const general=PF_GENERAL_BUFFS[pfHash(key+'moc-general')%PF_GENERAL_BUFFS.length];
+  const theme=PF_THEME_BUFFS[pfHash(key+'moc-theme')%PF_THEME_BUFFS.length];
+  return {bosses:[BOSS_NAMES[first],BOSS_NAMES[second]],buffs:{general,theme}};
+}
+function toggleMOCHero(teamIndex,charId){
+  if(!state.roster[charId]?.unlocked || state.moc) return;
+  const teams=state.mocTeams;
+  const team=teams[teamIndex];
+  if(team.includes(charId)) team.splice(team.indexOf(charId),1);
+  else if(team.length<4 && !teams[1-teamIndex].includes(charId)) team.push(charId);
+  render();
+}
+function startMemoryOfChaos(){
+  if(state.maxStageReached<=MOC_UNLOCK_STAGE || state.moc) return;
+  const [first,second]=state.mocTeams;
+  if(first.length===0 || second.length===0 || first.some(id=>second.includes(id))) return;
+  state.moc={phase:'first',bossIndex:0,rounds:0,setup:getMOCSetup()};
+  startBattle('moc');
+}
+function claimMOCTiers(day,clears,rounds){
+  let gained=0;
+  MOC_TIERS.forEach((tier,index)=>{
+    if(clears>=tier.clears && (tier.maxRounds===undefined || rounds<=tier.maxRounds) && !day.claimed[index]){
+      day.claimed[index]=true;
+      state.gold+=tier.reward;
+      gained+=tier.reward;
+    }
+  });
+  return gained;
+}
+function onMOCBattleWin(){
+  const battle=state.battle;
+  const moc=state.moc;
+  moc.rounds+=battle.round;
+  const day=ensureMOCDay();
+  if(moc.bossIndex===0){
+    day.clears=Math.max(day.clears,1);
+    claimMOCTiers(day,1,moc.rounds);
+    moc.bossIndex=1;
+    moc.phase='second';
+  } else {
+    day.clears=2;
+    day.bestRounds=day.bestRounds===null?moc.rounds:Math.min(day.bestRounds,moc.rounds);
+    claimMOCTiers(day,2,moc.rounds);
+    moc.phase='complete';
+  }
+  state.battle=null;
+  state.autoBattle=false;
+  state.screen='moc';
+}
+function onMOCBattleDefeat(){
+  state.moc.phase='failed';
+  state.battle=null;
+  state.autoBattle=false;
+  state.screen='moc';
+}
+function continueMOC(){
+  if(!state.moc || state.moc.phase!=='second') return;
+  startBattle('moc');
+}
+function finishMOC(){
+  state.moc=null;
+  state.screen='town';
+  state.townTab='viaggi';
+  state.travelTab='moc';
+  render();
+}
+function retryMOC(){
+  state.moc=null;
+  startMemoryOfChaos();
+}
+function generateMOCBoss(name,index){
+  const stage=Math.max(MOC_UNLOCK_STAGE,state.maxStageReached);
+  const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR);
+  const elements=ENEMY_ELEMENT_SETS[name].slice();
+  return {id:`moc${index}`,name,hp,maxHp:hp,atk:Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR),def:Math.round(35+stage*6+stage*stage*0.05),speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,burnStacks:0,burnRounds:0,burnSourceMult:1,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0};
 }
 
 /* ============ SIMULATED UNIVERSE (roguelike) ============ */
@@ -932,6 +1043,7 @@ function resetAlliesForWave(allies){
   allies.forEach(a=>{
     const c=CHAR_DB[a.charId];
     a.shield=0; a.shieldRounds=0; a.atkBuffMult=1; a.buffRounds=0;
+    a.defBuffMult=1; a.defBuffRounds=0;
     a.basicHits=c.basic.hits||1;
     a.skillFreeUses=c.skillFreeUses||0;
     a.inaFollowUpsRemaining=c.passiveInaFollowUps||0;
@@ -1084,8 +1196,11 @@ function startBattle(mode,fight){
   const su = mode==='su';
   const domain = mode==='domain';
   const pf = mode==='pf';
+  const moc = mode==='moc';
   const pfBuffs = pf ? getPFDailyBuffs() : null;
-  let allies = state.party.map(id=>{
+  const activeParty=moc?state.mocTeams[state.moc.bossIndex]:state.party;
+  const mocBuffs=moc?state.moc.setup.buffs:null;
+  let allies = activeParty.map(id=>{
     const eff = getEffectiveStats(id);
     return {
       charId:id, name:CHAR_DB[id].name, color:CHAR_DB[id].color, glyph:CHAR_DB[id].glyph, element:CHAR_DB[id].element,
@@ -1097,6 +1212,7 @@ function startBattle(mode,fight){
       formDamageMult:eff.formDamageMult, defDownBonus:eff.defDownBonus, hpDamageMult:eff.hpDamageMult, skillDamageMult:eff.skillDamageMult,
       fxSkillSp:eff.fxSkillSp, fxAbsent:eff.fxAbsent, fxHitStack:eff.fxHitStack, turnSkillCount:0, hitStacks:[],
       shield:0, shieldRounds:0, atkBuffMult:1, buffRounds:0,
+      defBuffMult:1, defBuffRounds:0,
       basicHits: CHAR_DB[id].basic.hits||1,
       skillFreeUses: CHAR_DB[id].skillFreeUses||0,
       inaFollowUpsRemaining: CHAR_DB[id].passiveInaFollowUps||0,
@@ -1105,6 +1221,7 @@ function startBattle(mode,fight){
     };
   });
   if(pf) applyPFBuffs(allies,pfBuffs);
+  if(moc) applyPFBuffs(allies,mocBuffs);
   if(su){
     if(state.su.allies) allies=state.su.allies;
     else {
@@ -1112,9 +1229,9 @@ function startBattle(mode,fight){
       if(state.su.pendingStart){ applySUBlessing(state.su.pendingStart); state.su.pendingStart=null; }
     }
   }
-  const enemies = pf ? generatePFEnemies() : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage);
+  const enemies = pf ? generatePFEnemies() : moc ? [generateMOCBoss(state.moc.setup.bosses[state.moc.bossIndex],state.moc.bossIndex)] : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage);
   const turnOrder = buildTurnOrder(allies,enemies);
-  const spMaxBonus = state.party.reduce((sum,id)=>sum+(CHAR_DB[id].passiveSpCapBonus||0),0);
+  const spMaxBonus = activeParty.reduce((sum,id)=>sum+(CHAR_DB[id].passiveSpCapBonus||0),0);
   const spMax = 5+spMaxBonus;
   state.battle = {
     allies, enemies, turnOrder,
@@ -1130,15 +1247,18 @@ function startBattle(mode,fight){
     inaFollowUpActive:false,
     suiseiFollowUpActive:false,
     summonCounter:pf?5:0,
-    mode:pf?'pf':su?'su':domain?'domain':'tower',
+    mode:pf?'pf':moc?'moc':su?'su':domain?'domain':'tower',
     domainSet:domain?fight:null,
     suFight:su&&!!fight,
     pf:pf?{score:0,kills:0,lastSpawn:null,buffs:pfBuffs}:null,
+    mocBossIndex:moc?state.moc.bossIndex:null,
   };
   state.autoBattle=false;
   const firstActor = getTurnActor(state.battle);
   logMsg(pf
     ? `Pure Fiction — Turno 1/${PF_ROUNDS}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
+    : moc
+    ? `Memory of Chaos — Boss ${state.moc.bossIndex+1}/2: ${enemies[0].name}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : su
     ? `Universo Simulato — Ondata ${state.su.wave}/${SU_WAVES}${fight?' (scontro)':''}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : domain
@@ -1168,6 +1288,10 @@ async function advanceTurn(){
   if(b.phase!=='resolved') await processFinanaFollowUps(b);
   const completedActor=getTurnActor(b);
   if(completedActor) completedActor.turnSkillCount=0;
+  if(completedActor?.defBuffRounds>0){
+    completedActor.defBuffRounds--;
+    if(completedActor.defBuffRounds===0) completedActor.defBuffMult=1;
+  }
   if(completedActor?.hakosForm){
     if(completedActor.hakosFormFresh) completedActor.hakosFormFresh=false;
     else {
@@ -1216,6 +1340,7 @@ function checkBattleEnd(){
     b.phase='resolved';
     if(b.mode==='su') onSUWaveClear();
     else if(b.mode==='domain') onDomainVictory();
+    else if(b.mode==='moc') onMOCBattleWin();
     else onVictory();
     return true;
   }
@@ -1228,6 +1353,7 @@ function checkBattleEnd(){
     b.phase='resolved';
     if(b.mode==='pf') endPureFiction('defeat');
     else if(b.mode==='su') endSimulatedUniverse('defeat');
+    else if(b.mode==='moc') onMOCBattleDefeat();
     else onDefeat();
     return true;
   }
@@ -1247,7 +1373,8 @@ function applyLaplusAttackEffects(actor,enemy,extraDefDown=0,plantWeakness=false
     logMsg(`${enemy.name} subisce -${Math.round(reduction*100)}% DIF (${Math.round(enemy.defDownPct*100)}% totale).`);
   }
   if(plantWeakness){
-    const leader=CHAR_DB[state.party[0]];
+    const leaderId=state.battle?.allies[0]?.charId||state.party[0];
+    const leader=CHAR_DB[leaderId];
     if(leader){
       enemy.vulnerableToElement=leader.element;
       enemy.vulnerableRounds=2;
@@ -1456,6 +1583,10 @@ async function triggerSuiseiFollowUp(b,actor){
   return true;
 }
 
+function getEffectiveAllyDefense(ally){
+  return ally.def*(ally.defBuffMult||1);
+}
+
 function dealDamageToAlly(ally, dmg, giveEnergy){
   if(ally.suiseiGuardRounds>0) dmg=Math.round(dmg*0.6);
   let applied = dmg;
@@ -1476,6 +1607,26 @@ function dealDamageToAlly(ally, dmg, giveEnergy){
   if(giveEnergy && !ally.hakosForm) ally.energy = clamp(ally.energy+Math.round(10*(ally.energyGainMult||1)),0,ally.energyMax);
   if(!revived) ally._fx = applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbed};
   return {applied, absorbed};
+}
+
+async function performKiaraCounter(b,enemy,defender){
+  const kiara=defender?.charId==='takanashiKiara'&&defender.hp>0?defender:null;
+  if(!kiara||!enemy||enemy.hp<=0||b.kiaraCounterActive) return;
+  b.kiaraCounterActive=true;
+  const skill=CHAR_DB.takanashiKiara.skill;
+  const effectiveDef=Math.round(kiara.def*(kiara.defBuffMult||1));
+  const vulnerability=enemy.vulnerableRounds>0?enemy.vulnerableToElement:null;
+  const damage=calcDamage(effectiveDef,skill.mult,getEffectiveEnemyDefense(enemy),kiara.element,enemy.elements||enemy.element,kiara,'skill',vulnerability);
+  const applied=dealDamageToEnemy(enemy,damage);
+  kiara._fxAttack='skill';
+  logMsg(`${kiara.name} contrattacca ${enemy.name}: ${applied} danni.`);
+  const healing=Math.round(effectiveDef*skill.healPct*(kiara.healMult||1));
+  kiara.hp=clamp(kiara.hp+healing,0,kiara.maxHp);
+  kiara._fx={variant:'heal',label:'+'+healing};
+  logMsg(`${kiara.name} recupera ${healing} PV dal contrattacco.`);
+  render();
+  await sleepMs(300);
+  b.kiaraCounterActive=false;
 }
 
 const HAKOS_FORM_ABILITIES={
@@ -1554,7 +1705,9 @@ async function executeAbility(actor, abKey, targetId){
   const b = state.battle;
   const ability = getAbilityForActor(actor,abKey);
   if(!ability || ability.effect==='disabled') return;
-  const effAtk = ability.hpBased
+  const effAtk = ability.defBased
+    ? Math.round(actor.def*(actor.defBuffMult||1))
+    : ability.hpBased
     ? actor.maxHp*(actor.hpDamageMult||1)
     : Math.round(actor.atk*(actor.atkBuffMult||1));
   const buffPct = (ability.buffPct||0)+(actor.buffPctBonus||0);
@@ -1602,6 +1755,12 @@ async function executeAbility(actor, abKey, targetId){
       if(actor.charId==='laplusDarkness'||actor.defDownBonus>0){
         applyLaplusAttackEffects(actor,target,0,actor.charId==='laplusDarkness'&&ability.effect==='laplus_plant_weakness');
       }
+    }
+    if(ability.effect==='kiara_skill_heal'&&actor.hp>0){
+      const healing=Math.round(effAtk*ability.healPct*(actor.healMult||1));
+      actor.hp=clamp(actor.hp+healing,0,actor.maxHp);
+      actor._fx={variant:'heal',label:'+'+healing};
+      logMsg(`${actor.name} recupera ${healing} PV.`);
     }
     if(selenWeak && t.hp>0){
       t.stunTurns=2;
@@ -1686,6 +1845,11 @@ async function executeAbility(actor, abKey, targetId){
   else if(ability.target==='self'){
     if(ability.effect==='hakos_ultimate'){
       activateHakosUltimate(actor,b);
+    } else if(ability.effect==='kiara_def_buff'){
+      actor.defBuffMult=1+ability.defBuffPct;
+      actor.defBuffRounds=3;
+      actor._fx={variant:'buff',label:'+'+Math.round(ability.defBuffPct*100)+'% DIF'};
+      logMsg(`${actor.name} aumenta la propria DIF del ${Math.round(ability.defBuffPct*100)}% per 2 turni.`);
     } else if(ability.effect==='suisei_guard'){
       const lost=loseSuiseiHp(actor,actor.hp*0.5);
       actor.suiseiGuardRounds=3;
@@ -1968,10 +2132,12 @@ async function runEnemyRole(enemy,b){
       enemy._fxAttack='skill';
       logMsg(`${enemy.name} esplode in un attacco ad area!`);
       for(const ally of b.allies.filter(a=>a.hp>0)){
-        const dmg=calcDamage(Math.round(enemy.atk*0.9),1,ally.def,enemy.element,ally.element);
+        const dmg=calcDamage(Math.round(enemy.atk*0.9),1,getEffectiveAllyDefense(ally),enemy.element,ally.element);
         const result=dealDamageToAlly(ally,dmg,true);
         logMsg(`${ally.name} subisce ${result.applied} danni dall'esplosione.`);
+        await performKiaraCounter(b,enemy,ally);
         if(ally.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,ally);
+        if(enemy.hp<=0) break;
       }
       acted=true;
     }
@@ -2020,9 +2186,11 @@ async function runBossMechanic(boss,b){
           logMsg(`${boss.name} scatena l'ESONDAZIONE ABISSALE!`);
           for(const ally of b.allies.filter(target=>target.hp>0)){
             if(boss.phase!==startPhase) break;
-            const damage=calcDamage(Math.round(boss.atk*1.8),1,ally.def,boss.element,ally.element);
+            const damage=calcDamage(Math.round(boss.atk*1.8),1,getEffectiveAllyDefense(ally),boss.element,ally.element);
             const result=dealDamageToAlly(ally,damage,true);
             logMsg(`${ally.name} subisce ${result.applied} danni dall'esplosione massiva.`);
+            await performKiaraCounter(b,boss,ally);
+            if(boss.hp<=0) break;
           }
         } else {
           logMsg(`${boss.name} carica l'esplosione: ${boss.addsTurnsRemaining} turno rimasto per fermarla!`);
@@ -2053,10 +2221,12 @@ async function runBossMechanic(boss,b){
     logMsg(`${boss.name} scatena un attacco ad area!`);
     for(const ally of livingAllies){
       if(boss.phase!==startPhase) break;
-      const dmg=calcDamage(Math.round(boss.atk*(boss.phase===2?0.8:0.65)),1,ally.def,boss.element,ally.element);
+      const dmg=calcDamage(Math.round(boss.atk*(boss.phase===2?0.8:0.65)),1,getEffectiveAllyDefense(ally),boss.element,ally.element);
       const result=dealDamageToAlly(ally,dmg,true);
       logMsg(`${ally.name} subisce ${result.applied} danni dall'onda d'urto.`);
+      await performKiaraCounter(b,boss,ally);
       if(ally.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,ally);
+      if(boss.hp<=0) break;
     }
   }
   render();
@@ -2115,7 +2285,7 @@ async function runEnemyTurn(){
     if(targets.length===0) break;
     const target=targets.find(a=>a.tauntRounds>0)||pick(targets);
     enemy._fxAttack='basic';
-    const dmg=calcDamage(enemy.atk,enemy.role==='twin'?0.7:1.0,target.def,enemy.element,target.element);
+    const dmg=calcDamage(enemy.atk,enemy.role==='twin'?0.7:1.0,getEffectiveAllyDefense(target),enemy.element,target.element);
     const result=dealDamageToAlly(target,dmg,true);
     const attackLabel=attackCount>1?` (${attackIndex+1}/2)`:'';
     if(enemy.role==='thief' && target.hp>0){
@@ -2132,6 +2302,7 @@ async function runEnemyTurn(){
     }
     render();
     await sleepMs(420);
+    await performKiaraCounter(b,enemy,target);
     if(target.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,target);
     if(checkBattleEnd()){
       b.busy=false;
@@ -2349,8 +2520,10 @@ const WEAPON_MAX_ASCENSION = 5;
 function getAutoEquipProfile(charId){
   const c=CHAR_DB[charId];
   const hpScaler=!!(c.basic.hpBased||c.ult.hpBased);
+  const defScaler=!!(c.basic.defBased||c.skill.defBased||c.ult.defBased);
   const tank=/Tank/.test(c.role);
   const w = tank ? {hp:0.5,def:1.5,atk:0.2,speed:2}
+    : defScaler ? {hp:0.3,atk:0.2,def:1.2,speed:2}
     : hpScaler ? {hp:1,atk:0.05,def:0.3,speed:2}
     : /Supporto/.test(c.role) ? {atk:0.6,hp:0.3,def:0.3,speed:5}
     : {atk:1,hp:0.1,def:0.3,speed:2};
@@ -2684,6 +2857,7 @@ const ONE_OFF_QUESTS = [
   {id:'equip1',       desc:'Equipaggia il tuo primo manufatto', reward:100,  check:anyHeroHasEquippedArtifact},
   {id:'equipWeapon',  desc:'Equipaggia la tua prima arma',      reward:150,  check:anyHeroHasWeapon},
   {id:'finana',       desc:'Completa l\'Universo Simulato per la prima volta', reward:400, unlockChar:'finanaRyugu', rewardText:'Sblocca Finana Ryugu (★★★★)', check:()=>state.suCleared},
+  {id:'kiara',        desc:'Completa Pure Fiction per la prima volta', reward:400, unlockChar:'takanashiKiara', rewardText:'Sblocca Kiara Takanashi (★★★★)', check:()=>state.pfCleared},
 ];
 
 function getHighestArtifactLevel(){
@@ -2753,6 +2927,7 @@ function render(){
   else if(state.screen==='victory') app.appendChild(renderVictory());
   else if(state.screen==='defeat') app.appendChild(renderDefeat());
   else if(state.screen==='pfresult') app.appendChild(renderPFResult());
+  else if(state.screen==='moc') app.appendChild(renderTravelLogTab());
   else if(state.screen==='su' && state.su) app.appendChild(renderSUScreen());
   if(state.screen!=='home') saveGame();
 }
@@ -2768,7 +2943,7 @@ function renderTopbar(){
     </div>
     <div class="stats">
       <div class="stat"><div class="val">${state.gold}</div><div class="lbl">Frammenti</div></div>
-      <div class="stat"><div class="val">${state.party.length}/4</div><div class="lbl">Squadra</div></div>
+      <div class="stat"><div class="val">${state.battle?.mode==='moc'?state.battle.allies.length:state.party.length}/4</div><div class="lbl">Squadra</div></div>
     </div>
   </div>`);
   if(state.screen!=='home'){
@@ -2883,9 +3058,7 @@ function renderTownTabs(){
     ['indice','Indice'],
     ['tutorial','Tutorial'],
     ['torre','Torre'],
-    ['purefiction','Pure Fiction'],
-    ['universo','Universo Simulato'],
-    ['domini','Domini'],
+    ['viaggi','Travel Log'],
     ['banner','Banner'],
     ['missioni','Missioni'],
   ];
@@ -2968,6 +3141,10 @@ function renderPersonaggiTab(){
   return wrap;
 }
 
+function abilityScalingLabel(ability){
+  return ability.defBased?'DIF':ability.hpBased?'PV massimi':'ATK';
+}
+
 function renderAbilityCard(ability, tagKey, tagLabel, extraNumbers){
   return el(`<div class="hud-panel ability-card">
     <span class="tag ${tagKey}">${tagLabel}</span>
@@ -3002,6 +3179,7 @@ function renderAbilitaTab(){
       <div class="hero-stars" style="color:${c.rarity===5?'#ffd700':'#9aa4c4'}">${'★'.repeat(c.rarity)}${unlocked?'':' · 🔒 Bloccato'}</div>
       ${c.passiveSpCapBonus?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: mentre è in squadra, il cap dei Punti Abilità sale da 5 a ${5+c.passiveSpCapBonus}.</div>`:''}
       ${c.passiveSelfHeal?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che attacca recupera il ${Math.round(c.passiveSelfHeal*100)}% dei PV massimi.</div>`:''}
+      ${c.passiveKiaraCounter?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: quando Kiara viene colpita e sopravvive, contrattacca il nemico con un follow-up equivalente alla Skill.</div>`:''}
       ${c.passiveFinanaFollowUp?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che un nemico scende al 50% dei PV per la prima volta, lancia un follow-up identico al Basic.</div>`:''}
       ${c.passiveInaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: marchia il nemico con meno PV. I colpi al marchiato attivano fino a ${c.passiveInaFollowUps} follow-up; la Ultimate ricarica le cariche. Ogni volta che un alleato colpisce il nemico marchiato, Ina rigenera 10 energia.</div>`:''}
       ${c.passiveHpLossFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni ${c.passiveHpLossFollowUps} perdite di PV attiva un follow-up ad area e cura il 15% dei PV massimi.</div>`:''}
@@ -3012,15 +3190,15 @@ function renderAbilitaTab(){
 
   const cards = el(`<div class="ability-cards"></div>`);
   cards.appendChild(renderAbilityCard(c.basic, 'basic', 'Attacco Base',
-    `<span><b>Moltiplicatore:</b> ${Math.round(c.basic.mult*100)}% ${c.basic.hpBased?'PV massimi':'ATK'}${c.basic.hits?` x${c.basic.hits} colpi`:''}</span>
+    `<span><b>Moltiplicatore:</b> ${Math.round(c.basic.mult*100)}% ${abilityScalingLabel(c.basic)}${c.basic.hits?` x${c.basic.hits} colpi`:''}</span>
      <span><b>Genera:</b> ${c.basic.spGain!==undefined?c.basic.spGain:1} Punto/i Abilità</span>
      <span><b>Energia:</b> +${c.basic.energyGain}</span>`));
   cards.appendChild(renderAbilityCard(c.skill, 'skill', 'Skill · 1 Punto Abilità',
-    `<span><b>Moltiplicatore:</b> ${c.skill.mult>0?Math.round(c.skill.mult*100)+'% '+(c.skill.hpBased?'PV massimi':'ATK'):'—'}${c.skill.hits?` x${c.skill.hits} colpi`:''}</span>
+    `<span><b>Moltiplicatore:</b> ${c.skill.mult>0?Math.round(c.skill.mult*100)+'% '+abilityScalingLabel(c.skill):'—'}${c.skill.hits?` x${c.skill.hits} colpi`:''}</span>
      ${c.skill.effect?`<span><b>Effetto:</b> ${effectLabel(c.skill)}</span>`:''}
      <span><b>Energia:</b> +${c.skill.energyGain}</span>`));
   cards.appendChild(renderAbilityCard(c.ult, 'ult', 'Ultimate · Energia Piena',
-    `<span><b>Moltiplicatore:</b> ${c.ult.mult>0?Math.round(c.ult.mult*100)+'% '+(c.ult.hpBased?'PV massimi':'ATK'):'—'}${c.ult.hits?` x${c.ult.hits} colpi`:''}</span>
+    `<span><b>Moltiplicatore:</b> ${c.ult.mult>0?Math.round(c.ult.mult*100)+'% '+abilityScalingLabel(c.ult):'—'}${c.ult.hits?` x${c.ult.hits} colpi`:''}</span>
      ${c.ult.effect?`<span><b>Effetto:</b> ${effectLabel(c.ult)}</span>`:''}
      <span><b>Energia massima:</b> ${c.base.energyMax}</span>`));
   if(id==='ninomaeInaNis'){
@@ -3059,6 +3237,8 @@ function renderAbilitaTab(){
 
 function effectLabel(ability){
   switch(ability.effect){
+    case 'kiara_skill_heal': return `Dopo il colpo, cura Kiara del ${Math.round(ability.healPct*100)}% della sua DIF.`;
+    case 'kiara_def_buff': return `Aumenta la DIF di Kiara del ${Math.round(ability.defBuffPct*100)}% per 2 turni.`;
     case 'shield_self': return `Scudo su se stesso pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni. Lo stesso scudo (sui PV massimi dell'alleato) va anche all'alleato con meno PV.`;
     case 'shield_all': return `Scudo su tutta la squadra pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni.`;
     case 'heal': return `Cura un alleato.`;
@@ -3509,9 +3689,7 @@ function renderTown(){
   else if(state.townTab==='indice') wrap.appendChild(renderIndiceTab());
   else if(state.townTab==='tutorial') wrap.appendChild(renderTutorialTab());
   else if(state.townTab==='torre') wrap.appendChild(renderTorreTab());
-  else if(state.townTab==='purefiction') wrap.appendChild(renderPureFictionTab());
-  else if(state.townTab==='universo') wrap.appendChild(renderUniversoTab());
-  else if(state.townTab==='domini') wrap.appendChild(renderDominiTab());
+  else if(state.townTab==='viaggi') wrap.appendChild(renderTravelLogTab());
   else if(state.townTab==='banner') wrap.appendChild(renderBannerTab());
   else if(state.townTab==='missioni') wrap.appendChild(renderMissioniTab());
 
@@ -3919,6 +4097,81 @@ function renderPureFictionTab(){
   return wrap;
 }
 
+function renderMemoryOfChaos(){
+  const wrap=document.createElement('div');
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Sfida a due squadre</span><h2>Memory of Chaos</h2></div>`));
+  if(state.maxStageReached<=MOC_UNLOCK_STAGE){
+    wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;text-align:center;"><div class="hero-name" style="font-size:18px;">🔒 Bloccata</div><div class="hint">Si sblocca dopo aver superato il Piano ${MOC_UNLOCK_STAGE} della Torre. Massimo raggiunto: piano ${state.maxStageReached}.</div></div>`));
+    return wrap;
+  }
+  const day=ensureMOCDay();
+  const setup=state.moc?.setup||getMOCSetup();
+  if(!state.moc && state.mocTeams.every(team=>team.length===0)) state.mocTeams[0]=state.party.slice(0,4);
+  if(state.moc){
+    const phase=state.moc.phase;
+    const title=phase==='second'?'Primo boss sconfitto':phase==='complete'?'Memory of Chaos completato':'Squadra sconfitta';
+    const message=phase==='second'?`Ora affronta ${setup.bosses[1]} con la seconda squadra.`:phase==='complete'?`Entrambi i boss sono stati sconfitti in ${state.moc.rounds} round.`:`La sfida si è fermata al boss ${state.moc.bossIndex+1}. Puoi riprovare con le stesse squadre.`;
+    wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;text-align:center;"><div class="eyebrow">${title}</div><div class="hero-name" style="font-size:18px;margin:8px 0;">${message}</div><div class="hint">Ricompense giornaliere già ottenute: ${day.claimed.map((claimed,index)=>claimed?MOC_TIERS[index].reward:0).reduce((sum,reward)=>sum+reward,0)} Frammenti</div></div>`));
+    if(phase==='second'){
+      const button=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="mocContinue">Affronta il secondo boss ▶</button></div>`);
+      button.querySelector('#mocContinue').onclick=continueMOC;
+      wrap.appendChild(button);
+    } else {
+      const button=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="mocFinish">${phase==='failed'?'Riprova la sfida':'Torna al Travel Log'} ▶</button></div>`);
+      button.querySelector('#mocFinish').onclick=phase==='failed'?retryMOC:finishMOC;
+      wrap.appendChild(button);
+    }
+    return wrap;
+  }
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Sconfiggi due boss consecutivi con squadre distinte. Boss e potenziamenti sono gli stessi per tutti e ruotano ogni giorno; i boss scalano con il massimo piano raggiunto. Le ricompense si possono ottenere una volta al giorno.</div>`));
+  wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;"><div class="eyebrow">Boss e potenziamenti di oggi</div><div class="stat-row"><span>Boss 1</span><b>${setup.bosses[0]}</b></div><div class="stat-row"><span>Boss 2</span><b>${setup.bosses[1]}</b></div><div style="margin-top:8px;"><b>${setup.buffs.general.name}</b> · <span class="hint">${setup.buffs.general.desc}</span></div><div style="margin-top:6px;"><b>${setup.buffs.theme.name}</b> · <span class="hint">${setup.buffs.theme.desc}</span></div></div>`));
+  const tierPanel=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense di oggi · Boss sconfitti: ${day.clears}/2</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="mocTimer"></b></div></div>`);
+  startPFTimer(tierPanel.querySelector('#mocTimer'));
+  MOC_TIERS.forEach((tier,index)=>{
+    const label=index===0?'Sconfiggi il primo boss':index===1?'Sconfiggi entrambi i boss':'Entrambi entro 12 round';
+    tierPanel.appendChild(el(`<div class="stat-row"><span>${label}</span><b style="color:${day.claimed[index]?'var(--green)':'var(--amber)'}">${day.claimed[index]?'✓ riscossa':'+'+tier.reward+' 💠'}</b></div>`));
+  });
+  wrap.appendChild(tierPanel);
+
+  const teamsPanel=el(`<div class="moc-teams"></div>`);
+  state.mocTeams.forEach((team,teamIndex)=>{
+    const panel=el(`<section class="hud-panel moc-team-panel"><h3>Squadra ${teamIndex+1} <span>${team.length}/4</span></h3><div class="moc-hero-list"></div></section>`);
+    const list=panel.querySelector('.moc-hero-list');
+    Object.entries(CHAR_DB).filter(([id])=>state.roster[id]?.unlocked).forEach(([id,char])=>{
+      const selected=team.includes(id);
+      const assignedOther=state.mocTeams[1-teamIndex].includes(id);
+      const disabled=assignedOther||(!selected&&team.length>=4);
+      const option=el(`<button class="moc-hero-option ${selected?'selected':''}" type="button" ${disabled?'disabled':''}><span class="moc-hero-glyph" style="background:${char.color}">${char.glyph}</span><span>${char.name}</span><span class="moc-hero-check">${selected?'✓':''}</span></button>`);
+      option.onclick=()=>toggleMOCHero(teamIndex,id);
+      list.appendChild(option);
+    });
+    teamsPanel.appendChild(panel);
+  });
+  wrap.appendChild(teamsPanel);
+  const valid=state.mocTeams.every(team=>team.length>0)&&!state.mocTeams[0].some(id=>state.mocTeams[1].includes(id));
+  const start=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="mocStart" ${valid?'':'disabled'}>Avvia Memory of Chaos ▶</button></div>`);
+  start.querySelector('#mocStart').onclick=startMemoryOfChaos;
+  wrap.appendChild(start);
+  return wrap;
+}
+
+function renderTravelLogTab(){
+  const wrap=document.createElement('div');
+  const modes=[['purefiction','Pure Fiction'],['moc','Memory of Chaos'],['universo','Universo Simulato'],['domini','Domini']];
+  const bar=el(`<div class="subtab-bar travel-mode-bar"></div>`);
+  modes.forEach(([key,label])=>{
+    const button=el(`<button class="subtab-btn ${state.travelTab===key?'active':''}">${label}</button>`);
+    button.onclick=()=>{state.travelTab=key;render();};
+    bar.appendChild(button);
+  });
+  wrap.appendChild(bar);
+  if(state.travelTab==='purefiction') wrap.appendChild(renderPureFictionTab());
+  else if(state.travelTab==='moc') wrap.appendChild(renderMemoryOfChaos());
+  else if(state.travelTab==='universo') wrap.appendChild(renderUniversoTab());
+  else wrap.appendChild(renderDominiTab());
+  return wrap;
+}
+
 function renderDominiTab(){
   const wrap = document.createElement('div');
   wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Farming manufatti</span><h2>Domini</h2></div>`));
@@ -4050,7 +4303,7 @@ function renderSUScreen(){
 
   if(ended){
     const btn=el(`<button class="primary su-continue">Torna alla base \u25b6</button>`);
-    btn.onclick=()=>{ state.battle=null; state.su=null; state.screen='town'; state.townTab='universo'; render(); };
+    btn.onclick=()=>{ state.battle=null; state.su=null; state.screen='town'; state.townTab='viaggi'; state.travelTab='universo'; render(); };
     wrap.appendChild(btn);
   } else if(su.phase==='start'){
     const btn=el(`<button class="small su-abandon">Annulla</button>`);
@@ -4080,7 +4333,7 @@ function renderPFResult(){
   });
   wrap.appendChild(tiers);
   const btnRow=el(`<div style="text-align:center;"><button class="primary" id="pfBack">Torna alla base ▶</button></div>`);
-  btnRow.querySelector('#pfBack').onclick=()=>{ state.battle=null; state.screen='town'; state.townTab='purefiction'; render(); };
+  btnRow.querySelector('#pfBack').onclick=()=>{ state.battle=null; state.screen='town'; state.townTab='viaggi'; state.travelTab='purefiction'; render(); };
   wrap.appendChild(btnRow);
   return wrap;
 }
@@ -4098,7 +4351,7 @@ function renderVictory(){
   wrap.appendChild(loot);
   const btnRow = el(`<div style="text-align:center;"><button class="primary" id="continueBtn">Torna alla base ▶</button></div>`);
   btnRow.querySelector('#continueBtn').onclick=()=>{
-    if(b.mode==='domain'){ state.townTab='domini'; goToTown(false); }
+    if(b.mode==='domain'){ state.townTab='viaggi'; state.travelTab='domini'; goToTown(false); }
     else goToTown(true);
   };
   const nextBtn=el(`<button class="primary" style="margin-left:8px;">${b.mode==='domain'?'Ripeti dominio ▶':`Piano ${state.stage+1} ▶`}</button>`);
