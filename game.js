@@ -72,13 +72,18 @@ const CHAR_DB = {
   suiseiHoshimachi: {name:'Susei Hoshimachi',title:'Cometa Cremisi',role:'DPS PV Massimi',color:'#4c91ff',glyph:'S',rarity:5,element:'imaginary',animStyle:'surge',passiveHpLossFollowUps:4,revivesPerBattle:2,
     base:{hp:1420,atk:88,def:84,speed:100,energyMax:145},
     basic:{name:'Luce della Cometa',desc:'Attacco singolo basato sui PV massimi.',mult:0.14,target:'enemy',effect:null,hpBased:true,energyGain:20},
-    skill:{name:'Stella Cadente',desc:'Sacrifica metà dei PV correnti, riduce del 40% i danni subiti per 3 round e potenzia il Basic.',mult:0,target:'self',effect:'suisei_guard',energyGain:0},
+    skill:{name:'Stella Cadente',desc:'Sacrifica metà dei PV correnti, riduce del 40% i danni subiti per 3 round, provoca i nemici per 2 round e potenzia il Basic.',mult:0,target:'self',effect:'suisei_guard',energyGain:0},
     ult:{name:'Finale Stellare',desc:'Colpo singolo basato sui PV massimi. Porta i PV di Susei esattamente al 50% dopo il colpo.',mult:0.48,target:'enemy',effect:'suisei_set_half_hp',hpBased:true,energyGain:0} },
   selenTatsuki: {name:'Selen Tatsuki',title:'Fulmine Sovrano',role:'DPS Electro',color:'#f5d90a',glyph:'S',rarity:4,element:'electro',animStyle:'swift',
     base:{hp:1030,atk:130,def:66,speed:100,energyMax:125},
     basic:{name:'Scarica Rapida',desc:'Infligge danno elettrico a un bersaglio.',mult:0.95,target:'enemy',effect:null,energyGain:20},
     skill:{name:'Arco Voltaico',desc:'Danno elevato; molto più forte se il nemico è debole all\'Electro.',mult:1.9,weakMult:2.8,target:'enemy',effect:'selen_skill',energyGain:30},
     ult:{name:'Giudizio del Tuono',desc:'Colpo singolo devastante. Se il nemico è debole all\'Electro (anche tramite il debuff di Laplus) lo Stordisce per 2 turni.',mult:3.0,target:'enemy',effect:'selen_ult'} },
+  finanaRyugu: {name:'Finana Ryugu',title:'Marea Gentile',role:'DPS Area',color:'#38bdf8',glyph:'F',rarity:4,element:'hydro',animStyle:'radiant-soft',passiveFinanaFollowUp:true,
+    base:{hp:1010,atk:118,def:70,speed:100,energyMax:120},
+    basic:{name:'Onda Spumeggiante',desc:'Danno leggero a tutti i nemici.',mult:0.5,target:'enemies_all',effect:null,energyGain:20},
+    skill:{name:'Marea Montante',desc:'Danno ad area superiore al Basic.',mult:0.9,target:'enemies_all',effect:null,energyGain:30},
+    ult:{name:'Tsunami Cristallino',desc:'Danno a tutti i nemici.',mult:1.5,target:'enemies_all',effect:null} },
 };
 
 const ENEMY_NAMES = ['Larva del Vuoto','Sentinella Corrotta','Sciame Spinato','Costrutto Infranto','Ombra Vagante'];
@@ -489,6 +494,7 @@ let state = {
   weaponBannerPulls:0,
   weaponBannerPulls5:0,
   pfDaily:null,
+  suCleared:false,
   su:null,
   suDaily:null,
   bannerType:'personaggi',
@@ -531,6 +537,7 @@ function getSaveData(){
     weaponBannerPulls: state.weaponBannerPulls,
     weaponBannerPulls5: state.weaponBannerPulls5,
     pfDaily: state.pfDaily,
+    suCleared: state.suCleared,
     suDaily: state.suDaily,
     claimedQuests: state.claimedQuests,
     questTiers: state.questTiers,
@@ -593,6 +600,7 @@ function loadGame(){
     state.weaponBannerPulls = data.weaponBannerPulls || 0;
     state.weaponBannerPulls5 = data.weaponBannerPulls5 || 0;
     state.pfDaily = data.pfDaily || null;
+    state.suCleared = !!data.suCleared;
     state.suDaily = data.suDaily || null;
     state.claimedQuests = data.claimedQuests || {};
     state.questTiers = data.questTiers || {};
@@ -609,7 +617,7 @@ function resetSave(){
   try{ localStorage.removeItem(SAVE_KEY); } catch(e){}
   state.gold=0; state.stage=1; state.maxStageReached=1; state.inventory=[]; state.itemUidCounter=1;
   state.weaponInventory=[]; state.weaponUidCounter=1; state.pityCounter=0; state.pity5Counter=0; state.lastPullResults=[];
-  state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.suDaily=null; state.su=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
+  state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.suCleared=false; state.suDaily=null; state.su=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
   state.claimedQuests={}; state.questTiers={}; state.questExhausted={}; state.totalPullsDone=0; state.totalArtifactsSold=0;
   initRoster();
   state.party=['kaelaKolvalskia'];
@@ -908,7 +916,7 @@ function resetAlliesForWave(allies){
     a.basicHits=c.basic.hits||1;
     a.skillFreeUses=c.skillFreeUses||0;
     a.inaFollowUpsRemaining=c.passiveInaFollowUps||0;
-    a.suiseiHpLossEvents=0; a.suiseiFollowUpReady=false; a.suiseiGuardRounds=0; a.suiseiGuardFresh=false;
+    a.suiseiHpLossEvents=0; a.suiseiFollowUpReady=false; a.suiseiGuardRounds=0; a.suiseiGuardFresh=false; a.tauntRounds=0; a.tauntFresh=false;
     a.suiseiRevivesRemaining=c.revivesPerBattle||0;
     a.hakosForm=false;
   });
@@ -1008,6 +1016,10 @@ function endSimulatedUniverse(outcome){
     state.gold+=SU_REWARD;
     su.reward=SU_REWARD;
   }
+  if(outcome==='win'){
+    if(!state.suCleared) su.firstClear=true;
+    state.suCleared=true;
+  }
   su.outcome=outcome;
   su.phase='end';
   state.screen='su';
@@ -1098,6 +1110,7 @@ function currentAlly(){
 async function advanceTurn(){
   const b = state.battle;
   if(!b) return;
+  if(b.phase!=='resolved') await processFinanaFollowUps(b);
   const completedActor=getTurnActor(b);
   if(completedActor?.hakosForm){
     if(completedActor.hakosFormFresh) completedActor.hakosFormFresh=false;
@@ -1141,6 +1154,7 @@ async function advanceTurn(){
 function checkBattleEnd(){
   const b = state.battle;
   if(b.mode==='pf') pfProcessKills(b);
+  ensureInaMark(b); // the mark never disappears: if its holder died, it moves to another enemy
   const bossDefeated=b.enemies.some(enemy=>enemy.isBoss && enemy.hp<=0);
   if(bossDefeated || b.enemies.every(e=>e.hp<=0)){
     b.phase='resolved';
@@ -1230,6 +1244,13 @@ async function performInaFollowUp(b,target,consumeCharge=true){
 }
 
 async function triggerInaFollowUpAfterHit(b,target,attacker){
+  if(attacker?.charId!=='ninomaeInaNis' && target.inaMarked){
+    const ina=getInaActor(b);
+    if(ina && !ina.hakosForm){
+      ina.energy=clamp(ina.energy+10,0,ina.energyMax);
+      if(!ina._fx) ina._fx={variant:'buff',label:'+10 ⚡'};
+    }
+  }
   if(attacker?.charId==='ninomaeInaNis'||!target.inaMarked||b.inaFollowUpActive) return;
   if(target.hp<=0){
     target.inaMarked=false;
@@ -1266,14 +1287,47 @@ function dealDamageToEnemy(enemy, dmg){
   }
   enemy.hp = clamp(enemy.hp-applied,0,enemy.maxHp);
   updateBossPhase(enemy);
+  noteFinanaThreshold(enemy);
   const absorbedE = dmg-applied;
   enemy._fx = applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbedE};
   return applied;
 }
 
+// Finana: each enemy dropping to 50% HP for the first time queues one follow-up (a copy of her Basic).
+function noteFinanaThreshold(enemy){
+  const b=state.battle;
+  if(!b || enemy.finanaTriggered || enemy.hp<=0 || enemy.hp>enemy.maxHp*0.5) return;
+  enemy.finanaTriggered=true;
+  if(b.allies.some(a=>a.charId==='finanaRyugu'&&a.hp>0)) b.finanaPending=(b.finanaPending||0)+1;
+}
+async function processFinanaFollowUps(b){
+  if(b.finanaActive) return;
+  b.finanaActive=true;
+  let guard=0;
+  while((b.finanaPending||0)>0 && guard++<8){
+    b.finanaPending--;
+    const finana=b.allies.find(a=>a.charId==='finanaRyugu'&&a.hp>0);
+    const targets=b.enemies.filter(e=>e.hp>0);
+    if(!finana||targets.length===0){ b.finanaPending=0; break; }
+    const ability=CHAR_DB.finanaRyugu.basic;
+    finana._fxAttack='basic';
+    logMsg(`${finana.name} lancia un follow-up: ${ability.name}!`);
+    for(const t of targets){
+      const vulnerability=t.vulnerableRounds>0?t.vulnerableToElement:null;
+      const dmg=calcDamage(Math.round(finana.atk*(finana.atkBuffMult||1)),ability.mult,getEffectiveEnemyDefense(t),finana.element,t.elements||t.element,finana,'basic',vulnerability);
+      const applied=dealDamageToEnemy(t,dmg);
+      logMsg(`${finana.name} colpisce ${t.name} per ${applied}.`);
+    }
+    render();
+    await sleepMs(520);
+  }
+  b.finanaActive=false;
+}
+
 function updateBossPhase(enemy){
   if(!enemy.isBoss || enemy.phase>=2 || enemy.hp>0) return false;
   // First bar emptied: refill for the second bar and drop every unfinished phase-1 action.
+  enemy.finanaTriggered=false;
   enemy.phase=2;
   enemy.hp=enemy.maxHp;
   enemy.shield=0;
@@ -1565,7 +1619,9 @@ async function executeAbility(actor, abKey, targetId){
       const lost=loseSuiseiHp(actor,actor.hp*0.5);
       actor.suiseiGuardRounds=3;
       actor.suiseiGuardFresh=true;
-      logMsg(`${actor.name} sacrifica ${lost} PV e attiva la postura stellare: danni subiti -40% per 3 round.`);
+      actor.tauntRounds=2;
+      actor.tauntFresh=true;
+      logMsg(`${actor.name} sacrifica ${lost} PV e attiva la postura stellare: danni subiti -40% per 3 round. I nemici sono provocati per 2 round.`);
     } else if(ability.effect==='boost_basic_hits'){
       actor.basicHits = Math.min(10, (actor.basicHits||2)+1);
       actor._fx = {variant:'buff', label:'x'+actor.basicHits+' colpi'};
@@ -1653,6 +1709,7 @@ async function executeAbility(actor, abKey, targetId){
     actor.energy = 0;
   }
   if(actor.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,actor);
+  await processFinanaFollowUps(b);
   // let pending animations play out before the turn advances (a render would cut them)
   if([...b.allies,...b.enemies].some(x=>x._fx||x._fxAttack)) render();
   await sleepMs(abKey==='ult'?900:abKey==='skill'?650:480);
@@ -1703,10 +1760,12 @@ async function finishRound(){
     const dot = Math.round(e.maxHp*0.045*e.burnStacks*(e.burnSourceMult||1));
     e.hp = clamp(e.hp-dot,0,e.maxHp);
     updateBossPhase(e);
+    noteFinanaThreshold(e);
     e._fx = {variant:'damage', label:'-'+dot};
     logMsg(`${e.name} subisce ${dot} danni da ${e.dotName||'Bruciatura'}.`);
     e.burnRounds--;
     if(e.burnRounds<=0){ e.burnStacks=0; }
+    await processFinanaFollowUps(b);
     if(checkBattleEnd()) return false;
     render();
     await sleepMs(280);
@@ -1732,6 +1791,13 @@ async function finishRound(){
       else {
         a.suiseiGuardRounds--;
         if(a.suiseiGuardRounds===0) logMsg(`${a.name} termina la postura stellare.`);
+      }
+    }
+    if(a.tauntRounds>0){
+      if(a.tauntFresh) a.tauntFresh=false;
+      else {
+        a.tauntRounds--;
+        if(a.tauntRounds===0) logMsg(`${a.name} non provoca più i nemici.`);
       }
     }
   });
@@ -1967,7 +2033,7 @@ async function runEnemyTurn(){
     if(enemy.isBoss && enemy.phase!==turnStartPhase) break;
     const targets=b.allies.filter(ally=>ally.hp>0);
     if(targets.length===0) break;
-    const target=pick(targets);
+    const target=targets.find(a=>a.tauntRounds>0)||pick(targets);
     enemy._fxAttack='basic';
     const dmg=calcDamage(enemy.atk,enemy.role==='twin'?0.7:1.0,target.def,enemy.element,target.element);
     const result=dealDamageToAlly(target,dmg,true);
@@ -2537,6 +2603,7 @@ const ONE_OFF_QUESTS = [
   {id:'unlock5star',  desc:'Sblocca un eroe a 5 stelle',       reward:1000, check:hasUnlocked5Star},
   {id:'equip1',       desc:'Equipaggia il tuo primo manufatto', reward:100,  check:anyHeroHasEquippedArtifact},
   {id:'equipWeapon',  desc:'Equipaggia la tua prima arma',      reward:150,  check:anyHeroHasWeapon},
+  {id:'finana',       desc:'Completa l\'Universo Simulato per la prima volta', reward:400, unlockChar:'finanaRyugu', rewardText:'Sblocca Finana Ryugu (★★★★)', check:()=>state.suCleared},
 ];
 
 function getHighestArtifactLevel(){
@@ -2587,7 +2654,9 @@ function claimQuest(id){
   const q = ONE_OFF_QUESTS.find(x=>x.id===id);
   if(!q || state.claimedQuests[id] || !q.check()) return;
   state.claimedQuests[id] = true;
-  state.gold += q.reward;
+  const reward=q.unlockChar&&!state.roster[q.unlockChar].unlocked ? 0 : q.reward; // reward is only a fallback when the hero is already owned
+  if(q.unlockChar&&reward===0) state.roster[q.unlockChar].unlocked = true;
+  state.gold += reward;
   render();
 }
 
@@ -2851,7 +2920,8 @@ function renderAbilitaTab(){
       <div class="element-tag" style="margin-top:4px;">Elemento: ${ELEMENT_DATA[c.element].label}</div>
       <div class="hero-stars" style="color:${c.rarity===5?'#ffd700':'#9aa4c4'}">${'★'.repeat(c.rarity)}${unlocked?'':' · 🔒 Bloccato'}</div>
       ${c.passiveSpCapBonus?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: mentre è in squadra, il cap dei Punti Abilità sale da 5 a ${5+c.passiveSpCapBonus}.</div>`:''}
-      ${c.passiveInaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: marchia il nemico con meno PV. I colpi al marchiato attivano fino a ${c.passiveInaFollowUps} follow-up; la Ultimate ricarica le cariche.</div>`:''}
+      ${c.passiveFinanaFollowUp?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che un nemico scende al 50% dei PV per la prima volta, lancia un follow-up identico al Basic.</div>`:''}
+      ${c.passiveInaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: marchia il nemico con meno PV. I colpi al marchiato attivano fino a ${c.passiveInaFollowUps} follow-up; la Ultimate ricarica le cariche. Ogni volta che un alleato colpisce il nemico marchiato, Ina rigenera 10 energia.</div>`:''}
       ${c.passiveHpLossFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni ${c.passiveHpLossFollowUps} perdite di PV attiva un follow-up ad area e cura il 15% dei PV massimi.</div>`:''}
       ${c.revivesPerBattle?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: può rinascere ${c.revivesPerBattle} volte per battaglia con il 60% dei PV massimi.</div>`:''}
     </div>
@@ -2920,12 +2990,12 @@ function effectLabel(ability){
     case 'grant_sp': return `Dona istantaneamente ${ability.spGrant} Punti Abilità alla squadra (nessun danno).`;
     case 'grant_sp_and_buff': return `Dona istantaneamente ${ability.spGrant} Punti Abilità e +${Math.round(ability.buffPct*100)}% ATK a tutta la squadra per 2 turni.`;
     case 'hakos_ultimate': return `Assorbe PV, ATK, DIF, VEL, scudi e buff ATK degli alleati. Hakos resta sola per cinque suoi turni; poi li richiama. Durante la forma non guadagna energia.`;
-    case 'suisei_guard': return `Sacrifica il 50% dei PV correnti e riduce del 40% i danni subiti per 3 round. Durante la postura la Skill è bloccata e il Basic viene potenziato.`;
+    case 'suisei_guard': return `Sacrifica il 50% dei PV correnti e riduce del 40% i danni subiti per 3 round. I nemici sono costretti ad attaccare Susei per 2 round (Provocazione). Durante la postura la Skill è bloccata e il Basic viene potenziato.`;
     case 'suisei_set_half_hp': return `Dopo il colpo porta i PV di Susei esattamente al 50%: cura se è sotto, sacrifica PV se è sopra.`;
     case 'laplus_def_down': return `Riduce la DIF del nemico del 15% per 2 round. Il debuff si accumula fino al 75%.`;
     case 'laplus_plant_weakness': return `Riduce la DIF del 15% e rende il bersaglio vulnerabile all'elemento del primo eroe in squadra per 2 round.`;
     case 'laplus_ultimate': return `Colpisce tutti i nemici, riduce la DIF del 30% per 2 round e rinnova il debuff.`;
-    case 'ina_mark': return `Marca un nemico: quando viene colpito, Ina esegue un follow-up. Disponibili 3 cariche, recuperate con la Ultimate.`;
+    case 'ina_mark': return `Marca un nemico: quando viene colpito, Ina esegue un follow-up e rigenera 10 energia se a colpire è un alleato. Disponibili 3 cariche, recuperate con la Ultimate.`;
     case 'ina_ultimate': return `Colpisce tutti i nemici, esegue un follow-up su un bersaglio casuale e recupera tutte le cariche.`;
     case 'selen_skill': return `Danno ${Math.round(ability.mult*100)}% ATK; ${Math.round(ability.weakMult*100)}% ATK se il nemico è debole all'Electro.`;
     case 'selen_ult': return `Se il nemico è debole all'Electro (anche per il debuff di Laplus) lo Stordisce per 2 turni: salta le sue azioni.`;
@@ -3247,7 +3317,7 @@ function renderMissioniTab(){
     const statusColor = claimed ? 'var(--green)' : completed ? 'var(--amber)' : 'var(--text-dim)';
     const card = el(`<div class="hud-panel artifact-card" style="border-color:${claimed?'var(--green)':completed?'var(--amber)':'var(--border)'}">
       <div class="ac-name">${q.desc}</div>
-      <div class="ac-main">Ricompensa: <b>+${q.reward} 💠</b></div>
+      <div class="ac-main">Ricompensa: <b>${q.rewardText?q.rewardText:`+${q.reward} 💠`}</b></div>
       <div class="ac-setname" style="color:${statusColor}">${statusLabel}</div>
     </div>`);
     if(completed){
@@ -3665,7 +3735,7 @@ function renderBattle(){
     const card = el(`<div class="hud-panel ally-card ${isActive?'active-turn':''} ${dead?'dead':''} ${isTargetable?'selectable-target':''}" style="--char-glow:${hexToRgba(a.color,0.85)};--fx-scale:${fx.scale};${isActive?'border-color:'+a.color+';box-shadow:0 0 0 1px '+a.color+' inset;':''}position:relative;${fx.animation?'animation:'+fx.animation+';':''}">
       <div class="ally-top">
         <div class="ally-portrait" style="background:${a.color}">${a.glyph}</div>
-        <div><div class="ally-name">${a.name}</div><div class="element-tag">${ELEMENT_DATA[a.element]?.label||a.element}</div>${a.hakosForm?`<div class="hakos-form-tag">FORMA CAOTICA · ${a.hakosFormTurns}/5</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiGuardRounds>0?`<div class="suisei-posture-tag">POSTURA STELLARE · ${a.suiseiGuardRounds}/3</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiFollowUpReady?'<div class="suisei-posture-tag">FOLLOW-UP PRONTO</div>':''}</div>
+        <div><div class="ally-name">${a.name}</div><div class="element-tag">${ELEMENT_DATA[a.element]?.label||a.element}</div>${a.hakosForm?`<div class="hakos-form-tag">FORMA CAOTICA · ${a.hakosFormTurns}/5</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiGuardRounds>0?`<div class="suisei-posture-tag">POSTURA STELLARE · ${a.suiseiGuardRounds}/3</div>`:''}${a.tauntRounds>0?`<div class="suisei-posture-tag">PROVOCAZIONE · ${a.tauntRounds}</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiFollowUpReady?'<div class="suisei-posture-tag">FOLLOW-UP PRONTO</div>':''}</div>
       </div>
       <div class="mini-lbl"><span>PV</span><span>${a.hp}/${a.maxHp}</span></div>
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(a.hp/a.maxHp*100)}%"></div></div>
@@ -3863,6 +3933,10 @@ function renderSUScreen(){
   } else if(ended){
     head(win?'Vittoria':'Fine della run',win?'Universo Simulato completato!':'Run terminata',win?`Hai sconfitto il boss dell'ondata ${SU_WAVES}.`:`La squadra \u00e8 caduta all'ondata ${su.wave}/${SU_WAVES}.`);
     wrap.appendChild(el(`<div class="su-result">${su.reward>0?`Ricompensa: +${su.reward} \ud83d\udca0 Frammenti`:win?'Ricompensa giornaliera gi\u00e0 riscossa.':'Completa tutte le ondate per ottenere la ricompensa.'}</div>`));
+  }
+
+  if(ended&&su.firstClear){
+    wrap.appendChild(el(`<div class="su-result">🎉 Traguardo completato! Vai in Missioni per riscattare <b style="color:${CHAR_DB.finanaRyugu.color}">${CHAR_DB.finanaRyugu.name}</b> (${'★'.repeat(CHAR_DB.finanaRyugu.rarity)}).</div>`));
   }
 
   if(su.blessings.length>0){
