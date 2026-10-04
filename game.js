@@ -45,11 +45,16 @@ const CHAR_DB = {
     basic:{name:'Doppio Taglio', desc:'Colpi rapidi su un bersaglio (i colpi aumentano usando la Skill).', mult:0.55, hits:2, target:'enemy', effect:null, energyGain:20},
     skill:{name:'Danza di Lame', desc:'Aumenta di 1 il numero di colpi dell\'Attacco Base, fino a un massimo di 10. Non conclude il turno: puoi usarla più volte finché hai Punti Abilità, poi chiudi con l\'Attacco Base. Le prime 2 volte a battaglia non costa Punti Abilità.', mult:0, target:'self', effect:'boost_basic_hits', energyGain:5},
     ult:{name:'Tempesta di Fendenti', desc:'5 colpi su un bersaglio.', mult:0.5, hits:5, target:'enemy', effect:null} },
-  vestiaZeta: { name:'Vestia Zeta', title:'Lama Spezzata', role:'DPS Fisico', color:'#c23b52', glyph:'V', rarity:4, element:'physical', animStyle:'bleed', dotName:'Sanguinamento',
+  vestiaZeta: { name:'Vestia Zeta', title:'Lama Spezzata', role:'DPS Fisico DoT', color:'#c23b52', glyph:'V', rarity:4, element:'physical', animStyle:'bleed', dotName:'Sanguinamento',passiveZetaFollowUps:3,
     base:{hp:1080, atk:116, def:70, speed:100, energyMax:120},
     basic:{name:'Sparo', desc:'Danno e applica Sanguinamento.', mult:0.85, target:'enemy', effect:'burn', burnStacks:1, energyGain:20},
     skill:{name:'Fendente', desc:'Danno maggiore, Sanguinamento x2.', mult:1.35, target:'enemy', effect:'burn', burnStacks:2, energyGain:30},
     ult:{name:'Attacco Aereo', desc:'Danno ad area, Sanguinamento su tutti.', mult:1.6, target:'enemies_all', effect:'burn_all', burnStacks:2} },
+  koboKanaeru: {name:'Kobo Kanaeru',title:'La Pioggia Scatenata',role:'DPS DoT',color:'#48a9d6',glyph:'K',rarity:5,element:'hydro',animStyle:'surge',dotName:'Mal di mare',passiveDotEnergy:true,
+    base:{hp:1120,atk:142,def:76,speed:100,energyMax:140},
+    basic:{name:'Spruzzo Salmastro',desc:'Infligge danno a un nemico e applica 1 stack di Mal di mare: ATK -5% per stack, fino a 10 stack.',mult:0.95,target:'enemy',effect:'kobo_seasick',energyGain:20},
+    skill:{name:'Marea Turbolenta',desc:'Infligge danno a tutti i nemici, detona le DoT dannose e applica 1 stack di Mal di mare a ciascuno.',mult:1.05,target:'enemies_all',effect:'kobo_seasick_all',energyGain:30},
+    ult:{name:'Tifone di Kobo',desc:'Infligge danno a tutti i nemici, detona le DoT dannose e attiva per il resto della battaglia un’aura che applica Corrosione a chi ne è privo, anche ai nuovi nemici.',mult:1.6,target:'enemies_all',effect:'kobo_detonate_dots'} },
   IRyS: { name:'IRyS', title:'Voce del Comando', role:'Supporto Buff', color:'#7dd3fc', glyph:'I', rarity:4, element:'ether', animStyle:'surge',
     base:{hp:1000, atk:86, def:80, speed:100, energyMax:125},
     basic:{name:'Colpo Tattico', desc:'Danno leggero a un bersaglio.', mult:0.7, target:'enemy', effect:null, energyGain:20},
@@ -103,7 +108,7 @@ const CHAR_DB = {
 };
 
 const ENEMY_NAMES = ['Larva del Vuoto','Sentinella Corrotta','Sciame Spinato','Costrutto Infranto','Ombra Vagante'];
-const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra','Abisso Primordiale','Custode della Civiltà'];
+const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra','Abisso Primordiale','Custode della Civiltà','Titano dell’Eclissi'];
 const MAX_ENEMIES_IN_BATTLE = 5;
 const BOSS_HP_FACTOR = 1.5, BOSS_ATK_FACTOR = 0.75;
 const BOSS_MECHANICS = {
@@ -113,8 +118,9 @@ const BOSS_MECHANICS = {
   'Regina Ombra':{phase1:'shield',phase2:'heal'},
   'Abisso Primordiale':{phase1:'shield_heal',phase2:'summon_burst'},
   'Custode della Civiltà':{phase1:'normal',phase2:'mumei_guard'},
+  'Titano dell’Eclissi':{phase1:'normal',phase2:'basic_ult_resistance'},
 };
-const BOSS_MECHANIC_LABELS = {normal:'Attacchi normali',shield:'Scudo',summon:'Evoca rinforzi',heal:'Cura',area:'Attacco ad area',shield_heal:'Scudo e cura',summon_burst:'Evoca due sentinelle; AoE massiva se sopravvivono 2 turni',mumei_guard:'Danni subiti -40% per 5 round o finché non vengono spesi 5 PA in un round'};
+const BOSS_MECHANIC_LABELS = {normal:'Attacchi normali',shield:'Scudo',summon:'Evoca rinforzi',heal:'Cura',area:'Attacco ad area',shield_heal:'Scudo e cura',summon_burst:'Evoca due sentinelle; AoE massiva se sopravvivono 2 turni',mumei_guard:'Danni subiti -40% per 5 round o finché non vengono spesi 5 PA in un round',basic_ult_resistance:'Resistenza 80% agli Attacchi Base e alle Ultimate'};
 const ENEMY_ELEMENT_SETS = {
   'Larva del Vuoto':['quantum','hydro','dendro'],
   'Sentinella Corrotta':['physical','electro','imaginary'],
@@ -127,6 +133,7 @@ const ENEMY_ELEMENT_SETS = {
   'Regina Ombra':['quantum','hydro','electro'],
   'Abisso Primordiale':['hydro','electro','physical'],
     'Custode della Civiltà':['electro','ether','physical'],
+    'Titano dell’Eclissi':['physical','ether','imaginary'],
   'Sacerdote Spezzato':['dendro','ether','hydro'],
   'Custode Scudato':['physical','quantum','imaginary'],
   'Araldo Infiammato':['electro','imaginary','ether'],
@@ -182,7 +189,7 @@ const ARTIFACT_SETS = {
   fiamma: { name:'Lama Cruenta', icon:'🩸',
     pieces:['Nucleo Cruento','Anello Vermiglio','Manto Insanguinato','Sigillo Cruento','Ciondolo Vermiglio'],
     bonus2:{label:'+12% ATK', apply:(acc)=>{ acc.pctBonus.atk+=0.12; }},
-    bonus4:{label:'+20% danno da Sanguinamento', apply:(acc)=>{ acc.burnMult+=0.20; }} },
+    bonus4:{label:'+50% danni da DoT', apply:(acc)=>{ acc.dotDamageMult+=0.50; }} },
   glaciale: { name:'Eco Glaciale', icon:'❄',
     pieces:['Cristallo Glaciale','Prisma Glaciale','Velo Glaciale','Perla Glaciale','Diadema Glaciale'],
     bonus2:{label:'+12% ATK', apply:(acc)=>{ acc.pctBonus.atk+=0.12; }},
@@ -202,7 +209,7 @@ const ARTIFACT_SETS = {
   danza: { name:'Danza Instancabile', icon:'🌀',
     pieces:['Lama della Danza','Fascia della Danza','Calzari della Danza','Sigillo della Danza','Nastro della Danza'],
     bonus2:{label:'+12% ATK', apply:(acc)=>{ acc.pctBonus.atk+=0.12; }},
-    bonus4:{label:'+10% danni per ogni Skill usata nello stesso turno', apply:(acc)=>{ acc.fxSkillSp=true; }} },
+    bonus4:{label:'+30% danni per ogni Skill usata nello stesso turno', apply:(acc)=>{ acc.fxSkillSp=true; }} },
   assenza: { name:'Assenza Siderale', icon:'🌌',
     pieces:['Nucleo Siderale','Velo Siderale','Orbita Siderale','Frammento Siderale','Corona Siderale'],
     bonus2:{label:'+12% ATK', apply:(acc)=>{ acc.pctBonus.atk+=0.12; }},
@@ -480,7 +487,7 @@ function getAllyBattleStatusMarkup(ally){
   const artifactSets=getActiveSetBonuses(ally.charId).filter(bonus=>bonus.tier===4);
   artifactSets.forEach(bonus=>{
     if(bonus.name==='Danza Instancabile'){
-      const skillBonus=0.10*(ally.turnSkillCount||0);
+      const skillBonus=0.30*(ally.turnSkillCount||0);
       if(skillBonus>0) tags.push(`<div class="buff-tag">+${Math.round(skillBonus*100)}% DMG</div>`);
     } else if(bonus.name==='Assenza Siderale'){
       const absent=Math.max(0,4-(state.battle?.allies.length||4));
@@ -491,7 +498,7 @@ function getAllyBattleStatusMarkup(ally){
     } else if(bonus.name==='Cuore Vitale'){
       tags.push('<div class="buff-tag">+8% ATK da PV</div>','<div class="buff-tag">+20% CURE</div>','<div class="buff-tag">+15% DMG PV</div>');
     } else if(bonus.name==='Lama Cruenta'){
-      tags.push('<div class="buff-tag">+20% SANGUINAMENTO</div>');
+      tags.push('<div class="buff-tag">+50% DoT</div>');
     } else if(bonus.name==='Eco Glaciale'){
       tags.push('<div class="buff-tag">+15% CURE</div>');
     } else if(bonus.name==='Tempesta Rapida'){
@@ -510,7 +517,7 @@ function getEffectiveStats(charId){
   const eq = state.roster[charId].equipment;
   const acc = {
     flatBonus:{atk:0,hp:0,def:0,speed:0}, pctBonus:{atk:0,hp:0,def:0},
-    energyGainMult:1, healMult:1, burnMult:1, shieldMult:1, startEnergyBonus:0, hpToAtk:0,
+    energyGainMult:1, healMult:1, burnMult:1, dotDamageMult:1, shieldMult:1, startEnergyBonus:0, hpToAtk:0,
   };
   const setCounts = {};
   eq.forEach(it=>{
@@ -530,7 +537,7 @@ function getEffectiveStats(charId){
       if(effect.stat==='atkPct') acc.pctBonus.atk+=value;
       else if(effect.stat==='defPct') acc.pctBonus.def+=value;
       else if(effect.stat==='speed') acc.flatBonus.speed+=value;
-      else if(['healMult','burnMult','shieldMult','energyGainMult'].includes(effect.stat)) acc[effect.stat]+=value;
+      else if(['healMult','burnMult','dotDamageMult','shieldMult','energyGainMult'].includes(effect.stat)) acc[effect.stat]+=value;
       else acc[effect.stat]=value;
       (effect.extra||[]).forEach(bonus=>{ acc[bonus.stat]=(acc[bonus.stat]||0)+bonus.value; });
     }
@@ -547,7 +554,7 @@ function getEffectiveStats(charId){
   return {
     hp, atk, def, speed:base.speed+acc.flatBonus.speed, energyMax:base.energyMax,
     energyGainMult:acc.energyGainMult, healMult:acc.healMult,
-    burnMult:acc.burnMult, shieldMult:acc.shieldMult, startEnergyBonus:acc.startEnergyBonus,
+    burnMult:acc.burnMult, dotDamageMult:acc.dotDamageMult, shieldMult:acc.shieldMult, startEnergyBonus:acc.startEnergyBonus,
     damageMult:1+(acc.damageMult||0), weaknessBonus:acc.weaknessBonus||0,
     sameElementBonus:acc.sameElementBonus||0, basicDamageMult:1+(acc.basicDamageMult||0),
     buffPctBonus:acc.buffPctBonus||0, spGrantBonus:acc.spGrantBonus||0,
@@ -771,7 +778,7 @@ function generateEnemies(stageNum){
     const hp = special ? Math.round(hpBase*SPECIAL_ENEMIES[special].hpMult) : hpBase;
     const elements = ENEMY_ELEMENT_SETS[name].slice();
     const speed = 90+Math.floor(Math.random()*31);
-    enemies.push({id:'e'+i,name,role,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed,element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,burnStacks:0,burnRounds:0,burnSourceMult:1,isBoss:boss,phase:boss?1:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0});
+    enemies.push({id:'e'+i,name,role,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed,element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,isBoss:boss,phase:boss?1:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0});
   }
   return enemies;
 }
@@ -864,7 +871,7 @@ function buildPFEnemy(id,name){
   const atk=Math.round((95+n*17+n*n*0.14)*0.25);
   const def=Math.round(10+n*2.6+n*n*0.02);
   const elements=ENEMY_ELEMENT_SETS[name].slice();
-  return {id,name,role:special?special.role:null,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed:90+Math.floor(Math.random()*31),element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,burnStacks:0,burnRounds:0,burnSourceMult:1,isBoss:false,phase:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0};
+  return {id,name,role:special?special.role:null,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed:90+Math.floor(Math.random()*31),element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,isBoss:false,phase:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0};
 }
 function generatePFEnemies(){
   return shuffleArr(pfAllEnemyNames()).slice(0,5).map((name,i)=>buildPFEnemy('p'+i,name));
@@ -877,6 +884,7 @@ function spawnPFEnemy(b,spawned){
   pf.lastSpawn=name;
   const fresh=buildPFEnemy('p'+(b.summonCounter++),name);
   b.enemies.push(fresh);
+  applyKoboCorrosionIfNeeded(b,fresh);
   spawned.push(fresh);
   logMsg(`Un nuovo nemico entra in campo: ${name}.`);
 }
@@ -1019,9 +1027,9 @@ function retryMOC(){
 }
 function generateMOCBoss(name,index){
   const stage=Math.max(MOC_UNLOCK_STAGE,state.maxStageReached-1);
-  const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR*1.4);
+  const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR*1.5);
   const elements=ENEMY_ELEMENT_SETS[name].slice();
-  return {id:`moc${index}`,name,hp,maxHp:hp,atk:Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR),def:Math.round(35+stage*6+stage*stage*0.05),speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,burnStacks:0,burnRounds:0,burnSourceMult:1,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0};
+  return {id:`moc${index}`,name,hp,maxHp:hp,atk:Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR),def:Math.round(35+stage*6+stage*stage*0.05),speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0};
 }
 
 /* ============ SIMULATED UNIVERSE (roguelike) ============ */
@@ -1143,6 +1151,7 @@ function resetAlliesForWave(allies){
     a.basicHits=c.basic.hits||1;
     a.skillFreeUses=c.skillFreeUses||0;
     a.inaFollowUpsRemaining=c.passiveInaFollowUps||0;
+    a.zetaFollowUpsRemaining=c.passiveZetaFollowUps||0;
     a.suiseiHpLossEvents=0; a.suiseiFollowUpReady=false; a.suiseiGuardRounds=0; a.suiseiGuardFresh=false; a.tauntRounds=0; a.tauntFresh=false; a.tauntSource=null;
     a.suiseiRevivesRemaining=c.revivesPerBattle||0;
     a.hakosForm=false;
@@ -1302,7 +1311,7 @@ function startBattle(mode,fight){
       charId:id, name:CHAR_DB[id].name, color:CHAR_DB[id].color, glyph:CHAR_DB[id].glyph, element:CHAR_DB[id].element,
       hp:eff.hp, maxHp:eff.hp, atk:eff.atk, def:eff.def, speed:eff.speed,
       energy:clamp(eff.startEnergyBonus,0,eff.energyMax), energyMax:eff.energyMax,
-      energyGainMult:eff.energyGainMult, healMult:eff.healMult, burnMult:eff.burnMult, shieldMult:eff.shieldMult,
+      energyGainMult:eff.energyGainMult, healMult:eff.healMult, burnMult:eff.burnMult, dotDamageMult:eff.dotDamageMult, shieldMult:eff.shieldMult,
       damageMult:eff.damageMult, weaknessBonus:eff.weaknessBonus, sameElementBonus:eff.sameElementBonus,
       basicDamageMult:eff.basicDamageMult, buffPctBonus:eff.buffPctBonus, spGrantBonus:eff.spGrantBonus,
       formDamageMult:eff.formDamageMult, defDownBonus:eff.defDownBonus, hpDamageMult:eff.hpDamageMult, skillDamageMult:eff.skillDamageMult,
@@ -1312,6 +1321,7 @@ function startBattle(mode,fight){
       basicHits: CHAR_DB[id].basic.hits||1,
       skillFreeUses: CHAR_DB[id].skillFreeUses||0,
       inaFollowUpsRemaining: CHAR_DB[id].passiveInaFollowUps||0,
+      zetaFollowUpsRemaining: CHAR_DB[id].passiveZetaFollowUps||0,
       suiseiHpLossEvents:0,suiseiFollowUpReady:false,suiseiGuardRounds:0,suiseiGuardFresh:false,
       suiseiRevivesRemaining:CHAR_DB[id].revivesPerBattle||0,
     };
@@ -1341,6 +1351,7 @@ function startBattle(mode,fight){
     log:[],
     loot:[],
     inaFollowUpActive:false,
+    zetaFollowUpActive:false,
     suiseiFollowUpActive:false,
     summonCounter:pf?5:0,
     mode:pf?'pf':moc?'moc':su?'su':domain?'domain':'tower',
@@ -1348,6 +1359,8 @@ function startBattle(mode,fight){
     suFight:su&&!!fight,
     pf:pf?{score:0,kills:0,lastSpawn:null,buffs:pfBuffs}:null,
     mocBossIndex:moc?state.moc.bossIndex:null,
+    koboCorrosionAura:false,
+    koboCorrosionDamageMult:1,
   };
   state.autoBattle=false;
   const firstActor = getTurnActor(state.battle);
@@ -1514,7 +1527,7 @@ async function performInaFollowUp(b,target,consumeCharge=true){
   const vulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
   const attack=Math.round(ina.maxHp*(ina.hpDamageMult||1));
   const dmg=calcDamage(attack,0.1,getEffectiveEnemyDefense(target),ina.element,target.elements||target.element,ina,'basic',vulnerability);
-  const applied=dealDamageToEnemy(target,dmg);
+  const applied=dealDamageToEnemy(target,dmg,'basic');
   ina._fxAttack='basic';
   ina.energy=clamp(ina.energy+Math.round(10*(ina.energyGainMult||1)),0,ina.energyMax);
   logMsg(`${ina.name} esegue un follow-up su ${target.name}: ${applied} danni${consumeCharge?` (${ina.inaFollowUpsRemaining} cariche rimaste)`:''}.`);
@@ -1528,7 +1541,35 @@ async function performInaFollowUp(b,target,consumeCharge=true){
   return true;
 }
 
+function getZetaActor(b){
+  return b.allies.find(ally=>ally.charId==='vestiaZeta'&&ally.hp>0)||null;
+}
+
+async function performZetaFollowUp(b){
+  const zeta=getZetaActor(b);
+  if(!zeta||zeta.zetaFollowUpsRemaining<=0||b.zetaFollowUpActive) return false;
+  const targets=shuffleArr(b.enemies.filter(enemy=>enemy.hp>0)).slice(0,2);
+  if(targets.length===0) return false;
+  zeta.zetaFollowUpsRemaining--;
+  b.zetaFollowUpActive=true;
+  zeta._fxAttack='basic';
+  for(const target of targets){
+    if(target.hp<=0) continue;
+    const vulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
+    const attack=Math.round(zeta.atk*(zeta.atkBuffMult||1));
+    const dmg=calcDamage(attack,0.85,getEffectiveEnemyDefense(target),zeta.element,target.elements||target.element,zeta,'basic',vulnerability);
+    const applied=dealDamageToEnemy(target,dmg,'basic');
+    if(target.hp>0) applyDamageOverTime(target,zeta,1);
+    logMsg(`${zeta.name} esegue un follow-up su ${target.name}: ${applied} danni${target.hp>0?' e applica 1 Sanguinamento':''} (${zeta.zetaFollowUpsRemaining} cariche rimaste).`);
+    render();
+    await sleepMs(220);
+  }
+  b.zetaFollowUpActive=false;
+  return true;
+}
+
 async function triggerInaFollowUpAfterHit(b,target,attacker){
+  const targetHadBleed=(target.dots||[]).some(dot=>dot.name==='Sanguinamento');
   if(attacker?.charId!=='ninomaeInaNis' && target.inaMarked){
     const ina=getInaActor(b);
     if(ina && !ina.hakosForm){
@@ -1536,13 +1577,15 @@ async function triggerInaFollowUpAfterHit(b,target,attacker){
       if(!ina._fx) ina._fx={variant:'buff',label:'+10 ⚡'};
     }
   }
-  if(attacker?.charId==='ninomaeInaNis'||!target.inaMarked||b.inaFollowUpActive) return;
-  if(target.hp<=0){
-    target.inaMarked=false;
-    ensureInaMark(b);
-    target=b.enemies.find(enemy=>enemy.inaMarked&&enemy.hp>0);
+  if(attacker?.charId!=='ninomaeInaNis'&&target.inaMarked&&!b.inaFollowUpActive){
+    if(target.hp<=0){
+      target.inaMarked=false;
+      ensureInaMark(b);
+      target=b.enemies.find(enemy=>enemy.inaMarked&&enemy.hp>0);
+    }
+    if(target) await performInaFollowUp(b,target,true);
   }
-  if(target) await performInaFollowUp(b,target,true);
+  if(attacker?.charId!=='vestiaZeta'&&targetHadBleed) await performZetaFollowUp(b);
 }
 
 function isEnemyWeakTo(element,enemy){
@@ -1553,7 +1596,7 @@ function isEnemyWeakTo(element,enemy){
 function getSetDynamicMult(attacker){
   if(!attacker || !state.battle) return 1;
   let mult=1;
-  if(attacker.fxSkillSp) mult*=1+0.1*(attacker.turnSkillCount||0);
+  if(attacker.fxSkillSp) mult*=1+0.3*(attacker.turnSkillCount||0);
   if(attacker.fxAbsent) mult*=1+0.3*Math.max(0,4-state.battle.allies.length);
   if(attacker.fxHitStack) mult*=1+0.15*(attacker.hitStacks||[]).length;
   return mult;
@@ -1572,14 +1615,18 @@ function isAbissoProtected(enemy){
   return enemy.name==='Abisso Primordiale' && state.battle.enemies.some(e=>e!==enemy && e.hp>0);
 }
 
-function applyMumeiBossDamageReduction(enemy,dmg){
-  return enemy.name==='Custode della Civiltà'&&enemy.phase===2&&enemy.mumeiGuardActive
-    ? Math.max(1,Math.round(dmg*0.6))
-    : dmg;
+function applyBossDamageReduction(enemy,dmg,attackType=''){
+  if(enemy.name==='Custode della Civiltà'&&enemy.phase===2&&enemy.mumeiGuardActive){
+    return Math.max(1,Math.round(dmg*0.6));
+  }
+  if(enemy.name==='Titano dell’Eclissi'&&enemy.phase===2&&['basic','ult'].includes(attackType)){
+    return Math.max(1,Math.round(dmg*0.2));
+  }
+  return dmg;
 }
-function dealDamageToEnemy(enemy, dmg){
+function dealDamageToEnemy(enemy, dmg, attackType=''){
   if(isAbissoProtected(enemy)) dmg=Math.max(1,Math.round(dmg*0.1));
-  dmg=applyMumeiBossDamageReduction(enemy,dmg);
+  dmg=applyBossDamageReduction(enemy,dmg,attackType);
   let applied = dmg;
   if(enemy.shield>0){
     if(enemy.shield>=applied){enemy.shield-=applied; applied=0;}
@@ -1592,6 +1639,92 @@ function dealDamageToEnemy(enemy, dmg){
   const absorbedE = dmg-applied;
   enemy._fx = applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbedE};
   return applied;
+}
+
+const KOBO_SEASICK_MAX_STACKS=10;
+function applyKoboSeasick(enemy){
+  if(enemy.hp<=0) return;
+  enemy.seasickStacks=Math.min(KOBO_SEASICK_MAX_STACKS,(enemy.seasickStacks||0)+1);
+  const atkReduction=enemy.seasickStacks*5;
+  enemy._fx={variant:'buff',label:`ATK -${atkReduction}%`};
+  logMsg(`${enemy.name} accumula Mal di mare x${enemy.seasickStacks}: ATK -${atkReduction}%.`);
+}
+
+function getEffectiveEnemyAttack(enemy){
+  const reduction=Math.min(0.5,(enemy.seasickStacks||0)*0.05);
+  return Math.max(0,Math.round(enemy.atk*(1-reduction)));
+}
+
+function applyDamageOverTime(enemy,actor,stacks,nameOverride=null){
+  if(enemy.hp<=0) return;
+  const name=nameOverride||CHAR_DB[actor.charId].dotName||'Bruciatura';
+  enemy.dots=enemy.dots||[];
+  let dot=enemy.dots.find(entry=>entry.name===name&&entry.sourceId===actor.charId);
+  if(!dot){
+    dot={name,sourceId:actor.charId,stacks:0,rounds:0,damagePct:0.045,damageMult:1};
+    enemy.dots.push(dot);
+  }
+  dot.stacks+=stacks;
+  dot.rounds=2;
+  dot.damageMult=(actor.dotDamageMult||1)*(name==='Sanguinamento'?(actor.burnMult||1):1);
+  logMsg(`${enemy.name} riceve ${dot.stacks} cariche di ${name}.`);
+}
+
+function applyKoboCorrosionIfNeeded(b,enemy){
+  if(!b.koboCorrosionAura||enemy.hp<=0) return;
+  const hasCorrosion=(enemy.dots||[]).some(dot=>dot.name==='Corrosione');
+  if(hasCorrosion) return;
+  applyDamageOverTime(enemy,{charId:'koboKanaeru',dotDamageMult:b.koboCorrosionDamageMult||1},1,'Corrosione');
+}
+
+function triggerKoboDotEnergy(b,dot,deferKoboEnergy=false){
+  const kobo=b.allies.find(ally=>ally.charId==='koboKanaeru'&&ally.hp>0);
+  if(!kobo) return 0;
+  const source=b.allies.find(ally=>ally.charId===dot.sourceId&&ally.hp>0);
+  const recipients=[...new Set([kobo,source].filter(Boolean))];
+  let deferredEnergy=0;
+  recipients.forEach(ally=>{
+    const energy=Math.round(5*(ally.energyGainMult||1))*dot.stacks;
+    if(ally===kobo&&deferKoboEnergy){
+      deferredEnergy+=energy;
+    } else {
+      ally.energy=clamp(ally.energy+energy,0,ally.energyMax);
+      ally._fx={variant:'spgrant',label:'+'+energy+' EN'};
+    }
+    logMsg(`${ally.name} recupera ${energy} energia grazie alla DoT ${dot.name}.`);
+  });
+  return deferredEnergy;
+}
+
+function triggerDamageOverTime(b,enemy,dot,detonate=false,deferKoboEnergy=false){
+  if(!enemy.dots?.includes(dot)) return 0;
+  if(enemy.hp<=0){
+    enemy.dots=enemy.dots.filter(entry=>entry!==dot);
+    return detonate?triggerKoboDotEnergy(b,dot,deferKoboEnergy):0;
+  }
+  const damage=Math.max(1,Math.round(enemy.maxHp*dot.damagePct*dot.stacks*(dot.damageMult||1)));
+  const applied=applyBossDamageReduction(enemy,damage,'dot');
+  enemy.hp=clamp(enemy.hp-applied,0,enemy.maxHp);
+  updateBossPhase(enemy);
+  noteFinanaThreshold(enemy);
+  enemy._fx={variant:'damage',label:'-'+applied};
+  logMsg(`${enemy.name} subisce ${applied} danni da ${dot.name}${detonate?' detonata':''}.`);
+  const deferredEnergy=triggerKoboDotEnergy(b,dot,deferKoboEnergy);
+  if(detonate){
+    enemy.dots=enemy.dots.filter(entry=>entry!==dot);
+  } else {
+    dot.rounds--;
+    if(dot.rounds<=0) enemy.dots=enemy.dots.filter(entry=>entry!==dot);
+  }
+  return deferredEnergy;
+}
+
+function detonateEnemyDamageOverTime(b,enemy,deferKoboEnergy=false){
+  let deferredEnergy=0;
+  for(const dot of [...(enemy.dots||[])]){
+    deferredEnergy+=triggerDamageOverTime(b,enemy,dot,true,deferKoboEnergy);
+  }
+  return deferredEnergy;
 }
 
 // Finana: each enemy dropping to 50% HP for the first time queues one follow-up (a copy of her Basic).
@@ -1616,7 +1749,7 @@ async function processFinanaFollowUps(b){
     for(const t of targets){
       const vulnerability=t.vulnerableRounds>0?t.vulnerableToElement:null;
       const dmg=calcDamage(Math.round(finana.maxHp*(finana.hpDamageMult||1)),ability.mult,getEffectiveEnemyDefense(t),finana.element,t.elements||t.element,finana,'basic',vulnerability);
-      const applied=dealDamageToEnemy(t,dmg);
+      const applied=dealDamageToEnemy(t,dmg,'basic');
       logMsg(`${finana.name} colpisce ${t.name} per ${applied}.`);
     }
     render();
@@ -1683,7 +1816,7 @@ async function triggerSuiseiFollowUp(b,actor){
   for(const enemy of targets){
     const vulnerability=enemy.vulnerableRounds>0?enemy.vulnerableToElement:null;
     const damage=calcDamage(actor.maxHp*(actor.hpDamageMult||1),0.14,getEffectiveEnemyDefense(enemy),actor.element,enemy.elements||enemy.element,actor,'ult',vulnerability);
-    const applied=dealDamageToEnemy(enemy,damage);
+    const applied=dealDamageToEnemy(enemy,damage,'ult');
     logMsg(`${actor.name} attiva il Follow-up stellare su ${enemy.name}: ${applied} danni.`);
   }
   const healing=Math.round(actor.maxHp*0.15);
@@ -1730,7 +1863,7 @@ async function performKiaraCounter(b,enemy,defender){
   const effectiveDef=Math.round(kiara.def*(kiara.defBuffMult||1));
   const vulnerability=enemy.vulnerableRounds>0?enemy.vulnerableToElement:null;
   const damage=calcDamage(effectiveDef,skill.mult,getEffectiveEnemyDefense(enemy),kiara.element,enemy.elements||enemy.element,kiara,'skill',vulnerability);
-  const applied=dealDamageToEnemy(enemy,damage);
+  const applied=dealDamageToEnemy(enemy,damage,'skill');
   kiara._fxAttack='skill';
   logMsg(`${kiara.name} contrattacca ${enemy.name}: ${applied} danni.`);
   const healing=Math.round(effectiveDef*skill.healPct*(kiara.healMult||1));
@@ -1743,7 +1876,7 @@ async function performKiaraCounter(b,enemy,defender){
 }
 
 const HAKOS_FORM_ABILITIES={
-  basic:{name:'Dado del Caos',desc:'Attacco Base potenziato.',mult:1.35,target:'enemy',effect:null,energyGain:0},
+  basic:{name:'Dado del Caos',desc:'Attacco Base potenziato: colpisce il bersaglio e i nemici adiacenti, fino a 3 nemici.',mult:1.35,target:'enemy_adjacent',effect:null,energyGain:0},
   skill:{name:'Crollo Dimensionale',desc:'Danneggia il bersaglio e i nemici adiacenti.',mult:1.8,target:'enemy_adjacent',effect:null,energyGain:0},
   ult:{name:'Ultimate sigillata',desc:'Non disponibile durante la Rovina del Caos.',mult:0,target:'self',effect:'disabled',energyGain:0},
 };
@@ -1818,6 +1951,7 @@ async function executeAbility(actor, abKey, targetId){
   const b = state.battle;
   const ability = getAbilityForActor(actor,abKey);
   if(!ability || ability.effect==='disabled') return;
+  let deferredKoboEnergy=0;
   const effAtk = ability.defBased
     ? Math.round(actor.def*(actor.defBuffMult||1))
     : ability.hpBased
@@ -1856,7 +1990,7 @@ async function executeAbility(actor, abKey, targetId){
         const targetVulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
         const hitMult = ability.effect==='selen_skill' && isEnemyWeakTo(actor.element,target) ? ability.weakMult : ability.mult;
         const dmg = calcDamage(effAtk, hitMult, getEffectiveEnemyDefense(target), actor.element, target.elements || target.element, actor, abKey, targetVulnerability);
-        const applied = dealDamageToEnemy(target, dmg);
+        const applied = dealDamageToEnemy(target, dmg, abKey);
         logMsg(`${actor.name} usa ${ability.name}: ${applied} danni a ${target.name}.`);
         if(hits>1){ render(); await sleepMs(230); }
         if(actor.charId!=='ninomaeInaNis'&&target.inaMarked&&(getInaActor(b)?.inaFollowUpsRemaining||0)>0){
@@ -1915,12 +2049,10 @@ async function executeAbility(actor, abKey, targetId){
       }
     }
     if(ability.effect==='burn'){
-      const dotName = CHAR_DB[actor.charId].dotName || 'Bruciatura';
-      t.burnStacks = (t.burnStacks||0) + ability.burnStacks;
-      t.burnRounds = 2;
-      t.burnSourceMult = actor.burnMult||1;
-      t.dotName = dotName;
-      logMsg(`${t.name} riceve ${t.burnStacks} cariche di ${dotName}.`);
+      applyDamageOverTime(t,actor,ability.burnStacks);
+    }
+    if(ability.effect==='kobo_seasick'){
+      applyKoboSeasick(t);
     }
   }
   else if(ability.target==='ally'){
@@ -1957,7 +2089,7 @@ async function executeAbility(actor, abKey, targetId){
         const bonusAtk = Math.round(target.atk*(target.atkBuffMult||1));
         const foeVulnerability=foe.vulnerableRounds>0?foe.vulnerableToElement:null;
         const dmg = calcDamage(bonusAtk,1.0,getEffectiveEnemyDefense(foe),target.element,foe.elements||foe.element,target,'basic',foeVulnerability);
-        const applied = dealDamageToEnemy(foe, dmg);
+        const applied = dealDamageToEnemy(foe, dmg, 'basic');
         logMsg(`${target.name} attacca una volta in più: ${applied} danni a ${foe.name}.`);
         if(target.charId!=='ninomaeInaNis'&&foe.inaMarked&&(getInaActor(b)?.inaFollowUpsRemaining||0)>0){
           render();
@@ -1993,7 +2125,7 @@ async function executeAbility(actor, abKey, targetId){
     for(const t of enemyTargets()){
       const targetVulnerability=t.vulnerableRounds>0?t.vulnerableToElement:null;
       const dmg = calcDamage(effAtk,ability.mult,getEffectiveEnemyDefense(t),actor.element,t.elements||t.element,actor,abKey,targetVulnerability);
-      const applied = dealDamageToEnemy(t, dmg);
+      const applied = dealDamageToEnemy(t, dmg, abKey);
       logMsg(`${actor.name} colpisce ${t.name} per ${applied}.`);
       if(actor.charId!=='ninomaeInaNis'&&t.inaMarked&&(getInaActor(b)?.inaFollowUpsRemaining||0)>0){
         render();
@@ -2005,13 +2137,22 @@ async function executeAbility(actor, abKey, targetId){
         applyLaplusAttackEffects(actor,t,extraDefDown,false);
       }
       if(ability.effect==='burn_all'){
-        const dotName = CHAR_DB[actor.charId].dotName || 'Bruciatura';
-        t.burnStacks=(t.burnStacks||0)+ability.burnStacks;
-        t.burnRounds=2;
-        t.burnSourceMult = actor.burnMult||1;
-        t.dotName = dotName;
+        applyDamageOverTime(t,actor,ability.burnStacks);
+      }
+      if(ability.effect==='kobo_seasick_all'){
+        applyKoboSeasick(t);
+        deferredKoboEnergy+=detonateEnemyDamageOverTime(b,t);
+      }
+      if(ability.effect==='kobo_detonate_dots'){
+        deferredKoboEnergy+=detonateEnemyDamageOverTime(b,t,true);
       }
       render(); await sleepMs(260);
+    }
+    if(ability.effect==='kobo_detonate_dots'){
+      b.koboCorrosionAura=true;
+        b.koboCorrosionDamageMult=actor.dotDamageMult||1;
+      b.enemies.filter(enemy=>enemy.hp>0).forEach(enemy=>applyKoboCorrosionIfNeeded(b,enemy));
+      logMsg(`${actor.name} avvolge l’arena in un’aura oceanica: Corrosione verrà applicata ai nuovi nemici.`);
     }
     if(actor.charId==='ninomaeInaNis'&&ability.effect==='ina_ultimate'){
       actor.inaFollowUpsRemaining=3;
@@ -2020,6 +2161,10 @@ async function executeAbility(actor, abKey, targetId){
       actor.inaFollowUpsRemaining=3;
       logMsg(`${actor.name} recupera le 3 cariche di follow-up.`);
       ensureInaMark(b);
+    }
+    if(actor.charId==='vestiaZeta'&&ability.effect==='burn_all'){
+      actor.zetaFollowUpsRemaining=CHAR_DB.vestiaZeta.passiveZetaFollowUps;
+      logMsg(`${actor.name} ricarica le ${actor.zetaFollowUpsRemaining} cariche di follow-up.`);
     }
   }
   else if(ability.target==='team'){
@@ -2087,7 +2232,7 @@ async function executeAbility(actor, abKey, targetId){
     if(actor.hakosForm) actor.energy=0;
     else actor.energy = clamp(actor.energy+Math.round((ability.energyGain||0)*(actor.energyGainMult||1)),0,actor.energyMax);
   } else if(abKey==='ult'){
-    actor.energy = 0;
+    actor.energy = clamp(deferredKoboEnergy,0,actor.energyMax);
   }
   if(actor.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,actor);
   if(actor.charId==='hakosBaels' && actor.hp>0 && ['enemy','enemy_adjacent','enemies_all'].includes(ability.target)){
@@ -2144,20 +2289,15 @@ async function playerChooseTarget(targetId){
 
 async function finishRound(){
   const b = state.battle;
-  for(const e of b.enemies.filter(e=>e.hp>0 && e.burnStacks>0)){
-    const dot = Math.round(e.maxHp*0.045*e.burnStacks*(e.burnSourceMult||1));
-    const appliedDot=applyMumeiBossDamageReduction(e,dot);
-    e.hp = clamp(e.hp-appliedDot,0,e.maxHp);
-    updateBossPhase(e);
-    noteFinanaThreshold(e);
-    e._fx = {variant:'damage', label:'-'+appliedDot};
-    logMsg(`${e.name} subisce ${appliedDot} danni da ${e.dotName||'Bruciatura'}.`);
-    e.burnRounds--;
-    if(e.burnRounds<=0){ e.burnStacks=0; }
-    await processFinanaFollowUps(b);
-    if(checkBattleEnd()) return false;
-    render();
-    await sleepMs(280);
+  for(const e of b.enemies.filter(enemy=>enemy.hp>0&&enemy.dots?.length)){
+    for(const dot of [...e.dots]){
+      if(e.hp<=0||!e.dots.includes(dot)) break;
+      triggerDamageOverTime(b,e,dot);
+      await processFinanaFollowUps(b);
+      if(checkBattleEnd()) return false;
+      render();
+      await sleepMs(280);
+    }
   }
   if(checkBattleEnd()) return false;
 
@@ -2206,6 +2346,7 @@ async function finishRound(){
       }
     }
   });
+  b.enemies.filter(enemy=>enemy.hp>0).forEach(enemy=>applyKoboCorrosionIfNeeded(b,enemy));
   return true;
 }
 
@@ -2229,11 +2370,12 @@ function summonBossEnemies(boss,b,countOverride=null,addOwnerId=null){
       atk:Math.round(boss.atk/BOSS_ATK_FACTOR*(boss.phase===2?0.55:0.45)),
       def:Math.round(boss.def*0.6), speed:90+Math.floor(Math.random()*31),
       element:elements[0], elements, vulnerableToElement:null, vulnerableRounds:0,
-      defDownPct:0, defDownRounds:0, shield:0, burnStacks:0, burnRounds:0,
-      burnSourceMult:1, isBoss:false, phase:0, bossTurns:0,
+      defDownPct:0, defDownRounds:0, shield:0, dots:[], seasickStacks:0,
+      isBoss:false, phase:0, bossTurns:0,
       bossAddOwnerId:addOwnerId,bossAddResolved:false,
     };
     b.enemies.push(enemy);
+    applyKoboCorrosionIfNeeded(b,enemy);
     summoned.push(enemy);
     logMsg(`${boss.name} evoca ${name}.`);
   }
@@ -2293,7 +2435,7 @@ async function runEnemyRole(enemy,b){
       enemy._fxAttack='skill';
       logMsg(`${enemy.name} esplode in un attacco ad area!`);
       for(const ally of b.allies.filter(a=>a.hp>0)){
-        const dmg=calcDamage(Math.round(enemy.atk*0.9),1,getEffectiveAllyDefense(ally),enemy.element,ally.element);
+        const dmg=calcDamage(Math.round(getEffectiveEnemyAttack(enemy)*0.9),1,getEffectiveAllyDefense(ally),enemy.element,ally.element);
         const result=dealDamageToAlly(ally,dmg,true);
         logMsg(`${ally.name} subisce ${result.applied} danni dall'esplosione.`);
         await performKiaraCounter(b,enemy,ally);
@@ -2318,6 +2460,7 @@ async function runBossMechanic(boss,b){
   const shouldUseSpecial=boss.phase===2 || boss.bossTurns%2===0;
   boss.bossTurns++;
   if(!shouldUseSpecial) return;
+  if(mechanic==='basic_ult_resistance') return;
 
   if(mechanic==='shield_heal'){
     const shield=Math.round(boss.maxHp*0.14);
@@ -2347,7 +2490,7 @@ async function runBossMechanic(boss,b){
           logMsg(`${boss.name} scatena l'ESONDAZIONE ABISSALE!`);
           for(const ally of b.allies.filter(target=>target.hp>0)){
             if(boss.phase!==startPhase) break;
-            const damage=calcDamage(Math.round(boss.atk*1.8),1,getEffectiveAllyDefense(ally),boss.element,ally.element);
+            const damage=calcDamage(Math.round(getEffectiveEnemyAttack(boss)*1.8),1,getEffectiveAllyDefense(ally),boss.element,ally.element);
             const result=dealDamageToAlly(ally,damage,true);
             logMsg(`${ally.name} subisce ${result.applied} danni dall'esplosione massiva.`);
             await performKiaraCounter(b,boss,ally);
@@ -2382,7 +2525,7 @@ async function runBossMechanic(boss,b){
     logMsg(`${boss.name} scatena un attacco ad area!`);
     for(const ally of livingAllies){
       if(boss.phase!==startPhase) break;
-      const dmg=calcDamage(Math.round(boss.atk*(boss.phase===2?0.8:0.65)),1,getEffectiveAllyDefense(ally),boss.element,ally.element);
+      const dmg=calcDamage(Math.round(getEffectiveEnemyAttack(boss)*(boss.phase===2?0.8:0.65)),1,getEffectiveAllyDefense(ally),boss.element,ally.element);
       const result=dealDamageToAlly(ally,dmg,true);
       logMsg(`${ally.name} subisce ${result.applied} danni dall'onda d'urto.`);
       await performKiaraCounter(b,boss,ally);
@@ -2446,7 +2589,7 @@ async function runEnemyTurn(){
     if(targets.length===0) break;
     const target=targets.find(a=>a.tauntRounds>0)||pick(targets);
     enemy._fxAttack='basic';
-    const dmg=calcDamage(enemy.atk,enemy.role==='twin'?0.7:1.0,getEffectiveAllyDefense(target),enemy.element,target.element);
+    const dmg=calcDamage(getEffectiveEnemyAttack(enemy),enemy.role==='twin'?0.7:1.0,getEffectiveAllyDefense(target),enemy.element,target.element);
     const result=dealDamageToAlly(target,dmg,true);
     const attackLabel=attackCount>1?` (${attackIndex+1}/2)`:'';
     if(enemy.role==='thief' && target.hp>0){
@@ -2692,7 +2835,7 @@ function getAutoEquipProfile(charId){
 }
 function scoreAutoEquip(eff,p){
   const base=eff.hp*p.w.hp+eff.atk*p.w.atk+eff.def*p.w.def+eff.speed*p.w.speed;
-  const mult=1+(eff.healMult-1)*p.heal+(eff.shieldMult-1)*p.shield+(eff.burnMult-1)*p.burn
+  const mult=1+(eff.healMult-1)*p.heal+(eff.shieldMult-1)*p.shield+(eff.burnMult-1)*p.burn+(eff.dotDamageMult-1)*p.burn
     +(eff.energyGainMult-1)*0.3+(eff.damageMult-1)+(eff.basicDamageMult-1)*0.4+(eff.skillDamageMult-1)*0.5
     +eff.weaknessBonus*0.4+(eff.hpDamageMult-1)*p.hpDamage+eff.buffPctBonus*0.5;
   return base*mult;
@@ -3080,6 +3223,10 @@ function claimQuest(id){
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstElementChild; }
 
 function render(){
+  const inBattle=state.screen==='battle';
+  const hakosFormActive=inBattle&&!!state.battle?.hakosFormState;
+  document.body.classList.toggle('hakos-chaos-mode',hakosFormActive);
+  document.body.classList.toggle('kobo-underwater-mode',inBattle&&!!state.battle?.koboCorrosionAura&&!hakosFormActive);
   const app = document.getElementById('app');
   app.innerHTML='';
   app.appendChild(renderTopbar());
@@ -3340,11 +3487,13 @@ function renderAbilitaTab(){
       <div class="hero-role">${c.role}</div>
       <div class="element-tag" style="margin-top:4px;">Elemento: ${ELEMENT_DATA[c.element].label}</div>
       <div class="hero-stars" style="color:${c.rarity===5?'#ffd700':'#9aa4c4'}">${'★'.repeat(c.rarity)}${unlocked?'':' · 🔒 Bloccato'}</div>
+      ${c.passiveDotEnergy?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni stack di DoT attivato normalmente o detonata ripristina 5 energia a Kobo e a chi l'ha applicata.</div>`:''}
       ${c.passiveSpCapBonus?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: mentre è in squadra, il cap dei Punti Abilità sale da 5 a ${5+c.passiveSpCapBonus}.</div>`:''}
       ${c.passiveSelfHeal?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che attacca recupera il ${Math.round(c.passiveSelfHeal*100)}% dei PV massimi.</div>`:''}
       ${c.passiveKiaraCounter?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: quando Kiara viene colpita e sopravvive, contrattacca il nemico con un follow-up equivalente alla Skill.</div>`:''}
       ${c.passiveFinanaFollowUp?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che un nemico scende al 50% dei PV per la prima volta, lancia un follow-up identico al Basic.</div>`:''}
       ${c.passiveInaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: marchia il nemico con meno PV. I colpi al marchiato attivano fino a ${c.passiveInaFollowUps} follow-up; la Ultimate ricarica le cariche. Ogni volta che un alleato colpisce il nemico marchiato, Ina rigenera 10 energia.</div>`:''}
+      ${c.passiveZetaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: quando un alleato diverso da Zeta colpisce un nemico con Sanguinamento, Zeta attiva un follow-up. La Ultimate ricarica le ${c.passiveZetaFollowUps} cariche.</div>`:''}
       ${c.passiveHpLossFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni ${c.passiveHpLossFollowUps} perdite di PV attiva un follow-up ad area e cura il 15% dei PV massimi.</div>`:''}
       ${c.revivesPerBattle?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: può rinascere ${c.revivesPerBattle} volte per battaglia con il 60% dei PV massimi.</div>`:''}
     </div>
@@ -3371,6 +3520,13 @@ function renderAbilitaTab(){
       `<span><b>Moltiplicatore:</b> 10% PV massimi</span><span><b>Cariche:</b> 3 per battaglia</span><span><b>Energia:</b> +10 per follow-up</span><span><b>Ricarica:</b> Ultimate</span><span>Il follow-up casuale della Ultimate non consuma cariche.</span>`
     ));
   }
+  if(id==='vestiaZeta'){
+    cards.appendChild(renderAbilityCard(
+      {name:'Danza Sanguinaria',desc:'Quando un alleato diverso da Zeta colpisce un nemico con Sanguinamento, Zeta attacca fino a due nemici casuali.'},
+      'basic','Passiva · Follow-up',
+      `<span><b>Moltiplicatore:</b> 85% ATK per bersaglio</span><span><b>Bersagli:</b> Fino a 2 nemici casuali, senza ripetizioni</span><span><b>Effetto:</b> Applica 1 stack di Sanguinamento a ciascun bersaglio sopravvissuto</span><span><b>Cariche:</b> ${c.passiveZetaFollowUps} · ricaricate dalla Ultimate</span>`
+    ));
+  }
   if(id==='suiseiHoshimachi'){
     cards.appendChild(renderAbilityCard(
       {name:'Follow-up della Cometa',desc:'Ogni quarta perdita di PV attiva un colpo ad area e cura Susei.'},
@@ -3390,7 +3546,7 @@ function renderAbilitaTab(){
     const formBasic=HAKOS_FORM_ABILITIES.basic;
     const formSkill=HAKOS_FORM_ABILITIES.skill;
     formCards.appendChild(renderAbilityCard(formBasic,'basic','Attacco Base · Trasformata',
-      `<span><b>Moltiplicatore:</b> ${Math.round(formBasic.mult*100)}% ATK</span><span><b>Bersaglio:</b> Un nemico</span><span><b>Energia:</b> Non genera energia</span>`));
+      `<span><b>Moltiplicatore:</b> ${Math.round(formBasic.mult*100)}% ATK</span><span><b>Bersaglio:</b> Bersaglio selezionato e nemici adiacenti, fino a 3 nemici</span><span><b>Energia:</b> Non genera energia</span>`));
     formCards.appendChild(renderAbilityCard(formSkill,'skill','Skill · Trasformata',
       `<span><b>Moltiplicatore:</b> ${Math.round(formSkill.mult*100)}% ATK</span><span><b>Bersaglio:</b> Bersaglio selezionato e nemici adiacenti</span><span><b>Energia:</b> Non genera energia</span>`));
     wrap.appendChild(formCards);
@@ -3409,6 +3565,9 @@ function effectLabel(ability){
     case 'heal_all': return `Cura l'intera squadra.`;
     case 'burn': return `Applica ${ability.burnStacks} carica/e di Sanguinamento (danno nel tempo).`;
     case 'burn_all': return `Applica ${ability.burnStacks} carica/e di Sanguinamento a tutti i nemici colpiti.`;
+    case 'kobo_seasick': return `Applica 1 stack di Mal di mare: ATK nemico -5% per stack, fino a 10 stack (-50%).`;
+    case 'kobo_seasick_all': return `Detona tutte le DoT dannose con un tick normale per i loro stack, poi applica 1 stack di Mal di mare a ogni nemico colpito (massimo 10).`;
+    case 'kobo_detonate_dots': return `Detona tutte le DoT dannose con un tick normale per i loro stack, poi attiva per il resto della battaglia un'aura che applica Corrosione agli avversari che ne sono privi.`;
     case 'buff_atk': return `+${Math.round(ability.buffPct*100)}% ATK a tutta la squadra per 2 turni.`;
     case 'buff_atk_energy': return `+${Math.round(ability.buffPct*100)}% ATK per 3 turni e +${ability.energyGainAll} energia a tutta la squadra.`;
     case 'buff_atk_def': return `+${Math.round(ability.buffPct*100)}% ATK e +${Math.round(ability.defBuffPct*100)}% DIF a tutta la squadra per 3 turni.`;
@@ -4106,7 +4265,9 @@ function renderBattle(){
       <div class="name">${e.name}</div>
       ${e.inaMarked?'<div class="ina-mark-tag">✦ MARCHIATO · INA</div>':''}
       ${e.isBoss?`<div class="boss-tag">BARRA ${e.phase||1}/2 · 2 ATTACCHI</div>`:''}
+      ${e.seasickStacks>0?`<div class="boss-add-tag" style="color:var(--cyan);">🌊 MAL DI MARE x${e.seasickStacks} · ATK -${e.seasickStacks*5}%</div>`:''}
         ${e.name==='Custode della Civiltà'&&e.phase===2&&e.mumeiGuardActive?`<div class="boss-add-tag" style="color:var(--amber);">DANNI SUBITI -40% · ${e.mumeiGuardRounds} ROUND · ${e.mumeiGuardSkillPointsSpent}/5 PA</div>`:''}
+        ${e.name==='Titano dell’Eclissi'&&e.phase===2?'<div class="boss-add-tag" style="color:var(--amber);">RESISTENZA 80% · ATTACCHI BASE E ULTIMATE</div>':''}
       ${e.stunTurns>0?`<div class="boss-add-tag" style="color:var(--amber);">⚡ STORDITO · ${e.stunTurns} TURNI</div>`:''}
       ${e.role?`<div class="boss-add-tag" style="color:var(--cyan);">${SPECIAL_ENEMIES[e.name].label.toUpperCase()}${e.role==='bomber'&&e.bomberCharged?' · CARICO!':''}</div>`:''}
       ${isAbissoProtected(e)?'<div class="boss-add-tag">PROTETTO · DANNI -90% FINCHÉ ESISTONO ALTRI NEMICI</div>':''}
@@ -4120,7 +4281,7 @@ function renderBattle(){
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(e.hp/e.maxHp*100)}%"></div></div>
       ${e.isBoss&&e.phase<2?'<div class="bar-track" style="height:4px;margin-top:2px;opacity:.55;"><div class="bar-fill hp-fill" style="width:100%"></div></div>':''}
       <div class="mini-lbl"><span>${e.hp}/${e.maxHp}</span></div>
-      ${e.burnStacks>0?`<div class="burn-tag">${e.dotName==='Sanguinamento'?'🩸':'🔥'} x${e.burnStacks}</div>`:''}
+      ${(e.dots||[]).map(dot=>`<div class="burn-tag">${dot.name==='Corrosione'?'☣️':dot.name==='Sanguinamento'?'🩸':'🔥'} ${dot.name} x${dot.stacks}</div>`).join('')}
       ${e.shield>0?`<div class="shield-tag">🛡 ${e.shield}</div>`:''}
       ${fx.floatHtml}
     </div>`);
@@ -4175,6 +4336,7 @@ function renderBattle(){
       ${a.shield>0?`<div class="shield-tag">🛡 Scudo ${a.shield}</div>`:''}
       ${statusMarkup}
       ${a.charId==='ninomaeInaNis'?`<div class="ina-charge-tag">FOLLOW-UP ${a.inaFollowUpsRemaining}/3</div>`:''}
+      ${a.charId==='vestiaZeta'?`<div class="ina-charge-tag">FOLLOW-UP ${a.zetaFollowUpsRemaining}/${CHAR_DB.vestiaZeta.passiveZetaFollowUps}</div>`:''}
       ${a.charId==='suiseiHoshimachi'?`<div class="suisei-revive-tag">RINASCITE ${a.suiseiRevivesRemaining}/2</div>`:''}
       ${fx.floatHtml}
     </div>`);

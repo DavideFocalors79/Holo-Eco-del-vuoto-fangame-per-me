@@ -20,8 +20,57 @@ body{
     var(--bg);
   min-height:100vh;
 }
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:0;
+  background:
+    radial-gradient(ellipse 850px 600px at 12% 0%, rgba(255,35,75,0.22), transparent 70%),
+    radial-gradient(ellipse 700px 550px at 100% 20%, rgba(170,12,50,0.2), transparent 72%);
+  transition:opacity .8s ease;
+}
+body.hakos-chaos-mode{
+  --bg:#10060b;
+  --bg-panel:#1a0b12;
+  --bg-panel-2:#28101a;
+  --border:#5b1c30;
+  --cyan:#ff7189;
+  --violet:#ff355e;
+  --amber:#ff9870;
+  --rose:#ff3b54;
+  --text-dim:#c28a99;
+  background:
+    radial-gradient(ellipse 800px 500px at 15% -10%, rgba(255,45,80,0.18), transparent),
+    radial-gradient(ellipse 700px 500px at 100% 10%, rgba(180,20,65,0.16), transparent),
+    var(--bg);
+}
+body.hakos-chaos-mode::before{opacity:1;}
+body.kobo-underwater-mode{
+  --bg:#06111b;
+  --bg-panel:#0b2030;
+  --bg-panel-2:#103047;
+  --border:#1c526c;
+  --cyan:#59d9ed;
+  --violet:#65baff;
+  --amber:#9be7ef;
+  --rose:#4caed2;
+  --text-dim:#88b8c9;
+  background:
+    radial-gradient(ellipse 850px 600px at 10% 0%, rgba(27,157,207,0.18), transparent),
+    radial-gradient(ellipse 720px 560px at 100% 15%, rgba(31,92,179,0.16), transparent),
+    var(--bg);
+}
+body.kobo-underwater-mode::before{
+  opacity:1;
+  background:
+    radial-gradient(ellipse 850px 600px at 12% 0%, rgba(38,184,235,0.23), transparent 70%),
+    radial-gradient(ellipse 700px 550px at 100% 20%, rgba(27,91,181,0.2), transparent 72%);
+}
 h1,h2,h3,.display{font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:0.02em;}
-#app{max-width:1180px;margin:0 auto;padding:20px 16px 60px;}
+#app{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:20px 16px 60px;}
 
 .hud-panel{
   background:var(--bg-panel);
@@ -50,6 +99,8 @@ button{font-family:'Rajdhani',sans-serif;font-weight:600;cursor:pointer;border:1
 button:hover:not(:disabled){border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset;transform:translateY(-1px);}
 button:disabled{opacity:0.35;cursor:not-allowed;}
 button.primary{background:linear-gradient(135deg, rgba(79,216,224,0.18), rgba(167,139,250,0.14));border-color:var(--cyan);}
+body.hakos-chaos-mode button.primary{background:linear-gradient(135deg,rgba(255,53,94,0.24),rgba(255,113,137,0.16));}
+body.kobo-underwater-mode button.primary{background:linear-gradient(135deg,rgba(56,189,248,0.24),rgba(34,211,238,0.16));}
 button.danger{border-color:var(--rose);}
 button.ghost{background:transparent;}
 button.small{padding:5px 10px;font-size:12px;}
