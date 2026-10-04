@@ -553,8 +553,15 @@ button.small{padding:5px 10px;font-size:12px;}
 .moc-team-panel{min-width:0;padding:14px;}
 .moc-team-panel h3{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 10px;font-size:17px;}
 .moc-team-panel h3 span{color:var(--text-dim);font:600 12px 'Rajdhani',sans-serif;}
+.moc-boss-info{display:flex;align-items:center;gap:8px;}
+.moc-boss-elements,.moc-team-elements{display:flex;align-items:center;gap:4px;}
+.moc-team-elements{margin:-2px 0 8px;}
+.moc-element-sigil{display:grid;place-items:center;width:24px;height:24px;border:1px solid var(--element-color);border-radius:50%;background:rgba(255,255,255,0.04);color:var(--element-color);font-size:13px;line-height:1;}
 .moc-hero-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,155px),1fr));gap:7px;}
 button.moc-hero-option{display:flex;align-items:center;gap:8px;min-width:0;padding:7px 9px;text-align:left;font-size:12px;}
+.moc-hero-option.strong-against{border-color:rgba(110,231,160,0.72);box-shadow:0 0 0 1px rgba(110,231,160,0.25) inset;}
+.moc-hero-option.selected.strong-against{border-color:var(--green);background:rgba(110,231,160,0.12);box-shadow:0 0 0 1px var(--green) inset;}
+.moc-hero-option.strong-against .moc-hero-glyph{outline:2px solid var(--green);outline-offset:2px;}
 .moc-hero-option>span:nth-child(2){flex:1;min-width:0;overflow-wrap:anywhere;}
 .moc-hero-glyph{display:grid;place-items:center;width:28px;height:28px;flex:0 0 28px;border-radius:50%;color:#080b14;font:700 13px 'Rajdhani',sans-serif;}
 .moc-hero-check{width:14px;color:var(--green);text-align:center;}

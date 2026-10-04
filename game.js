@@ -8,6 +8,12 @@ const ELEMENT_DATA = {
   electro: {label:'Electro', strongAgainst:'quantum'},
   dendro: {label:'Dendro', strongAgainst:'electro'},
 };
+const ELEMENT_VISUALS = {
+  physical:{icon:'⚔',color:'#d4b27a'},hydro:{icon:'💧',color:'#55bdf4'},
+  ether:{icon:'✦',color:'#bd8cf2'},imaginary:{icon:'☼',color:'#f0c35c'},
+  quantum:{icon:'◈',color:'#bd7aff'},electro:{icon:'⚡',color:'#f5df4d'},
+  dendro:{icon:'❋',color:'#65d58a'},
+};
 const ELEMENT_RELATION = {
   electro:'quantum',
   quantum:'imaginary',
@@ -54,11 +60,11 @@ const CHAR_DB = {
     basic:{name:'Impulso Armonico', desc:'Danno a un bersaglio. Genera 2 Punti Abilità invece di 1.', mult:0.8, target:'enemy', effect:null, energyGain:20, spGain:2},
     skill:{name:'Dono del Tempo', desc:'Non infligge danno: dona 3 Punti Abilità alla squadra.', mult:0, target:'team', effect:'grant_sp', spGrant:3, energyGain:25},
     ult:{name:'Convergenza Assoluta', desc:'Dona 3 Punti Abilità e +25% ATK alla squadra per 2 turni.', mult:0, target:'team', effect:'grant_sp_and_buff', spGrant:3, buffPct:0.25} },
-  hakosBaels: { name:'Hakos Baels', title:'Arbitra del Caos', role:'DPS Trasformazione', color:'#ef5a7d', glyph:'H', rarity:5, element:'ether', animStyle:'swift', passiveSelfHeal:0.03,
+  hakosBaels: { name:'Hakos Baelz', title:'Arbitra del Caos', role:'DPS Trasformazione', color:'#ef5a7d', glyph:'H', rarity:5, element:'ether', animStyle:'swift', passiveSelfHeal:0.03,
     base:{hp:1220, atk:142, def:86, speed:100, energyMax:150},
-    basic:{name:'Dado Impazzito', desc:'Infligge danno normale a un nemico.', mult:1.0, target:'enemy', effect:null, energyGain:20},
+    basic:{name:'Dado Impazzito', desc:'Infligge danno normale al bersaglio e ai nemici adiacenti, fino a 3 nemici.', mult:1.0, target:'enemy_adjacent', effect:null, energyGain:20},
     skill:{name:'Caos Concentrato', desc:'Infligge danno maggiore a un nemico.', mult:1.35, target:'enemy', effect:null, energyGain:30},
-    ult:{name:'Rovina del Caos', desc:'Assorbe i parametri degli alleati e li richiama dopo cinque azioni di Hakos.', mult:0, target:'self', effect:'hakos_ultimate'} },
+    ult:{name:'Rovina del Caos', desc:'Assorbe i parametri degli alleati, agisce due volte per turno e li richiama dopo 10 azioni.', mult:0, target:'self', effect:'hakos_ultimate'} },
   laplusDarkness: { name:'Laplus Darkness', title:'Signora della Disordine', role:'Debuffer Quantum', color:'#b69cff', glyph:'L', rarity:5, element:'quantum', animStyle:'arcane',
     base:{hp:1080, atk:136, def:78, speed:100, energyMax:140},
     basic:{name:'Raggio Disordinato', desc:'Infligge danno a un nemico e ne riduce la DIF del 15% per 2 round.', mult:1.0, target:'enemy', effect:'laplus_def_down', energyGain:20},
@@ -89,10 +95,15 @@ const CHAR_DB = {
     basic:{name:'Fendente Solare',desc:'Attacco singolo basato sulla DIF.',mult:0.8,target:'enemy',effect:null,defBased:true,energyGain:20},
     skill:{name:'Giudizio Cremisi',desc:'Colpisce un singolo nemico in base alla DIF e cura Kiara del 35% della sua DIF.',mult:1.35,target:'enemy',effect:'kiara_skill_heal',healPct:0.35,defBased:true,energyGain:30},
     ult:{name:'Alba Inestinguibile',desc:'Aumenta la DIF di Kiara del 40% per 2 turni.',mult:0,target:'self',effect:'kiara_def_buff',defBuffPct:0.4} },
+  elizabethRoseBloodflame: {name:'Elizabeth Rose Bloodflame',title:'Fiamma del Patto Cremisi',role:'Shielder · Buffer',color:'#e85b70',glyph:'E',rarity:5,element:'physical',animStyle:'heavy',
+    base:{hp:1320,atk:104,def:118,speed:100,energyMax:135},
+    basic:{name:'Colpo Cremisi',desc:'Infligge danno fisico a un bersaglio in base alla DIF.',mult:1.0,target:'enemy',effect:null,defBased:true,energyGain:20},
+    skill:{name:'Patto di Sangue',desc:'Fornisce a un alleato uno scudo pari al 300% della DIF di Elizabeth e lo rende il bersaglio dei nemici per 3 turni.',mult:0,target:'ally',effect:'elizabeth_shield_taunt',shieldDefMult:3,tauntTurns:3,energyGain:30},
+    ult:{name:'Regno della Fiamma Rossa',desc:'Aumenta ATK e DIF di tutta la squadra del 30% per 3 turni.',mult:0,target:'allies_all',effect:'buff_atk_def',buffPct:0.30,defBuffPct:0.30} },
 };
 
 const ENEMY_NAMES = ['Larva del Vuoto','Sentinella Corrotta','Sciame Spinato','Costrutto Infranto','Ombra Vagante'];
-const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra','Abisso Primordiale'];
+const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra','Abisso Primordiale','Custode della Civiltà'];
 const MAX_ENEMIES_IN_BATTLE = 5;
 const BOSS_HP_FACTOR = 1.5, BOSS_ATK_FACTOR = 0.75;
 const BOSS_MECHANICS = {
@@ -101,8 +112,9 @@ const BOSS_MECHANICS = {
   'Colosso Corroso':{phase1:'heal',phase2:'area'},
   'Regina Ombra':{phase1:'shield',phase2:'heal'},
   'Abisso Primordiale':{phase1:'shield_heal',phase2:'summon_burst'},
+  'Custode della Civiltà':{phase1:'normal',phase2:'mumei_guard'},
 };
-const BOSS_MECHANIC_LABELS = {shield:'Scudo',summon:'Evoca rinforzi',heal:'Cura',area:'Attacco ad area',shield_heal:'Scudo e cura',summon_burst:'Evoca due sentinelle; AoE massiva se sopravvivono 2 turni'};
+const BOSS_MECHANIC_LABELS = {normal:'Attacchi normali',shield:'Scudo',summon:'Evoca rinforzi',heal:'Cura',area:'Attacco ad area',shield_heal:'Scudo e cura',summon_burst:'Evoca due sentinelle; AoE massiva se sopravvivono 2 turni',mumei_guard:'Danni subiti -40% per 5 round o finché non vengono spesi 5 PA in un round'};
 const ENEMY_ELEMENT_SETS = {
   'Larva del Vuoto':['quantum','hydro','dendro'],
   'Sentinella Corrotta':['physical','electro','imaginary'],
@@ -114,6 +126,7 @@ const ENEMY_ELEMENT_SETS = {
   'Colosso Corroso':['dendro','physical','ether'],
   'Regina Ombra':['quantum','hydro','electro'],
   'Abisso Primordiale':['hydro','electro','physical'],
+    'Custode della Civiltà':['electro','ether','physical'],
   'Sacerdote Spezzato':['dendro','ether','hydro'],
   'Custode Scudato':['physical','quantum','imaginary'],
   'Araldo Infiammato':['electro','imaginary','ether'],
@@ -276,6 +289,7 @@ const WEAPON_DEFINITIONS = {
   'Lampo Sovrano': {ownerId:'selenTatsuki', effect:{stat:'skillDamageMult', base:0.18, perAscension:0.03, describe:value=>`Danni di Skill e Ultimate +${Math.round(value*100)}%.`}},
   'Scintilla della Fenice': {ownerId:'takanashiKiara',effect:{stat:'defPct',base:0.1,perAscension:0.02,describe:value=>`DIF +${Math.round(value*100)}%.`}},
   'Canto della Marea': {ownerId:'finanaRyugu',effect:{stat:'hpDamageMult',base:0.15,perAscension:0.03,describe:value=>`Danni delle abilita basate sui PV massimi +${Math.round(value*100)}%.`}},
+  'Cuore della Regina Cremisi': {ownerId:'elizabethRoseBloodflame',effect:{stat:'shieldMult',base:0.20,perAscension:0.03,describe:value=>`Scudi generati +${Math.round(value*100)}%.`}},
 };
 const SIGNATURE_WEAPONS = [
   {name:'Aegis dell\'Ultima Alba', ownerId:'kaelaKolvalskia', atk:165, subStat:{key:'def_pct',value:0.16}},
@@ -292,6 +306,7 @@ const SIGNATURE_WEAPONS = [
   {name:'Lampo Sovrano', ownerId:'selenTatsuki', atk:178, subStat:{key:'atk_pct',value:0.12}},
   {name:'Scintilla della Fenice',ownerId:'takanashiKiara',atk:180,subStat:{key:'def_pct',value:0.16}},
   {name:'Canto della Marea',ownerId:'finanaRyugu',atk:172,subStat:{key:'hp_pct',value:0.14}},
+  {name:'Cuore della Regina Cremisi',ownerId:'elizabethRoseBloodflame',atk:184,subStat:{key:'def_pct',value:0.18}},
 ];
 
 function normalizeWeapon(weapon){
@@ -304,7 +319,11 @@ function normalizeWeapon(weapon){
     weapon.rarity=signature?'leggendaria':fixed.rarity;
     weapon.baseAtk=fixed.atk;
     weapon.mainStat={key:'atk',value:fixed.atk+weapon.level*Math.max(1,Math.round(fixed.atk*0.04))};
-    weapon.subStat={...fixed.subStat};
+    const levelGrowth=STAT_KEYS[fixed.subStat.key].flatKey==='speed'?0.01:0.02;
+    const subStatScale=1+weapon.level*levelGrowth+weapon.ascension*0.05;
+    const subStatMeta=STAT_KEYS[fixed.subStat.key];
+    const scaledSubStat=fixed.subStat.value*subStatScale;
+    weapon.subStat={...fixed.subStat,value:subStatMeta.kind==='pct'||subStatMeta.kind==='energy'?Number(scaledSubStat.toFixed(4)):Math.round(scaledSubStat)};
     weapon.ownerId=signature?.ownerId||null;
   } else {
     weapon.baseAtk = Number(weapon.baseAtk)||Number(weapon.mainStat?.value)||0;
@@ -361,7 +380,7 @@ function renderWeaponCard(w, opts){
       </div>
     </div>
     <div class="ac-main">${statKeyLabel(w.mainStat.key)} <b>${formatStatValue(w.mainStat)}</b></div>
-    <div class="ac-subs"><span>· ${statKeyLabel(w.subStat.key)} ${formatStatValue(w.subStat)}</span></div>
+    <div class="ac-subs"><span>· ${statKeyLabel(w.subStat.key)} ${formatWeaponSubStat(w.subStat)}</span></div>
     <div class="ac-setbonus">${getWeaponEffectDescription(w,opts.charId)}</div>
   </div>`);
   const actions = opts.actions || (opts.actionLabel ? [{label:opts.actionLabel, onClick:opts.onAction}] : []);
@@ -381,6 +400,12 @@ function formatStatValue(stat){
   const meta = STAT_KEYS[stat.key];
   if(meta.kind==='flat') return '+'+stat.value;
   return '+'+Math.round(stat.value*100)+'%';
+}
+function formatWeaponSubStat(stat){
+  const meta=STAT_KEYS[stat.key];
+  return meta.kind==='pct'||meta.kind==='energy'
+    ? '+'+(stat.value*100).toFixed(1)+'%'
+    : '+'+stat.value;
 }
 function statKeyLabel(key){ return STAT_KEYS[key].label; }
 
@@ -445,6 +470,40 @@ function getActiveSetBonuses(charId){
   });
   return out;
 }
+function getAllyBattleStatusMarkup(ally){
+  const totals={atk:0,def:0};
+  (ally.activeBuffs||[]).forEach(buff=>{ totals[buff.stat]=(totals[buff.stat]||0)+buff.pct; });
+  if(ally.fxHitStack) totals.dmg=0.15*(ally.hitStacks||[]).length;
+  const tags=Object.entries(totals)
+    .filter(([,pct])=>pct>0)
+    .map(([stat,pct])=>`<div class="buff-tag">+${Math.round(pct*100)}% ${stat==='atk'?'ATK':stat==='def'?'DIF':'DMG'}</div>`)
+  const artifactSets=getActiveSetBonuses(ally.charId).filter(bonus=>bonus.tier===4);
+  artifactSets.forEach(bonus=>{
+    if(bonus.name==='Danza Instancabile'){
+      const skillBonus=0.10*(ally.turnSkillCount||0);
+      if(skillBonus>0) tags.push(`<div class="buff-tag">+${Math.round(skillBonus*100)}% DMG</div>`);
+    } else if(bonus.name==='Assenza Siderale'){
+      const absent=Math.max(0,4-(state.battle?.allies.length||4));
+      const absentBonus=0.30*absent;
+      if(absentBonus>0) tags.push(`<div class="buff-tag">+${Math.round(absentBonus*100)}% DMG</div>`);
+    } else if(bonus.name==='Furia del Colpito'){
+      if(!ally.fxHitStack) tags.push(`<div class="buff-tag">+${Math.round(0.15*(ally.hitStacks||[]).length*100)}% DMG</div>`);
+    } else if(bonus.name==='Cuore Vitale'){
+      tags.push('<div class="buff-tag">+8% ATK da PV</div>','<div class="buff-tag">+20% CURE</div>','<div class="buff-tag">+15% DMG PV</div>');
+    } else if(bonus.name==='Lama Cruenta'){
+      tags.push('<div class="buff-tag">+20% SANGUINAMENTO</div>');
+    } else if(bonus.name==='Eco Glaciale'){
+      tags.push('<div class="buff-tag">+15% CURE</div>');
+    } else if(bonus.name==='Tempesta Rapida'){
+      tags.push('<div class="buff-tag">+20% ENERGIA</div>');
+    } else if(bonus.name==='Custode Runico'){
+      tags.push('<div class="buff-tag">+25% SCUDI</div>');
+    } else if(bonus.name==='Baluardo di Ferro'){
+      tags.push('<div class="buff-tag">+20% PV MAX</div>');
+    }
+  });
+  return tags.join('');
+}
 
 function getEffectiveStats(charId){
   const base = CHAR_DB[charId].base;
@@ -501,7 +560,8 @@ function getEffectiveStats(charId){
 /* ============ GLOBAL STATE ============ */
 let state = {
   screen:'home', // home | town | battle | victory | defeat
-  gold:0,
+  gold:0, // Frammenti: evocazioni, Travel Log
+  credits:0, // Crediti: Torre, missioni, vendite; servono per potenziare armi e manufatti
   stage:1,
   maxStageReached:1,
   roster:{}, // id -> {equipment:[5], weapon, unlocked}
@@ -551,6 +611,7 @@ function getSaveData(){
   return {
     version:1,
     gold: state.gold,
+    credits: state.credits,
     stage: state.stage,
     maxStageReached: state.maxStageReached,
     roster: state.roster,
@@ -617,6 +678,7 @@ function loadGame(){
     if(Array.isArray(data.party)) data.party = data.party.map(id=>idMigration[id] || id);
     if(idMigration[data.abilityTabChar]) data.abilityTabChar = idMigration[data.abilityTabChar];
     state.gold = data.gold||0;
+    state.credits = data.credits||0;
     state.stage = data.stage||1;
     state.maxStageReached = data.maxStageReached||1;
     state.roster = data.roster || state.roster;
@@ -648,7 +710,7 @@ function loadGame(){
 }
 function resetSave(){
   try{ localStorage.removeItem(SAVE_KEY); } catch(e){}
-  state.gold=0; state.stage=1; state.maxStageReached=1; state.inventory=[]; state.itemUidCounter=1;
+  state.gold=0; state.credits=0; state.stage=1; state.maxStageReached=1; state.inventory=[]; state.itemUidCounter=1;
   state.weaponInventory=[]; state.weaponUidCounter=1; state.pityCounter=0; state.pity5Counter=0; state.lastPullResults=[];
   state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.pfCleared=false; state.mocDaily=null; state.mocTeams=[[],[]]; state.moc=null; state.travelTab='purefiction'; state.suCleared=false; state.suDaily=null; state.su=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
   state.claimedQuests={}; state.questTiers={}; state.questExhausted={}; state.totalPullsDone=0; state.totalArtifactsSold=0;
@@ -690,6 +752,9 @@ function sleepMs(ms){ return new Promise(resolve=>setTimeout(resolve, ms*BATTLE_
 
 /* ============ TOWER (INFINITE) ============ */
 function isBossStage(n){return n%5===0;}
+function getFloorEnemyBaseHp(stageNum){
+  return Math.round(260+stageNum*58+stageNum*stageNum*1.5);
+}
 function generateEnemies(stageNum){
   const n = stageNum;
   const boss = isBossStage(n);
@@ -697,7 +762,7 @@ function generateEnemies(stageNum){
   const enemies=[];
   for(let i=0;i<count;i++){
     // Enemies hit hard and scale quadratically so the tower keeps getting tougher forever.
-    const hpBase = boss ? Math.round((1100 + n*190 + n*n*2.6)*0.65*BOSS_HP_FACTOR) : Math.round(260 + n*58 + n*n*1.5);
+    const hpBase = boss ? Math.round((1100 + n*190 + n*n*2.6)*0.65*BOSS_HP_FACTOR) : getFloorEnemyBaseHp(n);
     const atk = boss ? Math.round((150  + n*24  + n*n*0.22)*BOSS_ATK_FACTOR) : Math.round(95  + n*17  + n*n*0.14);
     const def = boss ? Math.round(35   + n*6   + n*n*0.05) : Math.round(10  + n*2.6  + n*n*0.02);
     const special = !boss && n>=3 && Math.random()<0.5 ? pick(Object.keys(SPECIAL_ENEMIES)) : null;
@@ -792,9 +857,9 @@ function startPFTimer(node){
   pfTimerHandle=setInterval(tick,1000);
 }
 function buildPFEnemy(id,name){
-  const n=Math.max(10,Math.round(state.maxStageReached*0.8));
+  const n=Math.max(10,state.maxStageReached-1);
   const special=SPECIAL_ENEMIES[name]||null;
-  const hpBase=Math.round((260+n*58+n*n*1.5)*0.5);
+  const hpBase=Math.round(getFloorEnemyBaseHp(n)*1.4);
   const hp=special?Math.round(hpBase*special.hpMult):hpBase;
   const atk=Math.round((95+n*17+n*n*0.14)*0.25);
   const def=Math.round(10+n*2.6+n*n*0.02);
@@ -901,6 +966,16 @@ function claimMOCTiers(day,clears,rounds){
   });
   return gained;
 }
+function isElementStrongAgainstMOCBoss(element,bossName){
+  const bossElements=ENEMY_ELEMENT_SETS[bossName]||[];
+  return !bossElements.includes(element)&&bossElements.includes(ELEMENT_RELATION[element]);
+}
+function renderMOCBossElements(bossName){
+  return (ENEMY_ELEMENT_SETS[bossName]||[]).map(element=>{
+    const visual=ELEMENT_VISUALS[element];
+    return `<span class="moc-element-sigil" style="--element-color:${visual.color}" title="${ELEMENT_DATA[element].label}" aria-label="${ELEMENT_DATA[element].label}">${visual.icon}</span>`;
+  }).join('');
+}
 function onMOCBattleWin(){
   const battle=state.battle;
   const moc=state.moc;
@@ -943,8 +1018,8 @@ function retryMOC(){
   startMemoryOfChaos();
 }
 function generateMOCBoss(name,index){
-  const stage=Math.max(MOC_UNLOCK_STAGE,state.maxStageReached);
-  const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR);
+  const stage=Math.max(MOC_UNLOCK_STAGE,state.maxStageReached-1);
+  const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR*1.4);
   const elements=ENEMY_ELEMENT_SETS[name].slice();
   return {id:`moc${index}`,name,hp,maxHp:hp,atk:Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR),def:Math.round(35+stage*6+stage*stage*0.05),speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,burnStacks:0,burnRounds:0,burnSourceMult:1,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0};
 }
@@ -1039,15 +1114,36 @@ function generateSUBaseEnemies(wave,fight){
   if(fight) enemies.forEach(e=>{ e.hp=e.maxHp=Math.round(e.maxHp*1.25); e.atk=Math.round(e.atk*1.1); });
   return enemies;
 }
+function syncAllyBuffMultipliers(ally){
+  const buffs=ally.activeBuffs||[];
+  ally.atkBuffMult=1+buffs.filter(buff=>buff.stat==='atk').reduce((sum,buff)=>sum+buff.pct,0);
+  ally.defBuffMult=1+buffs.filter(buff=>buff.stat==='def').reduce((sum,buff)=>sum+buff.pct,0);
+  ally.buffRounds=buffs.filter(buff=>buff.stat==='atk').reduce((max,buff)=>Math.max(max,buff.rounds),0);
+  ally.defBuffRounds=buffs.filter(buff=>buff.stat==='def').reduce((max,buff)=>Math.max(max,buff.rounds),0);
+}
+function addTimedAllyBuff(ally,name,stat,pct,rounds){
+  ally.activeBuffs=ally.activeBuffs||[];
+  ally.activeBuffs.push({name,stat,pct,rounds});
+  syncAllyBuffMultipliers(ally);
+}
+function tickTimedAllyBuffs(ally,stat){
+  ally.activeBuffs=(ally.activeBuffs||[]).map(buff=>stat&&buff.stat!==stat?buff:{...buff,rounds:buff.rounds-1}).filter(buff=>buff.rounds>0);
+  syncAllyBuffMultipliers(ally);
+}
+function clearTimedAllyBuffs(ally,stat){
+  ally.activeBuffs=(ally.activeBuffs||[]).filter(buff=>buff.stat!==stat);
+  syncAllyBuffMultipliers(ally);
+}
 function resetAlliesForWave(allies){
   allies.forEach(a=>{
     const c=CHAR_DB[a.charId];
     a.shield=0; a.shieldRounds=0; a.atkBuffMult=1; a.buffRounds=0;
     a.defBuffMult=1; a.defBuffRounds=0;
+    a.activeBuffs=[];
     a.basicHits=c.basic.hits||1;
     a.skillFreeUses=c.skillFreeUses||0;
     a.inaFollowUpsRemaining=c.passiveInaFollowUps||0;
-    a.suiseiHpLossEvents=0; a.suiseiFollowUpReady=false; a.suiseiGuardRounds=0; a.suiseiGuardFresh=false; a.tauntRounds=0; a.tauntFresh=false;
+    a.suiseiHpLossEvents=0; a.suiseiFollowUpReady=false; a.suiseiGuardRounds=0; a.suiseiGuardFresh=false; a.tauntRounds=0; a.tauntFresh=false; a.tauntSource=null;
     a.suiseiRevivesRemaining=c.revivesPerBattle||0;
     a.hakosForm=false;
     a.hitStacks=[]; a.turnSkillCount=0;
@@ -1186,8 +1282,8 @@ function onDomainVictory(){
   for(let i=0;i<3;i++) loot.push(generateArtifact(stage,b.domainSet,0.3));
   b.loot=loot;
   state.inventory.push(...loot);
-  b.goldReward=Math.round(getStageGoldReward(stage)*0.6);
-  state.gold+=b.goldReward;
+  b.creditReward=Math.round(getStageGoldReward(stage)*1.5);
+  state.credits+=b.creditReward;
   state.autoBattle=false;
   state.screen='victory';
 }
@@ -1212,7 +1308,7 @@ function startBattle(mode,fight){
       formDamageMult:eff.formDamageMult, defDownBonus:eff.defDownBonus, hpDamageMult:eff.hpDamageMult, skillDamageMult:eff.skillDamageMult,
       fxSkillSp:eff.fxSkillSp, fxAbsent:eff.fxAbsent, fxHitStack:eff.fxHitStack, turnSkillCount:0, hitStacks:[],
       shield:0, shieldRounds:0, atkBuffMult:1, buffRounds:0,
-      defBuffMult:1, defBuffRounds:0,
+      defBuffMult:1, defBuffRounds:0, activeBuffs:[],
       basicHits: CHAR_DB[id].basic.hits||1,
       skillFreeUses: CHAR_DB[id].skillFreeUses||0,
       inaFollowUpsRemaining: CHAR_DB[id].passiveInaFollowUps||0,
@@ -1281,6 +1377,13 @@ function currentAlly(){
   return entry && entry.side==='ally' ? getTurnActor(b,entry) : null;
 }
 
+function ensureHakosExtraTurn(b){
+  const actor=b.allies.find(ally=>ally.hakosForm);
+  if(!actor||b.turnOrder.some(entry=>entry.hakosExtra)) return;
+  const hakosIndex=b.turnOrder.findIndex(entry=>entry.side==='ally'&&entry.id===actor.charId);
+  if(hakosIndex>=0) b.turnOrder.splice(hakosIndex+1,0,{...b.turnOrder[hakosIndex],hakosExtra:true});
+}
+
 async function advanceTurn(){
   const b = state.battle;
   if(!b) return;
@@ -1288,10 +1391,7 @@ async function advanceTurn(){
   if(b.phase!=='resolved') await processFinanaFollowUps(b);
   const completedActor=getTurnActor(b);
   if(completedActor) completedActor.turnSkillCount=0;
-  if(completedActor?.defBuffRounds>0){
-    completedActor.defBuffRounds--;
-    if(completedActor.defBuffRounds===0) completedActor.defBuffMult=1;
-  }
+  if(completedActor?.activeBuffs?.length) tickTimedAllyBuffs(completedActor,'def');
   if(completedActor?.hakosForm){
     if(completedActor.hakosFormFresh) completedActor.hakosFormFresh=false;
     else {
@@ -1321,6 +1421,7 @@ async function advanceTurn(){
     }
     b.round++;
     b.turnOrder = buildTurnOrder(b.allies,b.enemies);
+    ensureHakosExtraTurn(b);
     b.turnIndex=0;
     logMsg(`— Round ${b.round} —`);
   }
@@ -1471,8 +1572,14 @@ function isAbissoProtected(enemy){
   return enemy.name==='Abisso Primordiale' && state.battle.enemies.some(e=>e!==enemy && e.hp>0);
 }
 
+function applyMumeiBossDamageReduction(enemy,dmg){
+  return enemy.name==='Custode della Civiltà'&&enemy.phase===2&&enemy.mumeiGuardActive
+    ? Math.max(1,Math.round(dmg*0.6))
+    : dmg;
+}
 function dealDamageToEnemy(enemy, dmg){
   if(isAbissoProtected(enemy)) dmg=Math.max(1,Math.round(dmg*0.1));
+  dmg=applyMumeiBossDamageReduction(enemy,dmg);
   let applied = dmg;
   if(enemy.shield>0){
     if(enemy.shield>=applied){enemy.shield-=applied; applied=0;}
@@ -1530,6 +1637,12 @@ function updateBossPhase(enemy){
   enemy.addsWaveStarted=false;
   enemy.addsWaveResolved=false;
   enemy.addsTurnsRemaining=0;
+  if(enemy.name==='Custode della Civiltà'){
+    enemy.mumeiGuardActive=true;
+    enemy.mumeiGuardRounds=5;
+    enemy.mumeiGuardFresh=true;
+    enemy.mumeiGuardSkillPointsSpent=0;
+  }
   state.battle.enemies.forEach(e=>{ if(e.bossAddOwnerId===enemy.id) e.bossAddResolved=true; });
   logMsg(`${enemy.name} esaurisce la prima barra e entra nella Fase 2! Seconda barra di PV, ATK aumentato.`);
   return true;
@@ -1660,17 +1773,18 @@ function activateHakosUltimate(actor,b){
   actor.speed+=absorbed.reduce((sum,ally)=>sum+ally.speed,0);
   actor.shield+=absorbedShield;
   absorbed.forEach(ally=>{ ally.shield=0; ally.shieldRounds=0; });
-  actor.atkBuffMult=1;
-  actor.buffRounds=0;
+  clearTimedAllyBuffs(actor,'atk');
   actor.energy=0;
   actor.hakosForm=true;
-  actor.hakosFormTurns=5;
+  actor.hakosFormTurns=10;
   actor.hakosFormFresh=true;
   b.hakosFormState={allies:b.allies.slice(),turnEntries:b.turnOrder.filter(entry=>entry.side==='ally' && entry.id!==actor.charId)};
   b.allies=[actor];
   b.turnOrder=b.turnOrder.filter(entry=>entry.side!=='ally' || entry.id===actor.charId);
-  b.turnIndex=Math.max(0,b.turnOrder.findIndex(entry=>entry.side==='ally' && entry.id===actor.charId));
-  logMsg(`${actor.name} attiva la Rovina del Caos: assorbe le statistiche degli alleati. La forma durerà 5 turni di Hakos.`);
+  const hakosIndex=b.turnOrder.findIndex(entry=>entry.side==='ally' && entry.id===actor.charId);
+  ensureHakosExtraTurn(b);
+  b.turnIndex=Math.max(0,hakosIndex);
+  logMsg(`${actor.name} attiva la Rovina del Caos: assorbe le statistiche degli alleati e agisce due volte per turno. La forma durerà 10 azioni.`);
 }
 
 function restoreHakosUltimate(b,reason='expired'){
@@ -1678,14 +1792,13 @@ function restoreHakosUltimate(b,reason='expired'){
   const actor=b.allies.find(ally=>ally.charId==='hakosBaels');
   if(!stateSnapshot || !actor?.hakosBaseSnapshot) return false;
   const hpLost=Math.max(0,actor.hakosFormStartHp-actor.hp);
-  const prefix=b.turnOrder.slice(0,b.turnIndex+1);
-  const future=[...b.turnOrder.slice(b.turnIndex+1),...stateSnapshot.turnEntries]
+  const prefix=b.turnOrder.slice(0,b.turnIndex+1).filter(entry=>!entry.hakosExtra);
+  const future=[...b.turnOrder.slice(b.turnIndex+1).filter(entry=>!entry.hakosExtra),...stateSnapshot.turnEntries]
     .sort((first,second)=>second.speed-first.speed);
   Object.assign(actor,actor.hakosBaseSnapshot);
   actor.hp=clamp(actor.hp-hpLost,0,actor.maxHp);
   actor.energy=0;
-  actor.atkBuffMult=1;
-  actor.buffRounds=0;
+  clearTimedAllyBuffs(actor,'atk');
   actor.hakosForm=false;
   actor.hakosFormTurns=0;
   actor.hakosFormFresh=false;
@@ -1813,6 +1926,21 @@ async function executeAbility(actor, abKey, targetId){
   else if(ability.target==='ally'){
     const target = b.allies.find(a=>a.charId===targetId);
     if(!target || target.hp<=0) return;
+    if(ability.effect==='elizabeth_shield_taunt'){
+      b.allies.filter(ally=>ally.tauntSource===actor.charId).forEach(ally=>{
+        ally.tauntRounds=0;
+        ally.tauntFresh=false;
+        ally.tauntSource=null;
+      });
+      const amount=Math.round(actor.def*(actor.defBuffMult||1)*ability.shieldDefMult*(actor.shieldMult||1));
+      target.shield+=amount;
+      target.shieldRounds=Math.max(target.shieldRounds,3);
+      target.tauntRounds=ability.tauntTurns;
+      target.tauntFresh=true;
+      target.tauntSource=actor.charId;
+      target._fx={variant:'shield',label:'🛡+'+amount};
+      logMsg(`${actor.name} protegge ${target.name} con uno scudo da ${amount} PV: i nemici lo prendono di mira per ${ability.tauntTurns} turni.`);
+    }
     if(ability.effect==='heal'){
       const healAmt = Math.round(effAtk*ability.mult*(actor.healMult||1));
       target.hp = clamp(target.hp+healAmt,0,target.maxHp);
@@ -1820,8 +1948,7 @@ async function executeAbility(actor, abKey, targetId){
       logMsg(`${actor.name} cura ${target.name} per ${healAmt} PV.`);
     }
     if(ability.effect==='extra_attack_buff'){
-      target.atkBuffMult = 1+buffPct;
-      target.buffRounds = Math.max(target.buffRounds, 2);
+      addTimedAllyBuff(target,ability.name,'atk',buffPct,2);
       target._fx = {variant:'buff', label:'+'+Math.round(buffPct*100)+'% ATK'};
       logMsg(`${actor.name} coordina ${target.name}: +${Math.round(buffPct*100)}% ATK.`);
       const foes = enemyTargets();
@@ -1846,8 +1973,7 @@ async function executeAbility(actor, abKey, targetId){
     if(ability.effect==='hakos_ultimate'){
       activateHakosUltimate(actor,b);
     } else if(ability.effect==='kiara_def_buff'){
-      actor.defBuffMult=1+ability.defBuffPct;
-      actor.defBuffRounds=3;
+      addTimedAllyBuff(actor,ability.name,'def',ability.defBuffPct,3);
       actor._fx={variant:'buff',label:'+'+Math.round(ability.defBuffPct*100)+'% DIF'};
       logMsg(`${actor.name} aumenta la propria DIF del ${Math.round(ability.defBuffPct*100)}% per 2 turni.`);
     } else if(ability.effect==='suisei_guard'){
@@ -1906,7 +2032,7 @@ async function executeAbility(actor, abKey, targetId){
     if(ability.effect==='grant_sp_and_buff'){
       const spGrant = ability.spGrant+(actor.spGrantBonus||0);
       b.sp = clamp(b.sp+spGrant,0,b.spMax);
-      allyTargets().forEach(a=>{ a.atkBuffMult = 1+buffPct; a.buffRounds = Math.max(a.buffRounds,2); });
+      allyTargets().forEach(a=>addTimedAllyBuff(a,ability.name,'atk',buffPct,2));
       actor._fx = {variant:'spgrant', label:'+'+spGrant+' PA'};
       logMsg(`${actor.name} dona ${spGrant} Punti Abilità e aumenta l'ATK della squadra del ${Math.round(buffPct*100)}%.`);
     }
@@ -1921,12 +2047,20 @@ async function executeAbility(actor, abKey, targetId){
       logMsg(`${actor.name} cura l'intera squadra.`);
     }
     if(ability.effect==='buff_atk'){
-      allyTargets().forEach(a=>{ a.atkBuffMult = 1+buffPct; a.buffRounds=2; a._fx={variant:'buff', label:'+'+Math.round(buffPct*100)+'% ATK'}; });
+      allyTargets().forEach(a=>{ addTimedAllyBuff(a,ability.name,'atk',buffPct,2); a._fx={variant:'buff', label:'+'+Math.round(buffPct*100)+'% ATK'}; });
       logMsg(`${actor.name} aumenta l'ATK della squadra.`);
     }
     if(ability.effect==='buff_atk_energy'){
-      allyTargets().forEach(a=>{ a.atkBuffMult = 1+buffPct; a.buffRounds=3; a.energy=clamp(a.energy+Math.round(ability.energyGainAll*(a.energyGainMult||1)),0,a.energyMax); a._fx={variant:'buff', label:'+'+Math.round(buffPct*100)+'% ATK'}; });
+      allyTargets().forEach(a=>{ addTimedAllyBuff(a,ability.name,'atk',buffPct,3); a.energy=clamp(a.energy+Math.round(ability.energyGainAll*(a.energyGainMult||1)),0,a.energyMax); a._fx={variant:'buff', label:'+'+Math.round(buffPct*100)+'% ATK'}; });
       logMsg(`${actor.name} scatena un grido di guerra!`);
+    }
+    if(ability.effect==='buff_atk_def'){
+      allyTargets().forEach(a=>{
+        addTimedAllyBuff(a,ability.name,'atk',buffPct,3);
+        addTimedAllyBuff(a,ability.name,'def',ability.defBuffPct,3);
+        a._fx={variant:'buff',label:'+'+Math.round(buffPct*100)+'% ATK / DIF'};
+      });
+      logMsg(`${actor.name} aumenta ATK e DIF di tutta la squadra del ${Math.round(buffPct*100)}% per 3 turni.`);
     }
   }
 
@@ -1938,7 +2072,18 @@ async function executeAbility(actor, abKey, targetId){
   } else if(abKey==='skill'){
     actor.turnSkillCount=(actor.turnSkillCount||0)+1;
     if(actor.skillFreeUses>0){ actor.skillFreeUses--; }
-    else { b.sp = clamp(b.sp-1,0,b.spMax); }
+    else {
+      b.sp = clamp(b.sp-1,0,b.spMax);
+      const mumeiBoss=b.enemies.find(enemy=>enemy.name==='Custode della Civiltà'&&enemy.phase===2&&enemy.mumeiGuardActive);
+      if(mumeiBoss){
+        mumeiBoss.mumeiGuardSkillPointsSpent++;
+        if(mumeiBoss.mumeiGuardSkillPointsSpent>=5){
+          mumeiBoss.mumeiGuardActive=false;
+          mumeiBoss._fx={variant:'buff',label:'SCUDO INFRANTO'};
+          logMsg(`${mumeiBoss.name} perde la riduzione dei danni: sono stati spesi 5 PA nel round.`);
+        }
+      }
+    }
     if(actor.hakosForm) actor.energy=0;
     else actor.energy = clamp(actor.energy+Math.round((ability.energyGain||0)*(actor.energyGainMult||1)),0,actor.energyMax);
   } else if(abKey==='ult'){
@@ -2001,11 +2146,12 @@ async function finishRound(){
   const b = state.battle;
   for(const e of b.enemies.filter(e=>e.hp>0 && e.burnStacks>0)){
     const dot = Math.round(e.maxHp*0.045*e.burnStacks*(e.burnSourceMult||1));
-    e.hp = clamp(e.hp-dot,0,e.maxHp);
+    const appliedDot=applyMumeiBossDamageReduction(e,dot);
+    e.hp = clamp(e.hp-appliedDot,0,e.maxHp);
     updateBossPhase(e);
     noteFinanaThreshold(e);
-    e._fx = {variant:'damage', label:'-'+dot};
-    logMsg(`${e.name} subisce ${dot} danni da ${e.dotName||'Bruciatura'}.`);
+    e._fx = {variant:'damage', label:'-'+appliedDot};
+    logMsg(`${e.name} subisce ${appliedDot} danni da ${e.dotName||'Bruciatura'}.`);
     e.burnRounds--;
     if(e.burnRounds<=0){ e.burnStacks=0; }
     await processFinanaFollowUps(b);
@@ -2016,6 +2162,18 @@ async function finishRound(){
   if(checkBattleEnd()) return false;
 
   b.enemies.forEach(enemy=>{
+    if(enemy.name==='Custode della Civiltà'&&enemy.phase===2&&enemy.mumeiGuardActive){
+      enemy.mumeiGuardSkillPointsSpent=0;
+      if(enemy.mumeiGuardFresh){
+        enemy.mumeiGuardFresh=false;
+      } else {
+        enemy.mumeiGuardRounds--;
+        if(enemy.mumeiGuardRounds<=0){
+          enemy.mumeiGuardActive=false;
+          logMsg(`${enemy.name} perde la riduzione dei danni dopo 5 round.`);
+        }
+      }
+    }
     if(enemy.defDownRounds>0){
       enemy.defDownRounds--;
       if(enemy.defDownRounds===0) enemy.defDownPct=0;
@@ -2028,7 +2186,7 @@ async function finishRound(){
 
   b.allies.forEach(a=>{
     if(a.shieldRounds>0){ a.shieldRounds--; if(a.shieldRounds<=0) a.shield=0; }
-    if(a.buffRounds>0){ a.buffRounds--; if(a.buffRounds<=0) a.atkBuffMult=1; }
+    if(a.activeBuffs?.length) tickTimedAllyBuffs(a,'atk');
     if(a.hitStacks?.length){ a.hitStacks.forEach(s=>s.r--); a.hitStacks=a.hitStacks.filter(s=>s.r>0); }
     if(a.suiseiGuardRounds>0){
       if(a.suiseiGuardFresh) a.suiseiGuardFresh=false;
@@ -2041,7 +2199,10 @@ async function finishRound(){
       if(a.tauntFresh) a.tauntFresh=false;
       else {
         a.tauntRounds--;
-        if(a.tauntRounds===0) logMsg(`${a.name} non provoca più i nemici.`);
+        if(a.tauntRounds===0){
+          a.tauntSource=null;
+          logMsg(`${a.name} non provoca più i nemici.`);
+        }
       }
     }
   });
@@ -2359,7 +2520,7 @@ function toggleAutoBattle(){
 }
 
 function getStageGoldReward(stageNum){
-  const base = Math.round(40 + stageNum*8 + stageNum*stageNum*0.15);
+  const base = Math.round(150 + stageNum*30 + stageNum*stageNum*0.5);
   return isBossStage(stageNum) ? Math.round(base*1.8) : base;
 }
 
@@ -2370,9 +2531,9 @@ function onVictory(){
   for(let i=0;i<lootCount;i++) loot.push(generateArtifact(state.stage));
   b.loot = loot;
   state.inventory.push(...loot);
-  const goldReward = getStageGoldReward(state.stage);
-  b.goldReward = goldReward;
-  state.gold += goldReward;
+  const creditReward = getStageGoldReward(state.stage);
+  b.creditReward = creditReward;
+  state.credits += creditReward;
   state.maxStageReached = Math.max(state.maxStageReached, state.stage+1);
   state.autoBattle=false;
   state.screen='victory';
@@ -2462,8 +2623,8 @@ function levelUpArtifact(uid){
   const level = it.level||0;
   if(level>=ARTIFACT_MAX_LEVEL) return;
   const cost = getArtifactLevelUpCost(level);
-  if(state.gold<cost) return;
-  state.gold -= cost;
+  if(state.credits<cost) return;
+  state.credits -= cost;
   it.level = level+1;
   upgradeArtifactMainStat(it);
   if(it.level % ARTIFACT_SUBSTAT_MILESTONE === 0){
@@ -2482,7 +2643,7 @@ function sellArtifact(uid){
   const idx = state.inventory.findIndex(i=>i.uid===uid);
   if(idx<0) return; // only unequipped artifacts can be sold
   const it = state.inventory[idx];
-  state.gold += getArtifactSellValue(it);
+  state.credits += getArtifactSellValue(it);
   state.inventory.splice(idx,1);
   state.totalArtifactsSold++;
   render();
@@ -2610,8 +2771,8 @@ function upgradeWeapon(uid){
   const weapon = normalizeWeapon(found.weapon);
   if(weapon.level>=WEAPON_MAX_LEVEL) return;
   const cost = getWeaponUpgradeCost(weapon.level);
-  if(state.gold<cost) return;
-  state.gold-=cost;
+  if(state.credits<cost) return;
+  state.credits-=cost;
   weapon.level++;
   weapon.mainStat.value += Math.max(1,Math.round(weapon.baseAtk*0.04));
   render();
@@ -2639,7 +2800,7 @@ function sellWeapon(uid){
     if(index<0) return;
     state.weaponInventory.splice(index,1);
   }
-  state.gold+=value;
+  state.credits+=value;
   render();
 }
 function getWeaponManagementActions(weapon,opts={}){
@@ -2650,9 +2811,9 @@ function getWeaponManagementActions(weapon,opts={}){
   const hasDuplicate=!!findWeaponDuplicate(weapon);
   const actions=[];
   if(opts.onUnequip) actions.push({label:'Rimuovi arma',onClick:opts.onUnequip});
-  actions.push({label:level>=WEAPON_MAX_LEVEL?'Livello massimo':`⬆ Potenzia (${cost} 💠)`,onClick:()=>upgradeWeapon(weapon.uid),disabled:level>=WEAPON_MAX_LEVEL||state.gold<cost});
+  actions.push({label:level>=WEAPON_MAX_LEVEL?'Livello massimo':`⬆ Potenzia (${cost} 🪙)`,onClick:()=>upgradeWeapon(weapon.uid),disabled:level>=WEAPON_MAX_LEVEL||state.credits<cost});
   actions.push({label:ascension>=WEAPON_MAX_ASCENSION?'Ascensione massima':hasDuplicate?`✦ Ascendi ${ascension+1}/${WEAPON_MAX_ASCENSION} (doppione)`:'✦ Ascendi (serve un doppione)',onClick:()=>ascendWeapon(weapon.uid),disabled:ascension>=WEAPON_MAX_ASCENSION||!hasDuplicate});
-  actions.push({label:`💰 Vendi (+${getWeaponSellValue(weapon)} 💠)`,onClick:()=>sellWeapon(weapon.uid)});
+  actions.push({label:`💰 Vendi (+${getWeaponSellValue(weapon)} 🪙)`,onClick:()=>sellWeapon(weapon.uid)});
   return actions;
 }
 function togglePartyMember(charId){
@@ -2853,11 +3014,11 @@ function anyHeroHasEquippedArtifact(){ return Object.values(state.roster).some(r
 function anyHeroHasWeapon(){ return Object.values(state.roster).some(r=>r.weapon); }
 
 const ONE_OFF_QUESTS = [
-  {id:'unlock5star',  desc:'Sblocca un eroe a 5 stelle',       reward:1000, check:hasUnlocked5Star},
-  {id:'equip1',       desc:'Equipaggia il tuo primo manufatto', reward:100,  check:anyHeroHasEquippedArtifact},
-  {id:'equipWeapon',  desc:'Equipaggia la tua prima arma',      reward:150,  check:anyHeroHasWeapon},
-  {id:'finana',       desc:'Completa l\'Universo Simulato per la prima volta', reward:400, unlockChar:'finanaRyugu', rewardText:'Sblocca Finana Ryugu (★★★★)', check:()=>state.suCleared},
-  {id:'kiara',        desc:'Completa Pure Fiction per la prima volta', reward:400, unlockChar:'takanashiKiara', rewardText:'Sblocca Kiara Takanashi (★★★★)', check:()=>state.pfCleared},
+  {id:'unlock5star',  desc:'Sblocca un eroe a 5 stelle',       reward:2000, check:hasUnlocked5Star},
+  {id:'equip1',       desc:'Equipaggia il tuo primo manufatto', reward:500,  check:anyHeroHasEquippedArtifact},
+  {id:'equipWeapon',  desc:'Equipaggia la tua prima arma',      reward:600,  check:anyHeroHasWeapon},
+  {id:'finana',       desc:'Completa l\'Universo Simulato per la prima volta', reward:800, unlockChar:'finanaRyugu', rewardText:'Sblocca Finana Ryugu (★★★★)', check:()=>state.suCleared},
+  {id:'kiara',        desc:'Completa Pure Fiction per la prima volta', reward:800, unlockChar:'takanashiKiara', rewardText:'Sblocca Kiara Takanashi (★★★★)', check:()=>state.pfCleared},
 ];
 
 function getHighestArtifactLevel(){
@@ -2871,11 +3032,11 @@ function getHighestArtifactLevel(){
 
 // Infinite quest tracks: each time claimed, the target and reward both increase for next time.
 const QUEST_TRACKS = [
-  {id:'tower',  label:t=>`Raggiungi il Piano ${t} della Torre`, baseTarget:5, step:5,  baseReward:200, rewardStep:120, getValue:()=>Math.max(0,state.maxStageReached-1)},
-  {id:'heroes', label:t=>`Sblocca ${t} eroi`,                   baseTarget:2, step:1,  baseReward:250, rewardStep:250, getValue:countUnlockedHeroes, maxTarget:Object.keys(CHAR_DB).length},
-  {id:'pulls',  label:t=>`Effettua ${t} evocazioni totali`,     baseTarget:5, step:15, baseReward:150, rewardStep:100, getValue:()=>state.totalPullsDone},
-  {id:'sells',  label:t=>`Vendi ${t} manufatti`,                baseTarget:3, step:5,  baseReward:100, rewardStep:80,  getValue:()=>state.totalArtifactsSold},
-  {id:'artifactLevel', label:t=>`Porta un manufatto al livello ${t}`, baseTarget:5, step:5, baseReward:150, rewardStep:150, getValue:getHighestArtifactLevel, maxTarget:20},
+  {id:'tower',  label:t=>`Raggiungi il Piano ${t} della Torre`, baseTarget:5, step:5,  baseReward:600, rewardStep:300, getValue:()=>Math.max(0,state.maxStageReached-1)},
+  {id:'heroes', label:t=>`Sblocca ${t} eroi`,                   baseTarget:2, step:1,  baseReward:750, rewardStep:500, getValue:countUnlockedHeroes, maxTarget:Object.keys(CHAR_DB).length},
+  {id:'pulls',  label:t=>`Effettua ${t} evocazioni totali`,     baseTarget:5, step:15, baseReward:450, rewardStep:300, getValue:()=>state.totalPullsDone},
+  {id:'sells',  label:t=>`Vendi ${t} manufatti`,                baseTarget:3, step:5,  baseReward:300, rewardStep:240, getValue:()=>state.totalArtifactsSold},
+  {id:'artifactLevel', label:t=>`Porta un manufatto al livello ${t}`, baseTarget:5, step:5, baseReward:450, rewardStep:300, getValue:getHighestArtifactLevel, maxTarget:20},
 ];
 
 function getTrackTarget(track){
@@ -2894,7 +3055,7 @@ function claimTrack(trackId){
   if(!track || isTrackExhausted(track)) return;
   const target = getTrackTarget(track);
   if(track.getValue()<target) return;
-  state.gold += getTrackReward(track);
+  state.credits += getTrackReward(track);
   const tier = state.questTiers[track.id]||0;
   if(track.maxTarget!==undefined && target>=track.maxTarget){
     state.questExhausted[track.id] = true; // fully maxed out, no further tiers
@@ -2908,9 +3069,10 @@ function claimQuest(id){
   const q = ONE_OFF_QUESTS.find(x=>x.id===id);
   if(!q || state.claimedQuests[id] || !q.check()) return;
   state.claimedQuests[id] = true;
-  const reward=q.unlockChar&&!state.roster[q.unlockChar].unlocked ? 0 : q.reward; // reward is only a fallback when the hero is already owned
-  if(q.unlockChar&&reward===0) state.roster[q.unlockChar].unlocked = true;
-  state.gold += reward;
+  const duplicateCharacter = q.unlockChar&&state.roster[q.unlockChar].unlocked;
+  if(q.unlockChar&&!duplicateCharacter) state.roster[q.unlockChar].unlocked = true;
+  if(duplicateCharacter) state.gold += 2000;
+  else state.credits += q.reward;
   render();
 }
 
@@ -2943,6 +3105,7 @@ function renderTopbar(){
     </div>
     <div class="stats">
       <div class="stat"><div class="val">${state.gold}</div><div class="lbl">Frammenti</div></div>
+      <div class="stat"><div class="val">${state.credits}</div><div class="lbl">Crediti</div></div>
       <div class="stat"><div class="val">${state.battle?.mode==='moc'?state.battle.allies.length:state.party.length}/4</div><div class="lbl">Squadra</div></div>
     </div>
   </div>`);
@@ -3222,7 +3385,7 @@ function renderAbilitaTab(){
   wrap.appendChild(cards);
   if(id==='hakosBaels'){
     wrap.appendChild(el(`<div class="screen-title" style="margin-top:20px;"><span class="eyebrow">Rovina del Caos</span><h2>Abilità trasformate</h2></div>`));
-    wrap.appendChild(el(`<div class="hint" style="margin:-8px 0 14px;">Disponibili durante la Ultimate. Hakos resta sola per cinque sue azioni; nessuna abilità genera energia.</div>`));
+    wrap.appendChild(el(`<div class="hint" style="margin:-8px 0 14px;">Disponibili durante la Ultimate. Hakos resta sola per 10 azioni e agisce due volte per turno; nessuna abilità genera energia.</div>`));
     const formCards=el(`<div class="ability-cards"></div>`);
     const formBasic=HAKOS_FORM_ABILITIES.basic;
     const formSkill=HAKOS_FORM_ABILITIES.skill;
@@ -3241,17 +3404,19 @@ function effectLabel(ability){
     case 'kiara_def_buff': return `Aumenta la DIF di Kiara del ${Math.round(ability.defBuffPct*100)}% per 2 turni.`;
     case 'shield_self': return `Scudo su se stesso pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni. Lo stesso scudo (sui PV massimi dell'alleato) va anche all'alleato con meno PV.`;
     case 'shield_all': return `Scudo su tutta la squadra pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni.`;
+    case 'elizabeth_shield_taunt': return `Scudo su un alleato pari al ${Math.round(ability.shieldDefMult*100)}% della DIF di Elizabeth. I nemici lo prendono di mira per ${ability.tauntTurns} turni.`;
     case 'heal': return `Cura un alleato.`;
     case 'heal_all': return `Cura l'intera squadra.`;
     case 'burn': return `Applica ${ability.burnStacks} carica/e di Sanguinamento (danno nel tempo).`;
     case 'burn_all': return `Applica ${ability.burnStacks} carica/e di Sanguinamento a tutti i nemici colpiti.`;
     case 'buff_atk': return `+${Math.round(ability.buffPct*100)}% ATK a tutta la squadra per 2 turni.`;
     case 'buff_atk_energy': return `+${Math.round(ability.buffPct*100)}% ATK per 3 turni e +${ability.energyGainAll} energia a tutta la squadra.`;
+    case 'buff_atk_def': return `+${Math.round(ability.buffPct*100)}% ATK e +${Math.round(ability.defBuffPct*100)}% DIF a tutta la squadra per 3 turni.`;
     case 'boost_basic_hits': return `Aumenta di 1 il numero di colpi dell'Attacco Base (fino a un massimo di 10). Non conclude il turno: si può riusare finché ci sono Punti Abilità, poi va chiusa con l'Attacco Base. Le prime 2 Skill della battaglia non costano Punti Abilità.`;
     case 'extra_attack_buff': return `L'alleato scelto attacca subito una volta in più e ottiene +${Math.round(ability.buffPct*100)}% ATK per 2 turni.`;
     case 'grant_sp': return `Dona istantaneamente ${ability.spGrant} Punti Abilità alla squadra (nessun danno).`;
     case 'grant_sp_and_buff': return `Dona istantaneamente ${ability.spGrant} Punti Abilità e +${Math.round(ability.buffPct*100)}% ATK a tutta la squadra per 2 turni.`;
-    case 'hakos_ultimate': return `Assorbe PV, ATK, DIF, VEL, scudi e buff ATK degli alleati. Hakos resta sola per cinque suoi turni; poi li richiama. Durante la forma non guadagna energia.`;
+    case 'hakos_ultimate': return `Assorbe PV, ATK, DIF, VEL, scudi e buff ATK degli alleati. Hakos resta sola per 10 azioni e agisce due volte per turno; poi li richiama. Durante la forma non guadagna energia.`;
     case 'suisei_guard': return `Sacrifica il 50% dei PV correnti e riduce del 40% i danni subiti per 3 round. I nemici sono costretti ad attaccare Susei per 2 round (Provocazione). Durante la postura la Skill è bloccata e il Basic viene potenziato.`;
     case 'suisei_set_half_hp': return `Dopo il colpo porta i PV di Susei esattamente al 50%: cura se è sotto, sacrifica PV se è sopra.`;
     case 'laplus_def_down': return `Riduce la DIF del nemico del 15% per 2 round. Il debuff si accumula fino al 75%.`;
@@ -3338,8 +3503,8 @@ function renderInventarioTab(){
       const cost=getArtifactLevelUpCost(it.level||0);
       const maxed=(it.level||0)>=ARTIFACT_MAX_LEVEL;
       const card=renderArtifactCard(it,{actions:[
-        {label:maxed?'Livello massimo':`⬆ Potenzia (${cost} 💠)`,onClick:()=>levelUpArtifact(it.uid),disabled:maxed||state.gold<cost},
-        {label:`💰 Vendi (+${getArtifactSellValue(it)} 💠)`,onClick:()=>sellArtifact(it.uid)},
+        {label:maxed?'Livello massimo':`⬆ Potenzia (${cost} 🪙)`,onClick:()=>levelUpArtifact(it.uid),disabled:maxed||state.credits<cost},
+        {label:`💰 Vendi (+${getArtifactSellValue(it)} 🪙)`,onClick:()=>sellArtifact(it.uid)},
       ]});
       const set=ARTIFACT_SETS[it.setId];
       const stats=[it.mainStat,...it.subStats].map(stat=>stat.key);
@@ -3354,7 +3519,7 @@ function renderInventarioTab(){
     invPanel.appendChild(el(`<div class="hint inventory-no-results" hidden>Nessun manufatto corrisponde ai filtri.</div>`));
   }
   wrap.appendChild(invPanel);
-  wrap.appendChild(el(`<div class="hint" style="margin:8px 0 20px;">I manufatti si possono potenziare fino al livello 20 e vendere per Frammenti. I set attivano bonus con 2 e 4 pezzi.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin:8px 0 20px;">I manufatti si possono potenziare fino al livello 20 spendendo Crediti e vendere per Crediti. I set attivano bonus con 2 e 4 pezzi.</div>`));
 
   wrap.appendChild(el(`<div class="screen-title inventory-section-heading" data-inventory-heading="arma"><span class="eyebrow">Armi</span><h2>${state.weaponInventory.length}</h2></div>`));
   const wpnPanel=el(`<div class="hud-panel section inventory-section" data-inventory-section="arma" style="padding:16px;"></div>`);
@@ -3517,9 +3682,9 @@ function renderTutorialTab(){
     ['Attacco, Skill e Ultimate', `<ul><li><b>Attacco Base:</b> infligge danno, genera Punti Abilità e ricarica energia.</li><li><b>Skill:</b> di norma costa 1 Punto Abilità; alcune abilità hanno usi gratuiti o effetti speciali.</li><li><b>Ultimate:</b> si attiva quando l'energia è al massimo e consuma tutta l'energia accumulata.</li></ul><p>La squadra parte con 3 Punti Abilità, ne può conservare fino a 5; Ouro Kronii aumenta il limite se è in squadra.</p>`],
     ['Elementi e danni', `<p>Ogni eroe ha un elemento; ogni nemico ha sempre gli stessi 3 elementi, mostrati nell'Indice e in battaglia. Un attacco dello stesso elemento infligge metà danno. Un elemento forte contro uno dei tipi del nemico infligge il doppio; gli altri attacchi infliggono danno normale.</p><ul>${Object.keys(ELEMENT_DATA).map(element=>`<li><b>${ELEMENT_DATA[element].label}</b> è forte contro ${ELEMENT_DATA[ELEMENT_DATA[element].strongAgainst].label}.</li>`).join('')}</ul>`],
     ['Manufatti e set', `<p>Equipaggia fino a 5 manufatti per eroe. Le statistiche principali e secondarie aumentano i parametri; i bonus set si attivano con 2 e 4 pezzi dello stesso set. Puoi potenziare un manufatto fino al livello 20; ogni 5 livelli migliora una statistica secondaria casuale.</p>`],
-    ['Armi', `<p>Ogni eroe ha uno slot arma. Ogni arma ha rarità, ATK, statistica secondaria ed effetto fissi. Potenziala fino al livello 20 spendendo Frammenti; ascendi fino al grado 5 consumando un doppione identico e vendila dall'Armeria. Ci sono due Banner armi: uno con le armi esclusive degli eroi 4 stelle e uno con quelle degli eroi 5 stelle.</p>`],
-    ['Torre e ricompense', `<p>Avanza nella Torre Infinita: ogni piano aumenta la difficoltà e ogni 5 piani affronti un boss. Le vittorie danno Frammenti e manufatti; usa i Frammenti per evocare dal Banner o potenziare l'equipaggiamento.</p>`],
-    ['Banner e missioni', `<p>Un'evocazione costa 300 Frammenti. Il Banner personaggi garantisce un personaggio 4 stelle entro 10 evocazioni e uno 5 stelle entro 50. Nei Banner armi i personaggi hanno le stesse probabilità base ma nessuna garanzia: un'arma esclusiva (4 o 5 stelle a seconda del banner) è invece garantita ogni 30 evocazioni su quel banner. Le missioni offrono Frammenti aggiuntivi.</p>`],
+    ['Armi', `<p>Ogni eroe ha uno slot arma. Ogni arma ha rarità, ATK, statistica secondaria ed effetto fissi. Potenziala fino al livello 20 spendendo Crediti; ascendi fino al grado 5 consumando un doppione identico e vendila dall'Armeria. Ci sono due Banner armi: uno con le armi esclusive degli eroi 4 stelle e uno con quelle degli eroi 5 stelle.</p>`],
+    ['Torre, domini e ricompense', `<p>Avanza nella Torre Infinita: ogni piano aumenta la difficoltà e ogni 5 piani affronti un boss. Le vittorie in Torre e nei domini danno Crediti e manufatti; usa i Crediti per potenziare armi e manufatti e i Frammenti (ottenuti nel Travel Log) per evocare dal Banner.</p>`],
+    ['Banner e missioni', `<p>Un'evocazione costa 300 Frammenti. Il Banner personaggi garantisce un personaggio 4 stelle entro 10 evocazioni e uno 5 stelle entro 50. Nei Banner armi i personaggi hanno le stesse probabilità base ma nessuna garanzia: un'arma esclusiva (4 o 5 stelle a seconda del banner) è invece garantita ogni 30 evocazioni su quel banner. Le missioni offrono Crediti aggiuntivi.</p>`],
   ];
   const grid = el(`<div class="tutorial-grid"></div>`);
   sections.forEach(([title, content])=>{
@@ -3558,7 +3723,7 @@ function renderMissioniTab(){
     const statusColor = exhausted ? 'var(--green)' : completed ? 'var(--amber)' : 'var(--text-dim)';
     const card = el(`<div class="hud-panel artifact-card" style="border-color:${exhausted?'var(--green)':completed?'var(--amber)':'var(--border)'}">
       <div class="ac-name">${track.label(target)} ${exhausted?'':`<span class="ac-level">Livello ${tier}</span>`}</div>
-      <div class="ac-main">Ricompensa: <b>+${reward} 💠</b></div>
+      <div class="ac-main">Ricompensa: <b>+${reward} 🪙</b></div>
       <div class="ac-setname" style="color:${statusColor}">${statusLabel}</div>
     </div>`);
     if(completed){
@@ -3577,9 +3742,12 @@ function renderMissioniTab(){
     const completed = !claimed && q.check();
     const statusLabel = claimed ? '✓ Riscattata' : completed ? 'Completata!' : 'In corso';
     const statusColor = claimed ? 'var(--green)' : completed ? 'var(--amber)' : 'var(--text-dim)';
+    const duplicateCharacter = q.unlockChar&&state.roster[q.unlockChar].unlocked;
+    const unlockReward = q.rewardText&&!duplicateCharacter ? `${q.rewardText} · ` : '';
+    const rewardLabel = duplicateCharacter ? '+2000 💠 Frammenti' : `${unlockReward}+${q.reward} 🪙 Crediti`;
     const card = el(`<div class="hud-panel artifact-card" style="border-color:${claimed?'var(--green)':completed?'var(--amber)':'var(--border)'}">
       <div class="ac-name">${q.desc}</div>
-      <div class="ac-main">Ricompensa: <b>${q.rewardText?q.rewardText:`+${q.reward} 💠`}</b></div>
+      <div class="ac-main">Ricompensa: <b>${rewardLabel}</b></div>
       <div class="ac-setname" style="color:${statusColor}">${statusLabel}</div>
     </div>`);
     if(completed){
@@ -3818,7 +3986,7 @@ function renderViewArtifactModal(){
     const cost = getArtifactLevelUpCost(it.level||0);
     const maxed = (it.level||0)>=ARTIFACT_MAX_LEVEL;
     box.appendChild(renderArtifactCard(it, {actions:[
-      {label: maxed ? 'Livello massimo' : `⬆ Potenzia (${cost} 💠)`, onClick:()=>levelUpArtifact(it.uid), disabled: maxed || state.gold<cost},
+      {label: maxed ? 'Livello massimo' : `⬆ Potenzia (${cost} 🪙)`, onClick:()=>levelUpArtifact(it.uid), disabled: maxed || state.credits<cost},
       {label:'Rimuovi manufatto', onClick:()=>{ unequipItem(charId,slotIdx); closeViewArtifact(); }},
     ]}));
   }
@@ -3938,6 +4106,7 @@ function renderBattle(){
       <div class="name">${e.name}</div>
       ${e.inaMarked?'<div class="ina-mark-tag">✦ MARCHIATO · INA</div>':''}
       ${e.isBoss?`<div class="boss-tag">BARRA ${e.phase||1}/2 · 2 ATTACCHI</div>`:''}
+        ${e.name==='Custode della Civiltà'&&e.phase===2&&e.mumeiGuardActive?`<div class="boss-add-tag" style="color:var(--amber);">DANNI SUBITI -40% · ${e.mumeiGuardRounds} ROUND · ${e.mumeiGuardSkillPointsSpent}/5 PA</div>`:''}
       ${e.stunTurns>0?`<div class="boss-add-tag" style="color:var(--amber);">⚡ STORDITO · ${e.stunTurns} TURNI</div>`:''}
       ${e.role?`<div class="boss-add-tag" style="color:var(--cyan);">${SPECIAL_ENEMIES[e.name].label.toUpperCase()}${e.role==='bomber'&&e.bomberCharged?' · CARICO!':''}</div>`:''}
       ${isAbissoProtected(e)?'<div class="boss-add-tag">PROTETTO · DANNI -90% FINCHÉ ESISTONO ALTRI NEMICI</div>':''}
@@ -3993,17 +4162,18 @@ function renderBattle(){
     const isActive = activeEntry?.side==='ally' && activeEntry.id===a.charId && b.phase==='ally_turn' && !b.pendingAbility && !auto;
     const isTargetable = targetingAlly && !dead;
     const fx = consumeFx(a, CHAR_DB[a.charId].animStyle);
+    const statusMarkup=getAllyBattleStatusMarkup(a);
     const card = el(`<div class="hud-panel ally-card ${isActive?'active-turn':''} ${dead?'dead':''} ${isTargetable?'selectable-target':''}" style="--char-glow:${hexToRgba(a.color,0.85)};--fx-scale:${fx.scale};${isActive?'border-color:'+a.color+';box-shadow:0 0 0 1px '+a.color+' inset;':''}position:relative;${fx.animation?'animation:'+fx.animation+';':''}">
       <div class="ally-top">
         <div class="ally-portrait" style="background:${a.color}">${a.glyph}</div>
-        <div><div class="ally-name">${a.name}</div><div class="element-tag">${ELEMENT_DATA[a.element]?.label||a.element}</div>${a.hakosForm?`<div class="hakos-form-tag">FORMA CAOTICA · ${a.hakosFormTurns}/5</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiGuardRounds>0?`<div class="suisei-posture-tag">POSTURA STELLARE · ${a.suiseiGuardRounds}/3</div>`:''}${a.tauntRounds>0?`<div class="suisei-posture-tag">PROVOCAZIONE · ${a.tauntRounds}</div>`:''}${a.hitStacks?.length?`<div class="suisei-posture-tag">FURIA ×${a.hitStacks.length}</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiFollowUpReady?'<div class="suisei-posture-tag">FOLLOW-UP PRONTO</div>':''}</div>
+        <div><div class="ally-name">${a.name}</div><div class="element-tag">${ELEMENT_DATA[a.element]?.label||a.element}</div>${a.hakosForm?`<div class="hakos-form-tag">FORMA CAOTICA · ${a.hakosFormTurns}/10</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiGuardRounds>0?`<div class="suisei-posture-tag">POSTURA STELLARE · ${a.suiseiGuardRounds}/3</div>`:''}${a.tauntRounds>0?`<div class="suisei-posture-tag">PROVOCAZIONE · ${a.tauntRounds}</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiFollowUpReady?'<div class="suisei-posture-tag">FOLLOW-UP PRONTO</div>':''}</div>
       </div>
       <div class="mini-lbl"><span>PV</span><span>${a.hp}/${a.maxHp}</span></div>
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(a.hp/a.maxHp*100)}%"></div></div>
       <div class="mini-lbl" style="margin-top:5px;"><span>Energia</span><span>${a.energy}/${a.energyMax}</span></div>
       <div class="bar-track"><div class="bar-fill energy-fill" style="width:${(a.energy/a.energyMax*100)}%"></div></div>
       ${a.shield>0?`<div class="shield-tag">🛡 Scudo ${a.shield}</div>`:''}
-      ${a.buffRounds>0?`<div class="buff-tag">▲ ATK +${Math.round((a.atkBuffMult-1)*100)}%</div>`:''}
+      ${statusMarkup}
       ${a.charId==='ninomaeInaNis'?`<div class="ina-charge-tag">FOLLOW-UP ${a.inaFollowUpsRemaining}/3</div>`:''}
       ${a.charId==='suiseiHoshimachi'?`<div class="suisei-revive-tag">RINASCITE ${a.suiseiRevivesRemaining}/2</div>`:''}
       ${fx.floatHtml}
@@ -4116,6 +4286,11 @@ function renderMemoryOfChaos(){
       const button=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="mocContinue">Affronta il secondo boss ▶</button></div>`);
       button.querySelector('#mocContinue').onclick=continueMOC;
       wrap.appendChild(button);
+    } else if(phase==='failed'){
+      const buttons=el(`<div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:14px;"><button class="primary" id="mocRetry">Riprova la sfida ▶</button><button class="small" id="mocBackToMenu">Torna al menu MoC</button></div>`);
+      buttons.querySelector('#mocRetry').onclick=retryMOC;
+      buttons.querySelector('#mocBackToMenu').onclick=finishMOC;
+      wrap.appendChild(buttons);
     } else {
       const button=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="mocFinish">${phase==='failed'?'Riprova la sfida':'Torna al Travel Log'} ▶</button></div>`);
       button.querySelector('#mocFinish').onclick=phase==='failed'?retryMOC:finishMOC;
@@ -4124,7 +4299,7 @@ function renderMemoryOfChaos(){
     return wrap;
   }
   wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Sconfiggi due boss consecutivi con squadre distinte. Boss e potenziamenti sono gli stessi per tutti e ruotano ogni giorno; i boss scalano con il massimo piano raggiunto. Le ricompense si possono ottenere una volta al giorno.</div>`));
-  wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;"><div class="eyebrow">Boss e potenziamenti di oggi</div><div class="stat-row"><span>Boss 1</span><b>${setup.bosses[0]}</b></div><div class="stat-row"><span>Boss 2</span><b>${setup.bosses[1]}</b></div><div style="margin-top:8px;"><b>${setup.buffs.general.name}</b> · <span class="hint">${setup.buffs.general.desc}</span></div><div style="margin-top:6px;"><b>${setup.buffs.theme.name}</b> · <span class="hint">${setup.buffs.theme.desc}</span></div></div>`));
+  wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;"><div class="eyebrow">Boss e potenziamenti di oggi</div><div class="stat-row"><span>Boss 1</span><b class="moc-boss-info">${setup.bosses[0]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[0])}</span></b></div><div class="stat-row"><span>Boss 2</span><b class="moc-boss-info">${setup.bosses[1]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[1])}</span></b></div><div style="margin-top:8px;"><b>${setup.buffs.general.name}</b> · <span class="hint">${setup.buffs.general.desc}</span></div><div style="margin-top:6px;"><b>${setup.buffs.theme.name}</b> · <span class="hint">${setup.buffs.theme.desc}</span></div></div>`));
   const tierPanel=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense di oggi · Boss sconfitti: ${day.clears}/2</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="mocTimer"></b></div></div>`);
   startPFTimer(tierPanel.querySelector('#mocTimer'));
   MOC_TIERS.forEach((tier,index)=>{
@@ -4135,13 +4310,15 @@ function renderMemoryOfChaos(){
 
   const teamsPanel=el(`<div class="moc-teams"></div>`);
   state.mocTeams.forEach((team,teamIndex)=>{
-    const panel=el(`<section class="hud-panel moc-team-panel"><h3>Squadra ${teamIndex+1} <span>${team.length}/4</span></h3><div class="moc-hero-list"></div></section>`);
+    const bossName=setup.bosses[teamIndex];
+    const panel=el(`<section class="hud-panel moc-team-panel"><h3>Squadra ${teamIndex+1} <span>${team.length}/4</span></h3><div class="moc-team-elements" title="${bossName}">${renderMOCBossElements(bossName)}</div><div class="moc-hero-list"></div></section>`);
     const list=panel.querySelector('.moc-hero-list');
     Object.entries(CHAR_DB).filter(([id])=>state.roster[id]?.unlocked).forEach(([id,char])=>{
       const selected=team.includes(id);
       const assignedOther=state.mocTeams[1-teamIndex].includes(id);
       const disabled=assignedOther||(!selected&&team.length>=4);
-      const option=el(`<button class="moc-hero-option ${selected?'selected':''}" type="button" ${disabled?'disabled':''}><span class="moc-hero-glyph" style="background:${char.color}">${char.glyph}</span><span>${char.name}</span><span class="moc-hero-check">${selected?'✓':''}</span></button>`);
+      const strongAgainst=isElementStrongAgainstMOCBoss(char.element,bossName);
+      const option=el(`<button class="moc-hero-option ${selected?'selected':''} ${strongAgainst?'strong-against':''}" type="button" aria-label="${char.name}${strongAgainst?', elemento efficace contro '+bossName:''}" ${disabled?'disabled':''}><span class="moc-hero-glyph" style="background:${char.color}">${char.glyph}</span><span>${char.name}</span><span class="moc-hero-check">${selected?'✓':''}</span></button>`);
       option.onclick=()=>toggleMOCHero(teamIndex,id);
       list.appendChild(option);
     });
@@ -4175,7 +4352,7 @@ function renderTravelLogTab(){
 function renderDominiTab(){
   const wrap = document.createElement('div');
   wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Farming manufatti</span><h2>Domini</h2></div>`));
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Scegli un dominio: affronta una battaglia a parte, con nemici scalati sul tuo piano della Torre (livello ${domainStage()}), e ottieni 3 manufatti del set scelto, più un po' di Frammenti. In un dominio i manufatti hanno una probabilità maggiore di essere Leggendari.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Scegli un dominio: affronta una battaglia a parte, con nemici scalati sul tuo piano della Torre (livello ${domainStage()}), e ottieni 3 manufatti del set scelto e Crediti. In un dominio i manufatti hanno una probabilità maggiore di essere Leggendari.</div>`));
   const grid=el(`<div class="artifact-grid"></div>`);
   Object.entries(ARTIFACT_SETS).forEach(([setId,set])=>{
     const card=el(`<div class="hud-panel artifact-card" style="border-color:${RARITY_COLOR.leggendaria};">
@@ -4342,7 +4519,7 @@ function renderVictory(){
   const b = state.battle;
   const wrap = el(`<div class="hud-panel center-msg win">
     <h2>${b.mode==='domain'?'Dominio Superato':'Piano Superato'}</h2>
-    <div class="hint">${b.mode==='domain'?`Hai completato il Dominio ${ARTIFACT_SETS[b.domainSet].name}.`:`Hai sconfitto tutti i nemici del Piano ${state.stage}.`} +${b.goldReward||0} 💠 Frammenti</div>
+    <div class="hint">${b.mode==='domain'?`Hai completato il Dominio ${ARTIFACT_SETS[b.domainSet].name}.`:`Hai sconfitto tutti i nemici del Piano ${state.stage}.`} +${b.creditReward||0} 🪙 Crediti</div>
   </div>`);
   const loot = el(`<div class="artifact-grid"></div>`);
   b.loot.forEach(it=>{
