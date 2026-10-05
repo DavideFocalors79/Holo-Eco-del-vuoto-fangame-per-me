@@ -108,7 +108,7 @@ const CHAR_DB = {
 };
 
 const ENEMY_NAMES = ['Larva del Vuoto','Sentinella Corrotta','Sciame Spinato','Costrutto Infranto','Ombra Vagante'];
-const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra','Abisso Primordiale','Custode della Civiltà','Titano dell’Eclissi'];
+const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra','Abisso Primordiale','Custode della Civiltà','Titano dell’Eclissi','Suisei Pshyco','Costrutto Immergreen'];
 const MAX_ENEMIES_IN_BATTLE = 5;
 const BOSS_HP_FACTOR = 1.5, BOSS_ATK_FACTOR = 0.75;
 const BOSS_MECHANICS = {
@@ -119,8 +119,10 @@ const BOSS_MECHANICS = {
   'Abisso Primordiale':{phase1:'shield_heal',phase2:'summon_burst'},
   'Custode della Civiltà':{phase1:'normal',phase2:'mumei_guard'},
   'Titano dell’Eclissi':{phase1:'normal',phase2:'basic_ult_resistance'},
+  'Suisei Pshyco':{phase1:'psycho',phase2:'psycho'},
+  'Costrutto Immergreen':{phase1:'construct',phase2:'construct'},
 };
-const BOSS_MECHANIC_LABELS = {normal:'Attacchi normali',shield:'Scudo',summon:'Evoca rinforzi',heal:'Cura',area:'Attacco ad area',shield_heal:'Scudo e cura',summon_burst:'Evoca due sentinelle; AoE massiva se sopravvivono 2 turni',mumei_guard:'Danni subiti -40% per 5 round o finché non vengono spesi 5 PA in un round',basic_ult_resistance:'Resistenza 80% agli Attacchi Base e alle Ultimate'};
+const BOSS_MECHANIC_LABELS = {normal:'Attacchi normali',shield:'Scudo',summon:'Evoca rinforzi',heal:'Cura',area:'Attacco ad area',shield_heal:'Scudo e cura',summon_burst:'Evoca due sentinelle; AoE massiva se sopravvivono 2 turni',mumei_guard:'Danni subiti -40% per 5 round o finché non vengono spesi 5 PA in un round',basic_ult_resistance:'Resistenza 80% agli Attacchi Base e alle Ultimate',psycho:'Dopo 4 colpi ricevuti (non DoT) esegue un follow-up AoE, recupera il 2% dei PV massimi e aumenta permanentemente i danni del 30% (cumulabile e applicato a tutti gli attacchi); se non lo attiva in un round perde il 10% dei PV massimi. In Fase 2 attacca una volta e poi si cura.',construct:'Tre parti condividono i PV (doppio rispetto a un boss normale). In Fase 2 il centro attacca due volte, il secondo colpo è AoE; il danno assorbito dagli scudi alleati gli viene riflesso al 150%.'};
 const ENEMY_ELEMENT_SETS = {
   'Larva del Vuoto':['quantum','hydro','dendro'],
   'Sentinella Corrotta':['physical','electro','imaginary'],
@@ -134,6 +136,8 @@ const ENEMY_ELEMENT_SETS = {
   'Abisso Primordiale':['hydro','electro','physical'],
     'Custode della Civiltà':['electro','ether','physical'],
     'Titano dell’Eclissi':['physical','ether','imaginary'],
+    'Suisei Pshyco':['imaginary','hydro','dendro'],
+    'Costrutto Immergreen':['imaginary','dendro','electro'],
   'Sacerdote Spezzato':['dendro','ether','hydro'],
   'Custode Scudato':['physical','quantum','imaginary'],
   'Araldo Infiammato':['electro','imaginary','ether'],
@@ -290,6 +294,7 @@ const WEAPON_DEFINITIONS = {
   'Voce della Speranza': {ownerId:'IRyS', effect:{stat:'buffPctBonus', base:0.10, perAscension:0.02, describe:value=>`Efficacia dei buff ATK +${Math.round(value*100)}%.`}},
   'Eternita Meccanica': {ownerId:'ouroKronii', effect:{stat:'spGrantBonus', base:1, perAscension:1, ascensionStep:3, describe:value=>`Le Skill che donano PA ne forniscono ${value} in piu.`}},
   'Caos Inevitabile': {ownerId:'hakosBaels', effect:{stat:'damageMult', base:0.15, perAscension:0.03, extra:[{stat:'startEnergyBonus',value:100}], describe:value=>`Danni inflitti +${Math.round(value*100)}%. Inizia ogni battaglia con 100 energia.`}},
+  'Marea Senza Fine': {ownerId:'koboKanaeru', effect:{stat:'dotDamageMult',base:0.35,perAscension:0.05,describe:value=>`Danni da DoT +${Math.round(value*100)}%.`}},
   'Sigillo del Disordine': {ownerId:'laplusDarkness', effect:{stat:'defDownBonus', base:0.05, perAscension:0.02, describe:value=>`Ogni attacco riduce la DIF nemica di ${Math.round(value*100)}% per 2 round.`}},
   'Scia della Cometa': {ownerId:'suiseiHoshimachi', effect:{stat:'hpDamageMult',base:0.15,perAscension:0.03,describe:value=>`Danni delle abilita basate sui PV massimi +${Math.round(value*100)}%.`}},
   'Reliquiario delle Profondita': {ownerId:'ninomaeInaNis', effect:{stat:'damageMult', base:0.12, perAscension:0.025, describe:value=>`Danni inflitti +${Math.round(value*100)}%.`}},
@@ -307,6 +312,7 @@ const SIGNATURE_WEAPONS = [
   {name:'Voce della Speranza', ownerId:'IRyS', atk:145, subStat:{key:'energy_pct',value:0.16}},
   {name:'Eternita Meccanica', ownerId:'ouroKronii', atk:170, subStat:{key:'speed',value:7}},
   {name:'Caos Inevitabile', ownerId:'hakosBaels', atk:188, subStat:{key:'atk_pct',value:0.14}},
+  {name:'Marea Senza Fine',ownerId:'koboKanaeru',atk:180,subStat:{key:'atk_pct',value:0.14}},
   {name:'Sigillo del Disordine', ownerId:'laplusDarkness', atk:182, subStat:{key:'energy_pct',value:0.14}},
   {name:'Scia della Cometa',ownerId:'suiseiHoshimachi',atk:180,subStat:{key:'hp_pct',value:0.14}},
   {name:'Reliquiario delle Profondita', ownerId:'ninomaeInaNis', atk:176, subStat:{key:'hp_pct',value:0.12}},
@@ -587,9 +593,12 @@ let state = {
   mocDaily:null,
   mocTeams:[[],[]],
   moc:null,
+  apocDaily:null,
+  apoc:null,
   suCleared:false,
   su:null,
   suDaily:null,
+  dailyMissions:null,
   bannerType:'personaggi',
   lastPullBanner:'personaggi',
   lastPullResults:[],
@@ -635,8 +644,10 @@ function getSaveData(){
     pfCleared: state.pfCleared,
     mocDaily: state.mocDaily,
     mocTeams: state.mocTeams,
+    apocDaily: state.apocDaily,
     suCleared: state.suCleared,
     suDaily: state.suDaily,
+    dailyMissions: state.dailyMissions,
     claimedQuests: state.claimedQuests,
     questTiers: state.questTiers,
     questExhausted: state.questExhausted,
@@ -702,8 +713,10 @@ function loadGame(){
     state.pfCleared = !!data.pfCleared;
     state.mocDaily = data.mocDaily || null;
     state.mocTeams = Array.isArray(data.mocTeams) && data.mocTeams.length===2 ? data.mocTeams : [[],[]];
+    state.apocDaily = data.apocDaily || null;
     state.suCleared = !!data.suCleared;
     state.suDaily = data.suDaily || null;
+    state.dailyMissions = data.dailyMissions || null;
     state.claimedQuests = data.claimedQuests || {};
     state.questTiers = data.questTiers || {};
     state.questExhausted = data.questExhausted || {};
@@ -719,7 +732,7 @@ function resetSave(){
   try{ localStorage.removeItem(SAVE_KEY); } catch(e){}
   state.gold=0; state.credits=0; state.stage=1; state.maxStageReached=1; state.inventory=[]; state.itemUidCounter=1;
   state.weaponInventory=[]; state.weaponUidCounter=1; state.pityCounter=0; state.pity5Counter=0; state.lastPullResults=[];
-  state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.pfCleared=false; state.mocDaily=null; state.mocTeams=[[],[]]; state.moc=null; state.travelTab='purefiction'; state.suCleared=false; state.suDaily=null; state.su=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
+  state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.pfCleared=false; state.mocDaily=null; state.mocTeams=[[],[]]; state.moc=null; state.apocDaily=null; state.apoc=null; state.travelTab='purefiction'; state.suCleared=false; state.suDaily=null; state.su=null; state.dailyMissions=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
   state.claimedQuests={}; state.questTiers={}; state.questExhausted={}; state.totalPullsDone=0; state.totalArtifactsSold=0;
   initRoster();
   state.party=['kaelaKolvalskia'];
@@ -762,6 +775,23 @@ function isBossStage(n){return n%5===0;}
 function getFloorEnemyBaseHp(stageNum){
   return Math.round(260+stageNum*58+stageNum*stageNum*1.5);
 }
+function expandConstructBossParts(boss){
+  if(boss.name!=='Costrutto Immergreen') return [boss];
+  const groupId=`${boss.id}_shared`;
+  const sharedMaxHp=boss.maxHp*2;
+  return ['sinistro','centrale','destro'].map((part,index)=>({
+    ...boss,
+    id:`${boss.id}_${part}`,
+    name:'Costrutto Immergreen',
+    partLabel:part,
+    constructGroupId:groupId,
+    constructPart:index,
+    hp:sharedMaxHp,
+    maxHp:sharedMaxHp,
+    shield:0,
+    dots:[],
+  }));
+}
 function generateEnemies(stageNum){
   const n = stageNum;
   const boss = isBossStage(n);
@@ -778,9 +808,9 @@ function generateEnemies(stageNum){
     const hp = special ? Math.round(hpBase*SPECIAL_ENEMIES[special].hpMult) : hpBase;
     const elements = ENEMY_ELEMENT_SETS[name].slice();
     const speed = 90+Math.floor(Math.random()*31);
-    enemies.push({id:'e'+i,name,role,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed,element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,isBoss:boss,phase:boss?1:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0});
+    enemies.push({id:'e'+i,name,role,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed,element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,isBoss:boss,phase:boss?1:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0,psychoHitCount:0,psychoTriggeredThisRound:false});
   }
-  return enemies;
+  return enemies.flatMap(expandConstructBossParts);
 }
 
 /* ============ BATTLE SETUP ============ */
@@ -839,6 +869,45 @@ function ensurePFDay(){
 function getPFDailyBuffs(){
   const key=pfDateKey();
   return {general:PF_GENERAL_BUFFS[pfHash(key+'g')%PF_GENERAL_BUFFS.length], theme:PF_THEME_BUFFS[pfHash(key+'t')%PF_THEME_BUFFS.length]};
+}
+const APOC_UNLOCK_STAGE=PF_UNLOCK_STAGE;
+const APOC_ROUNDS=PF_ROUNDS;
+const APOC_TIERS=[
+  {id:'stacks',label:'Rimuovi la riduzione ai danni',reward:600},
+  {id:'phase',label:'Svuota la prima barra del boss',reward:1200},
+  {id:'clear',label:'Sconfiggi il boss entro 12 round',reward:1800},
+];
+function ensureApocDay(){
+  const date=pfDateKey();
+  if(!state.apocDaily || state.apocDaily.date!==date){
+    state.apocDaily={date,claimed:[false,false,false],bestRounds:null};
+  }
+  if(!Array.isArray(state.apocDaily.claimed)) state.apocDaily.claimed=[false,false,false];
+  while(state.apocDaily.claimed.length<APOC_TIERS.length) state.apocDaily.claimed.push(false);
+  return state.apocDaily;
+}
+function getApocSetup(){
+  const key=pfDateKey();
+  const bossIndex=pfHash(key+'apoc-boss')%BOSS_NAMES.length;
+  return {
+    boss:BOSS_NAMES[bossIndex],
+    buffs:{
+      general:PF_GENERAL_BUFFS[pfHash(key+'apoc-general')%PF_GENERAL_BUFFS.length],
+      theme:PF_THEME_BUFFS[pfHash(key+'apoc-theme')%PF_THEME_BUFFS.length],
+    },
+  };
+}
+function claimApocTier(index){
+  const day=ensureApocDay();
+  const tier=APOC_TIERS[index];
+  if(!tier || day.claimed[index]) return 0;
+  day.claimed[index]=true;
+  state.gold+=tier.reward;
+  return tier.reward;
+}
+function claimApocProgressRewards(boss){
+  if(boss.apocStacks>=10) claimApocTier(0);
+  if(boss.phase>=2) claimApocTier(1);
 }
 function applyPFBuffs(allies,buffs){
   allies.forEach(a=>{
@@ -930,6 +999,27 @@ function endPureFiction(reason){
 function startPureFiction(){
   if(state.maxStageReached<=PF_UNLOCK_STAGE) return;
   startBattle('pf');
+}
+
+function startApocalypticShadow(){
+  if(state.maxStageReached<=APOC_UNLOCK_STAGE) return;
+  state.apoc={setup:getApocSetup()};
+  startBattle('apoc');
+}
+function endApocalypticShadow(reason){
+  const b=state.battle;
+  if(!b || b.mode!=='apoc') return;
+  b.phase='resolved';
+  state.autoBattle=false;
+  const boss=b.enemies.find(enemy=>enemy.isBoss);
+  if(boss) claimApocProgressRewards(boss);
+  if(reason==='victory'&&b.round<=APOC_ROUNDS){
+    claimApocTier(2);
+    const day=ensureApocDay();
+    day.bestRounds=day.bestRounds===null?b.round:Math.min(day.bestRounds,b.round);
+  }
+  b.apocResult={reason,rounds:b.round,stacks:boss?.apocStacks||0,phase:boss?.phase||1};
+  state.screen='apocresult';
 }
 
 /* ============ MEMORY OF CHAOS ============ */
@@ -1027,9 +1117,26 @@ function retryMOC(){
 }
 function generateMOCBoss(name,index){
   const stage=Math.max(MOC_UNLOCK_STAGE,state.maxStageReached-1);
-  const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR*1.5);
+  const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR*1.5*2.5);
   const elements=ENEMY_ELEMENT_SETS[name].slice();
-  return {id:`moc${index}`,name,hp,maxHp:hp,atk:Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR),def:Math.round(35+stage*6+stage*stage*0.05),speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0};
+  const boss={id:`moc${index}`,name,hp,maxHp:hp,atk:Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR),def:Math.round(35+stage*6+stage*stage*0.05),speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0,psychoHitCount:0,psychoTriggeredThisRound:false};
+  return expandConstructBossParts(boss);
+}
+function generateApocalypticShadowBoss(name){
+  const stage=Math.max(APOC_UNLOCK_STAGE,state.maxStageReached-1);
+  const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR);
+  const atk=Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR);
+  const elements=ENEMY_ELEMENT_SETS[name].slice();
+  const boss={
+    id:'apoc0',name,hp,maxHp:hp,atk,
+    def:Math.round(35+stage*6+stage*stage*0.05),
+    speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,
+    role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,
+    defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,
+    addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0,
+    apocStacks:0,apocDamageReduction:0.9,apocShieldRemoved:false,
+  };
+  return expandConstructBossParts(boss);
 }
 
 /* ============ SIMULATED UNIVERSE (roguelike) ============ */
@@ -1098,12 +1205,11 @@ function generateSUEnemies(wave,fight){
 function generateSUBaseEnemies(wave,fight){
   const cleared=suClearedFloor();
   if(wave>=SU_WAVES && !fight){
-    const bossEnemies=generateEnemies(Math.max(5,Math.ceil(cleared/5)*5));
-    const boss=bossEnemies[0];
-    boss.name=state.su.bossName;
-    boss.elements=ENEMY_ELEMENT_SETS[boss.name].slice();
-    boss.element=boss.elements[0];
-    return bossEnemies;
+    const stage=Math.max(5,Math.ceil(cleared/5)*5);
+    const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR);
+    const elements=ENEMY_ELEMENT_SETS[state.su.bossName].slice();
+    const boss={id:'e0',name:state.su.bossName,hp,maxHp:hp,atk:Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR),def:Math.round(35+stage*6+stage*stage*0.05),speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0,psychoHitCount:0,psychoTriggeredThisRound:false};
+    return expandConstructBossParts(boss);
   }
   let stage=Math.round(cleared*0.7+(Math.min(wave,9)-1)*cleared*0.3/8);
   if(stage%5===0) stage++;
@@ -1293,6 +1399,7 @@ function onDomainVictory(){
   state.inventory.push(...loot);
   b.creditReward=Math.round(getStageGoldReward(stage)*1.5);
   state.credits+=b.creditReward;
+  recordDailyMissionProgress('battle');
   state.autoBattle=false;
   state.screen='victory';
 }
@@ -1302,9 +1409,11 @@ function startBattle(mode,fight){
   const domain = mode==='domain';
   const pf = mode==='pf';
   const moc = mode==='moc';
+  const apoc = mode==='apoc';
   const pfBuffs = pf ? getPFDailyBuffs() : null;
   const activeParty=moc?state.mocTeams[state.moc.bossIndex]:state.party;
   const mocBuffs=moc?state.moc.setup.buffs:null;
+  const apocBuffs=apoc?state.apoc.setup.buffs:null;
   let allies = activeParty.map(id=>{
     const eff = getEffectiveStats(id);
     return {
@@ -1328,6 +1437,7 @@ function startBattle(mode,fight){
   });
   if(pf) applyPFBuffs(allies,pfBuffs);
   if(moc) applyPFBuffs(allies,mocBuffs);
+  if(apoc) applyPFBuffs(allies,apocBuffs);
   if(su){
     if(state.su.allies) allies=state.su.allies;
     else {
@@ -1335,7 +1445,7 @@ function startBattle(mode,fight){
       if(state.su.pendingStart){ applySUBlessing(state.su.pendingStart); state.su.pendingStart=null; }
     }
   }
-  const enemies = pf ? generatePFEnemies() : moc ? [generateMOCBoss(state.moc.setup.bosses[state.moc.bossIndex],state.moc.bossIndex)] : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage);
+  const enemies = pf ? generatePFEnemies() : moc ? generateMOCBoss(state.moc.setup.bosses[state.moc.bossIndex],state.moc.bossIndex) : apoc ? generateApocalypticShadowBoss(state.apoc.setup.boss) : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage);
   const turnOrder = buildTurnOrder(allies,enemies);
   const spMaxBonus = activeParty.reduce((sum,id)=>sum+(CHAR_DB[id].passiveSpCapBonus||0),0);
   const spMax = 5+spMaxBonus;
@@ -1354,11 +1464,13 @@ function startBattle(mode,fight){
     zetaFollowUpActive:false,
     suiseiFollowUpActive:false,
     summonCounter:pf?5:0,
-    mode:pf?'pf':moc?'moc':su?'su':domain?'domain':'tower',
+    mode:pf?'pf':moc?'moc':apoc?'apoc':su?'su':domain?'domain':'tower',
     domainSet:domain?fight:null,
     suFight:su&&!!fight,
     pf:pf?{score:0,kills:0,lastSpawn:null,buffs:pfBuffs}:null,
     mocBossIndex:moc?state.moc.bossIndex:null,
+    apoc:apoc?{bossName:state.apoc.setup.boss}:null,
+    apocTurns:0,
     koboCorrosionAura:false,
     koboCorrosionDamageMult:1,
   };
@@ -1366,6 +1478,8 @@ function startBattle(mode,fight){
   const firstActor = getTurnActor(state.battle);
   logMsg(pf
     ? `Pure Fiction — Turno 1/${PF_ROUNDS}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
+    : apoc
+    ? `Apocalyptic Shadow — ${enemies[0].name}. Riduzione danni 90%: colpisci 10 volte con un elemento efficace per rimuoverla. Hai ${APOC_ROUNDS} round. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : moc
     ? `Memory of Chaos — Boss ${state.moc.bossIndex+1}/2: ${enemies[0].name}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : su
@@ -1427,7 +1541,12 @@ async function advanceTurn(){
       render();
       return;
     }
-    if(b.mode==='pf' && b.round>=PF_ROUNDS){
+    if((b.mode==='pf'||b.mode==='apoc') && b.round>=PF_ROUNDS){
+      if(b.mode==='apoc'){
+        endApocalypticShadow('rounds');
+        render();
+        return;
+      }
       endPureFiction('rounds');
       render();
       return;
@@ -1452,7 +1571,8 @@ function checkBattleEnd(){
   const bossDefeated=b.enemies.some(enemy=>enemy.isBoss && enemy.hp<=0);
   if(bossDefeated || b.enemies.every(e=>e.hp<=0)){
     b.phase='resolved';
-    if(b.mode==='su') onSUWaveClear();
+    if(b.mode==='apoc') endApocalypticShadow('victory');
+    else if(b.mode==='su') onSUWaveClear();
     else if(b.mode==='domain') onDomainVictory();
     else if(b.mode==='moc') onMOCBattleWin();
     else onVictory();
@@ -1466,6 +1586,7 @@ function checkBattleEnd(){
   if(b.allies.every(a=>a.hp<=0)){
     b.phase='resolved';
     if(b.mode==='pf') endPureFiction('defeat');
+    else if(b.mode==='apoc') endApocalypticShadow('defeat');
     else if(b.mode==='su') endSimulatedUniverse('defeat');
     else if(b.mode==='moc') onMOCBattleDefeat();
     else onDefeat();
@@ -1527,7 +1648,7 @@ async function performInaFollowUp(b,target,consumeCharge=true){
   const vulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
   const attack=Math.round(ina.maxHp*(ina.hpDamageMult||1));
   const dmg=calcDamage(attack,0.1,getEffectiveEnemyDefense(target),ina.element,target.elements||target.element,ina,'basic',vulnerability);
-  const applied=dealDamageToEnemy(target,dmg,'basic');
+  const applied=dealDamageToEnemy(target,dmg,'basic',true,ina);
   ina._fxAttack='basic';
   ina.energy=clamp(ina.energy+Math.round(10*(ina.energyGainMult||1)),0,ina.energyMax);
   logMsg(`${ina.name} esegue un follow-up su ${target.name}: ${applied} danni${consumeCharge?` (${ina.inaFollowUpsRemaining} cariche rimaste)`:''}.`);
@@ -1558,7 +1679,7 @@ async function performZetaFollowUp(b){
     const vulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
     const attack=Math.round(zeta.atk*(zeta.atkBuffMult||1));
     const dmg=calcDamage(attack,0.85,getEffectiveEnemyDefense(target),zeta.element,target.elements||target.element,zeta,'basic',vulnerability);
-    const applied=dealDamageToEnemy(target,dmg,'basic');
+    const applied=dealDamageToEnemy(target,dmg,'basic',true,zeta);
     if(target.hp>0) applyDamageOverTime(target,zeta,1);
     logMsg(`${zeta.name} esegue un follow-up su ${target.name}: ${applied} danni${target.hp>0?' e applica 1 Sanguinamento':''} (${zeta.zetaFollowUpsRemaining} cariche rimaste).`);
     render();
@@ -1616,6 +1737,9 @@ function isAbissoProtected(enemy){
 }
 
 function applyBossDamageReduction(enemy,dmg,attackType=''){
+  if(state.battle?.mode==='apoc'&&enemy.apocDamageReduction>0){
+    return Math.max(1,Math.round(dmg*(1-enemy.apocDamageReduction)));
+  }
   if(enemy.name==='Custode della Civiltà'&&enemy.phase===2&&enemy.mumeiGuardActive){
     return Math.max(1,Math.round(dmg*0.6));
   }
@@ -1624,20 +1748,92 @@ function applyBossDamageReduction(enemy,dmg,attackType=''){
   }
   return dmg;
 }
-function dealDamageToEnemy(enemy, dmg, attackType=''){
+function syncConstructHealth(enemy){
+  if(!enemy.constructGroupId) return;
+  state.battle.enemies.forEach(part=>{
+    if(part.constructGroupId===enemy.constructGroupId){
+      part.hp=enemy.hp;
+      part.maxHp=enemy.maxHp;
+      part.phase=enemy.phase;
+      part.atk=enemy.atk;
+      part.bossTurns=enemy.bossTurns;
+      part.apocStacks=enemy.apocStacks;
+      part.apocDamageReduction=enemy.apocDamageReduction;
+      part.apocShieldRemoved=enemy.apocShieldRemoved;
+    }
+  });
+}
+function applyEnemyHealthDamage(enemy,amount){
+  const damage=enemy.apocDamageReduction>0?Math.min(amount,Math.max(0,enemy.hp-1)):amount;
+  enemy.hp=clamp(enemy.hp-damage,0,enemy.maxHp);
+  syncConstructHealth(enemy);
+}
+function grantApocalypticShadowEnergy(boss){
+  const b=state.battle;
+  const allies=[...b.allies,...(b.hakosFormState?.allies||[])];
+  [...new Set(allies)].forEach(ally=>{
+    ally.energy=ally.energyMax;
+    if(ally.hakosForm) ally.apocEnergyReady=true;
+    ally._fx={variant:'spgrant',label:'ENERGIA AL MASSIMO'};
+  });
+  logMsg(`${boss.name} perde la riduzione ai danni: tutti gli alleati ottengono energia massima.`);
+}
+function recordApocalypticShadowHit(boss,attacker){
+  const b=state.battle;
+  if(b?.mode!=='apoc'||!attacker||boss.apocDamageReduction<=0) return;
+  const weakHit=getElementMultiplier(attacker.element,boss.elements||boss.element)>1;
+  if(!weakHit&&attacker.charId!=='laplusDarkness') return;
+  boss.apocStacks=Math.min(10,(boss.apocStacks||0)+1);
+  logMsg(`${attacker.name} centra un colpo efficace: stack elementali ${boss.apocStacks}/10.`);
+  if(boss.apocStacks>=10){
+    boss.apocDamageReduction=0;
+    boss.apocShieldRemoved=true;
+    grantApocalypticShadowEnergy(boss);
+    claimApocProgressRewards(boss);
+  }
+  syncConstructHealth(boss);
+}
+function triggerSuiseiPsychoFollowUp(boss){
+  if(boss.hp<=0) return;
+  boss.psychoHitCount=(boss.psychoHitCount||0)+1;
+  if(boss.psychoHitCount<4) return;
+  boss.psychoHitCount=0;
+  boss.psychoTriggeredThisRound=true;
+  boss.psychoDamageBonus=(boss.psychoDamageBonus||0)+0.3;
+  const battle=state.battle;
+  const targets=battle.allies.filter(ally=>ally.hp>0);
+  logMsg(`${boss.name} attiva il Follow-up psicotico! Danni inflitti +${Math.round(boss.psychoDamageBonus*100)}% permanente.`);
+  targets.forEach(ally=>{
+    const damage=calcDamage(getEffectiveEnemyAttack(boss),0.65,getEffectiveAllyDefense(ally),boss.element,ally.element);
+    const result=dealDamageToAlly(ally,damage,true);
+    logMsg(`${ally.name} subisce ${result.applied} danni dal Follow-up psicotico.`);
+  });
+  const healing=Math.min(boss.maxHp-boss.hp,Math.round(boss.maxHp*0.02));
+  boss.hp+=healing;
+  syncConstructHealth(boss);
+  boss._fx={variant:'heal',label:'+'+healing};
+  logMsg(`${boss.name} recupera ${healing} PV.`);
+}
+function dealDamageToEnemy(enemy, dmg, attackType='',countPsychoHit=true,attacker=null){
+  if(attacker) recordApocalypticShadowHit(enemy,attacker);
   if(isAbissoProtected(enemy)) dmg=Math.max(1,Math.round(dmg*0.1));
   dmg=applyBossDamageReduction(enemy,dmg,attackType);
+  const psychoBonusBefore=enemy.psychoDamageBonus||0;
   let applied = dmg;
   if(enemy.shield>0){
     if(enemy.shield>=applied){enemy.shield-=applied; applied=0;}
     else {applied-=enemy.shield; enemy.shield=0;}
   }
-  enemy.hp = clamp(enemy.hp-applied,0,enemy.maxHp);
+  applyEnemyHealthDamage(enemy,applied);
   updateBossPhase(enemy);
+  if(state.battle?.mode==='apoc') claimApocProgressRewards(enemy);
+  if(countPsychoHit&&enemy.name==='Suisei Pshyco') triggerSuiseiPsychoFollowUp(enemy);
   noteFinanaThreshold(enemy);
   if(enemy.hp<=0 && state.battle?.mode==='pf') pfProcessKills(state.battle); // respawn right away so chained follow-ups never find an empty field
   const absorbedE = dmg-applied;
-  enemy._fx = applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbedE};
+  enemy._fx = (enemy.psychoDamageBonus||0)>psychoBonusBefore
+    ? {variant:'buff',label:`+30% DANNI · TOTALE +${Math.round(enemy.psychoDamageBonus*100)}%`}
+    : applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbedE};
   return applied;
 }
 
@@ -1652,7 +1848,7 @@ function applyKoboSeasick(enemy){
 
 function getEffectiveEnemyAttack(enemy){
   const reduction=Math.min(0.5,(enemy.seasickStacks||0)*0.05);
-  return Math.max(0,Math.round(enemy.atk*(1-reduction)));
+  return Math.max(0,Math.round(enemy.atk*(1-reduction)*(1+(enemy.psychoDamageBonus||0))));
 }
 
 function applyDamageOverTime(enemy,actor,stacks,nameOverride=null){
@@ -1704,7 +1900,7 @@ function triggerDamageOverTime(b,enemy,dot,detonate=false,deferKoboEnergy=false)
   }
   const damage=Math.max(1,Math.round(enemy.maxHp*dot.damagePct*dot.stacks*(dot.damageMult||1)));
   const applied=applyBossDamageReduction(enemy,damage,'dot');
-  enemy.hp=clamp(enemy.hp-applied,0,enemy.maxHp);
+  applyEnemyHealthDamage(enemy,applied);
   updateBossPhase(enemy);
   noteFinanaThreshold(enemy);
   enemy._fx={variant:'damage',label:'-'+applied};
@@ -1749,7 +1945,7 @@ async function processFinanaFollowUps(b){
     for(const t of targets){
       const vulnerability=t.vulnerableRounds>0?t.vulnerableToElement:null;
       const dmg=calcDamage(Math.round(finana.maxHp*(finana.hpDamageMult||1)),ability.mult,getEffectiveEnemyDefense(t),finana.element,t.elements||t.element,finana,'basic',vulnerability);
-      const applied=dealDamageToEnemy(t,dmg,'basic');
+      const applied=dealDamageToEnemy(t,dmg,'basic',true,finana);
       logMsg(`${finana.name} colpisce ${t.name} per ${applied}.`);
     }
     render();
@@ -1776,6 +1972,7 @@ function updateBossPhase(enemy){
     enemy.mumeiGuardFresh=true;
     enemy.mumeiGuardSkillPointsSpent=0;
   }
+  syncConstructHealth(enemy);
   state.battle.enemies.forEach(e=>{ if(e.bossAddOwnerId===enemy.id) e.bossAddResolved=true; });
   logMsg(`${enemy.name} esaurisce la prima barra e entra nella Fase 2! Seconda barra di PV, ATK aumentato.`);
   return true;
@@ -1816,7 +2013,7 @@ async function triggerSuiseiFollowUp(b,actor){
   for(const enemy of targets){
     const vulnerability=enemy.vulnerableRounds>0?enemy.vulnerableToElement:null;
     const damage=calcDamage(actor.maxHp*(actor.hpDamageMult||1),0.14,getEffectiveEnemyDefense(enemy),actor.element,enemy.elements||enemy.element,actor,'ult',vulnerability);
-    const applied=dealDamageToEnemy(enemy,damage,'ult');
+    const applied=dealDamageToEnemy(enemy,damage,'ult',true,actor);
     logMsg(`${actor.name} attiva il Follow-up stellare su ${enemy.name}: ${applied} danni.`);
   }
   const healing=Math.round(actor.maxHp*0.15);
@@ -1863,7 +2060,7 @@ async function performKiaraCounter(b,enemy,defender){
   const effectiveDef=Math.round(kiara.def*(kiara.defBuffMult||1));
   const vulnerability=enemy.vulnerableRounds>0?enemy.vulnerableToElement:null;
   const damage=calcDamage(effectiveDef,skill.mult,getEffectiveEnemyDefense(enemy),kiara.element,enemy.elements||enemy.element,kiara,'skill',vulnerability);
-  const applied=dealDamageToEnemy(enemy,damage,'skill');
+  const applied=dealDamageToEnemy(enemy,damage,'skill',true,kiara);
   kiara._fxAttack='skill';
   logMsg(`${kiara.name} contrattacca ${enemy.name}: ${applied} danni.`);
   const healing=Math.round(effectiveDef*skill.healPct*(kiara.healMult||1));
@@ -1908,6 +2105,7 @@ function activateHakosUltimate(actor,b){
   absorbed.forEach(ally=>{ ally.shield=0; ally.shieldRounds=0; });
   clearTimedAllyBuffs(actor,'atk');
   actor.energy=0;
+  actor.apocEnergyReady=false;
   actor.hakosForm=true;
   actor.hakosFormTurns=10;
   actor.hakosFormFresh=true;
@@ -1930,7 +2128,8 @@ function restoreHakosUltimate(b,reason='expired'){
     .sort((first,second)=>second.speed-first.speed);
   Object.assign(actor,actor.hakosBaseSnapshot);
   actor.hp=clamp(actor.hp-hpLost,0,actor.maxHp);
-  actor.energy=0;
+  actor.energy=actor.apocEnergyReady?actor.energyMax:0;
+  actor.apocEnergyReady=false;
   clearTimedAllyBuffs(actor,'atk');
   actor.hakosForm=false;
   actor.hakosFormTurns=0;
@@ -1990,7 +2189,7 @@ async function executeAbility(actor, abKey, targetId){
         const targetVulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
         const hitMult = ability.effect==='selen_skill' && isEnemyWeakTo(actor.element,target) ? ability.weakMult : ability.mult;
         const dmg = calcDamage(effAtk, hitMult, getEffectiveEnemyDefense(target), actor.element, target.elements || target.element, actor, abKey, targetVulnerability);
-        const applied = dealDamageToEnemy(target, dmg, abKey);
+        const applied = dealDamageToEnemy(target, dmg, abKey,true,actor);
         logMsg(`${actor.name} usa ${ability.name}: ${applied} danni a ${target.name}.`);
         if(hits>1){ render(); await sleepMs(230); }
         if(actor.charId!=='ninomaeInaNis'&&target.inaMarked&&(getInaActor(b)?.inaFollowUpsRemaining||0)>0){
@@ -2089,7 +2288,7 @@ async function executeAbility(actor, abKey, targetId){
         const bonusAtk = Math.round(target.atk*(target.atkBuffMult||1));
         const foeVulnerability=foe.vulnerableRounds>0?foe.vulnerableToElement:null;
         const dmg = calcDamage(bonusAtk,1.0,getEffectiveEnemyDefense(foe),target.element,foe.elements||foe.element,target,'basic',foeVulnerability);
-        const applied = dealDamageToEnemy(foe, dmg, 'basic');
+        const applied = dealDamageToEnemy(foe, dmg, 'basic',true,target);
         logMsg(`${target.name} attacca una volta in più: ${applied} danni a ${foe.name}.`);
         if(target.charId!=='ninomaeInaNis'&&foe.inaMarked&&(getInaActor(b)?.inaFollowUpsRemaining||0)>0){
           render();
@@ -2125,7 +2324,7 @@ async function executeAbility(actor, abKey, targetId){
     for(const t of enemyTargets()){
       const targetVulnerability=t.vulnerableRounds>0?t.vulnerableToElement:null;
       const dmg = calcDamage(effAtk,ability.mult,getEffectiveEnemyDefense(t),actor.element,t.elements||t.element,actor,abKey,targetVulnerability);
-      const applied = dealDamageToEnemy(t, dmg, abKey);
+      const applied = dealDamageToEnemy(t, dmg, abKey,true,actor);
       logMsg(`${actor.name} colpisce ${t.name} per ${applied}.`);
       if(actor.charId!=='ninomaeInaNis'&&t.inaMarked&&(getInaActor(b)?.inaFollowUpsRemaining||0)>0){
         render();
@@ -2299,6 +2498,17 @@ async function finishRound(){
       await sleepMs(280);
     }
   }
+  b.enemies.filter(enemy=>enemy.name==='Suisei Pshyco'&&enemy.isBoss&&enemy.hp>0).forEach(boss=>{
+    if(boss.psychoTriggeredThisRound){
+      boss.psychoTriggeredThisRound=false;
+      return;
+    }
+    const lost=Math.min(boss.hp,Math.round(boss.maxHp*0.1));
+    applyEnemyHealthDamage(boss,lost);
+    updateBossPhase(boss);
+    boss._fx={variant:'damage',label:'-'+lost};
+    logMsg(`${boss.name} non attiva il Follow-up nel round e perde ${lost} PV.`);
+  });
   if(checkBattleEnd()) return false;
 
   b.enemies.forEach(enemy=>{
@@ -2453,6 +2663,7 @@ async function runEnemyRole(enemy,b){
 }
 
 async function runBossMechanic(boss,b){
+  if(boss.name==='Suisei Pshyco'||boss.name==='Costrutto Immergreen') return;
   const mechanics=BOSS_MECHANICS[boss.name];
   if(!mechanics) return;
   const startPhase=boss.phase;
@@ -2582,37 +2793,64 @@ async function runEnemyTurn(){
     }
   }
 
-  const attackCount=(enemy.isBoss||enemy.role==='twin')?2:1;
+  const isConstruct=!!enemy.constructGroupId;
+  const attackCount=isConstruct
+    ? (enemy.phase===2&&enemy.constructPart===1?2:1)
+    : enemy.name==='Suisei Pshyco'
+    ? (enemy.phase===2?1:2)
+    : (enemy.isBoss||enemy.role==='twin')?2:1;
   for(let attackIndex=0;attackIndex<attackCount;attackIndex++){
     if(enemy.isBoss && enemy.phase!==turnStartPhase) break;
-    const targets=b.allies.filter(ally=>ally.hp>0);
-    if(targets.length===0) break;
-    const target=targets.find(a=>a.tauntRounds>0)||pick(targets);
+    if(enemy.hp<=0) break;
+    const livingTargets=b.allies.filter(ally=>ally.hp>0);
+    if(livingTargets.length===0) break;
+    const constructAoE=isConstruct&&enemy.phase===2&&enemy.constructPart===1&&attackIndex===1;
+    const targets=constructAoE
+      ? livingTargets
+      : [livingTargets.find(a=>a.tauntRounds>0)||pick(livingTargets)];
     enemy._fxAttack='basic';
-    const dmg=calcDamage(getEffectiveEnemyAttack(enemy),enemy.role==='twin'?0.7:1.0,getEffectiveAllyDefense(target),enemy.element,target.element);
-    const result=dealDamageToAlly(target,dmg,true);
-    const attackLabel=attackCount>1?` (${attackIndex+1}/2)`:'';
-    if(enemy.role==='thief' && target.hp>0){
-      const drained=Math.min(target.energy,25);
-      target.energy-=drained;
-      if(drained>0) logMsg(`${enemy.name} drena ${drained} energia da ${target.name}.`);
-    }
-    if(result.applied===0 && result.absorbed>0){
-      logMsg(`${enemy.name}${attackLabel} attacca ${target.name}, ma lo scudo assorbe tutto il colpo (🛡 -${result.absorbed}).`);
-    } else if(result.absorbed>0){
-      logMsg(`${enemy.name}${attackLabel} attacca ${target.name}: lo scudo assorbe ${result.absorbed}, ${result.applied} danni passano.`);
-    } else {
-      logMsg(`${enemy.name}${attackLabel} attacca ${target.name} per ${result.applied} danni.`);
-    }
-    render();
-    await sleepMs(420);
-    await performKiaraCounter(b,enemy,target);
-    if(target.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,target);
-    if(checkBattleEnd()){
-      b.busy=false;
+    const attackLabel=attackCount>1?` (${attackIndex+1}/${attackCount})`:'';
+    if(constructAoE) logMsg(`${enemy.name} scatena un attacco ad area!`);
+    for(const target of targets){
+      const dmg=calcDamage(getEffectiveEnemyAttack(enemy),enemy.role==='twin'?0.7:constructAoE?0.7:1.0,getEffectiveAllyDefense(target),enemy.element,target.element);
+      const result=dealDamageToAlly(target,dmg,true);
+      if(enemy.role==='thief' && target.hp>0){
+        const drained=Math.min(target.energy,25);
+        target.energy-=drained;
+        if(drained>0) logMsg(`${enemy.name} drena ${drained} energia da ${target.name}.`);
+      }
+      if(result.applied===0 && result.absorbed>0){
+        logMsg(`${enemy.name}${attackLabel} attacca ${target.name}, ma lo scudo assorbe tutto il colpo (🛡 -${result.absorbed}).`);
+      } else if(result.absorbed>0){
+        logMsg(`${enemy.name}${attackLabel} attacca ${target.name}: lo scudo assorbe ${result.absorbed}, ${result.applied} danni passano.`);
+      } else {
+        logMsg(`${enemy.name}${attackLabel} attacca ${target.name} per ${result.applied} danni.`);
+      }
+      if(isConstruct&&result.absorbed>0&&enemy.hp>0){
+        const reflected=Math.round(result.absorbed*1.5);
+        applyEnemyHealthDamage(enemy,reflected);
+        updateBossPhase(enemy);
+        enemy._fx={variant:'damage',label:'-'+reflected};
+        logMsg(`${enemy.name} subisce ${reflected} danni riflessi dallo scudo di ${target.name}.`);
+      }
       render();
-      return;
+      await sleepMs(420);
+      await performKiaraCounter(b,enemy,target);
+      if(target.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,target);
+      if(checkBattleEnd()){
+        b.busy=false;
+        render();
+        return;
+      }
+      if(enemy.hp<=0 || enemy.phase!==turnStartPhase) break;
     }
+    if(enemy.hp<=0 || enemy.phase!==turnStartPhase) break;
+  }
+  if(enemy.name==='Suisei Pshyco'&&turnStartPhase===2&&enemy.phase===2&&enemy.hp>0){
+    const healing=Math.min(enemy.maxHp-enemy.hp,Math.round(enemy.maxHp*0.1));
+    enemy.hp+=healing;
+    enemy._fx={variant:'heal',label:'+'+healing};
+    logMsg(`${enemy.name} si cura di ${healing} PV.`);
   }
 
   b.busy=false;
@@ -2678,6 +2916,7 @@ function onVictory(){
   b.creditReward = creditReward;
   state.credits += creditReward;
   state.maxStageReached = Math.max(state.maxStageReached, state.stage+1);
+  recordDailyMissionProgress('battle');
   state.autoBattle=false;
   state.screen='victory';
 }
@@ -2770,6 +3009,7 @@ function levelUpArtifact(uid){
   state.credits -= cost;
   it.level = level+1;
   upgradeArtifactMainStat(it);
+  recordDailyMissionProgress('artifactUpgrade');
   if(it.level % ARTIFACT_SUBSTAT_MILESTONE === 0){
     const idx = Math.floor(Math.random()*it.subStats.length); // a substat can be picked again on later milestones
     const sub = it.subStats[idx];
@@ -2789,6 +3029,7 @@ function sellArtifact(uid){
   state.credits += getArtifactSellValue(it);
   state.inventory.splice(idx,1);
   state.totalArtifactsSold++;
+  recordDailyMissionProgress('artifactSale');
   render();
 }
 
@@ -3020,6 +3261,7 @@ function doSinglePull(){
   if(state.gold<PULL_COST) return null;
   state.gold -= PULL_COST;
   state.totalPullsDone++;
+  recordDailyMissionProgress('summon');
   state.pityCounter++;
   state.pity5Counter++;
 
@@ -3064,6 +3306,7 @@ function doSingleWeaponPull(type){
   const pityKey=pityKeyFor(type);
   state.gold-=PULL_COST;
   state.totalPullsDone++;
+  recordDailyMissionProgress('summon');
   state[pityKey]++;
 
   let result;
@@ -3164,6 +3407,33 @@ const ONE_OFF_QUESTS = [
   {id:'kiara',        desc:'Completa Pure Fiction per la prima volta', reward:800, unlockChar:'takanashiKiara', rewardText:'Sblocca Kiara Takanashi (★★★★)', check:()=>state.pfCleared},
 ];
 
+const DAILY_MISSION_REWARD = 300;
+const DAILY_MISSIONS = [
+  {id:'battle', desc:'Vinci una battaglia nella Torre o in un Dominio'},
+  {id:'summon', desc:'Effettua un\'evocazione'},
+  {id:'artifactSale', desc:'Vendi un manufatto'},
+  {id:'artifactUpgrade', desc:'Potenzia un manufatto di un livello'},
+];
+function ensureDailyMissions(){
+  const date=pfDateKey();
+  if(!state.dailyMissions || state.dailyMissions.date!==date){
+    state.dailyMissions={date,progress:{},claimed:[]};
+  }
+  const day=state.dailyMissions;
+  if(!day.progress || typeof day.progress!=='object') day.progress={};
+  if(!Array.isArray(day.claimed)) day.claimed=[];
+  DAILY_MISSIONS.forEach(mission=>{
+    day.progress[mission.id]=Math.max(0,Number(day.progress[mission.id])||0);
+  });
+  return day;
+}
+function recordDailyMissionProgress(id,amount=1){
+  const mission=DAILY_MISSIONS.find(entry=>entry.id===id);
+  if(!mission) return;
+  const day=ensureDailyMissions();
+  day.progress[id]=Math.min(1,(day.progress[id]||0)+amount);
+}
+
 function getHighestArtifactLevel(){
   let max = 0;
   state.inventory.forEach(it=>{ if((it.level||0)>max) max = it.level||0; });
@@ -3219,6 +3489,16 @@ function claimQuest(id){
   render();
 }
 
+function claimDailyMission(id){
+  const mission=DAILY_MISSIONS.find(entry=>entry.id===id);
+  if(!mission) return;
+  const day=ensureDailyMissions();
+  if(day.claimed.includes(id) || (day.progress[id]||0)<1) return;
+  day.claimed.push(id);
+  state.gold+=DAILY_MISSION_REWARD;
+  render();
+}
+
 /* ============ RENDER ============ */
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstElementChild; }
 
@@ -3236,6 +3516,7 @@ function render(){
   else if(state.screen==='victory') app.appendChild(renderVictory());
   else if(state.screen==='defeat') app.appendChild(renderDefeat());
   else if(state.screen==='pfresult') app.appendChild(renderPFResult());
+  else if(state.screen==='apocresult') app.appendChild(renderApocalypticShadowResult());
   else if(state.screen==='moc') app.appendChild(renderTravelLogTab());
   else if(state.screen==='su' && state.su) app.appendChild(renderSUScreen());
   if(state.screen!=='home') saveGame();
@@ -3822,7 +4103,7 @@ function renderIndiceTab(){
           <div class="ac-setname" style="color:#eab308;">Boss</div>
         </div>
       </div>
-      <div class="ac-main">Due attacchi per turno · Due barre di PV (Fase 2 alla seconda)</div>
+      <div class="ac-main">${name==='Costrutto Immergreen'?'Tre parti con PV condivisi · Fase 2: il centro attacca due volte, secondo colpo AoE':name==='Suisei Pshyco'?'Fase 1: due attacchi · Fase 2: un attacco e una cura':'Due attacchi per turno'} · Due barre di PV</div>
       <div class="ac-subs"><span>· Elementi: ${elementLabels(ENEMY_ELEMENT_SETS[name])}</span><span>· Speciale: ${BOSS_MECHANIC_LABELS[BOSS_MECHANICS[name].phase1]} → ${BOSS_MECHANIC_LABELS[BOSS_MECHANICS[name].phase2]}</span></div>
     </div>`))];
     wrap.appendChild(renderCards('Nemici', enemyCards));
@@ -3843,7 +4124,7 @@ function renderTutorialTab(){
     ['Manufatti e set', `<p>Equipaggia fino a 5 manufatti per eroe. Le statistiche principali e secondarie aumentano i parametri; i bonus set si attivano con 2 e 4 pezzi dello stesso set. Puoi potenziare un manufatto fino al livello 20; ogni 5 livelli migliora una statistica secondaria casuale.</p>`],
     ['Armi', `<p>Ogni eroe ha uno slot arma. Ogni arma ha rarità, ATK, statistica secondaria ed effetto fissi. Potenziala fino al livello 20 spendendo Crediti; ascendi fino al grado 5 consumando un doppione identico e vendila dall'Armeria. Ci sono due Banner armi: uno con le armi esclusive degli eroi 4 stelle e uno con quelle degli eroi 5 stelle.</p>`],
     ['Torre, domini e ricompense', `<p>Avanza nella Torre Infinita: ogni piano aumenta la difficoltà e ogni 5 piani affronti un boss. Le vittorie in Torre e nei domini danno Crediti e manufatti; usa i Crediti per potenziare armi e manufatti e i Frammenti (ottenuti nel Travel Log) per evocare dal Banner.</p>`],
-    ['Banner e missioni', `<p>Un'evocazione costa 300 Frammenti. Il Banner personaggi garantisce un personaggio 4 stelle entro 10 evocazioni e uno 5 stelle entro 50. Nei Banner armi i personaggi hanno le stesse probabilità base ma nessuna garanzia: un'arma esclusiva (4 o 5 stelle a seconda del banner) è invece garantita ogni 30 evocazioni su quel banner. Le missioni offrono Crediti aggiuntivi.</p>`],
+    ['Banner e missioni', `<p>Un'evocazione costa 300 Frammenti. Il Banner personaggi garantisce un personaggio 4 stelle entro 10 evocazioni e uno 5 stelle entro 50. Nei Banner armi i personaggi hanno le stesse probabilità base ma nessuna garanzia: un'arma esclusiva (4 o 5 stelle a seconda del banner) è invece garantita ogni 30 evocazioni su quel banner. Le missioni ricorrenti offrono Crediti; le quattro missioni giornaliere danno 300 Frammenti ciascuna e si azzerano a mezzanotte.</p>`],
   ];
   const grid = el(`<div class="tutorial-grid"></div>`);
   sections.forEach(([title, content])=>{
@@ -3866,8 +4147,32 @@ function renderCharUnlockCard(charId){
 function renderMissioniTab(){
   const wrap = document.createElement('div');
   const oneOffDone = ONE_OFF_QUESTS.filter(q=>state.claimedQuests[q.id]).length;
+  const daily=ensureDailyMissions();
   wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Obiettivi</span><h2>Missioni</h2></div>`));
   wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Le missioni a progressione si ripetono all'infinito: ogni volta che le riscatti, obiettivo e ricompensa aumentano per il giro successivo.</div>`));
+
+  wrap.appendChild(el(`<div class="screen-title" style="margin-top:6px;"><span class="eyebrow">Si rinnovano ogni giorno</span><h2>Missioni giornaliere</h2></div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:10px;">Ogni missione completata dà 300 💠 Frammenti (fino a 1.200 al giorno). Reset tra <b id="dailyMissionTimer"></b></div>`));
+  startPFTimer(wrap.querySelector('#dailyMissionTimer'));
+  const dailyGrid=el(`<div class="artifact-grid"></div>`);
+  DAILY_MISSIONS.forEach(mission=>{
+    const claimed=daily.claimed.includes(mission.id);
+    const completed=(daily.progress[mission.id]||0)>=1;
+    const statusLabel=claimed?'✓ Riscattata':completed?'Completata!':'In corso';
+    const statusColor=claimed?'var(--green)':completed?'var(--amber)':'var(--text-dim)';
+    const card=el(`<div class="hud-panel artifact-card" style="border-color:${claimed?'var(--green)':completed?'var(--amber)':'var(--border)'}">
+      <div class="ac-name">${mission.desc}</div>
+      <div class="ac-main">Ricompensa: <b>+${DAILY_MISSION_REWARD} 💠 Frammenti</b></div>
+      <div class="ac-setname" style="color:${statusColor}">${statusLabel}</div>
+    </div>`);
+    if(completed&&!claimed){
+      const btn=el(`<button class="small primary" style="margin-top:8px;width:100%;">Riscatta</button>`);
+      btn.onclick=event=>{ event.stopPropagation(); claimDailyMission(mission.id); };
+      card.appendChild(btn);
+    }
+    dailyGrid.appendChild(card);
+  });
+  wrap.appendChild(dailyGrid);
 
   wrap.appendChild(el(`<div class="screen-title" style="margin-top:6px;"><span class="eyebrow">Progressione</span><h2>Missioni Ricorrenti</h2></div>`));
   const trackGrid = el(`<div class="artifact-grid"></div>`);
@@ -4263,8 +4568,12 @@ function renderBattle(){
     const card = el(`<div class="hud-panel enemy-card ${isActive?'active-turn':''} ${targetingEnemy?'targetable':''}" style="--char-glow:${hexToRgba('#ef5a7d',0.85)};--fx-scale:${fx.scale};position:relative;${fx.animation?'animation:'+fx.animation+';':''}">
       <div class="portrait">${e.isBoss?'☠':'◆'}</div>
       <div class="name">${e.name}</div>
+      ${e.partLabel?`<div class="boss-add-tag" style="color:var(--cyan);">${e.partLabel==='centrale'?'NUCLEO CENTRALE':`PARTE ${e.partLabel.toUpperCase()}`}</div>`:''}
       ${e.inaMarked?'<div class="ina-mark-tag">✦ MARCHIATO · INA</div>':''}
-      ${e.isBoss?`<div class="boss-tag">BARRA ${e.phase||1}/2 · 2 ATTACCHI</div>`:''}
+      ${e.isBoss?`<div class="boss-tag">BARRA ${e.phase||1}/2 · ${e.name==='Suisei Pshyco'&&e.phase===2?'1 ATTACCO + CURA':e.constructGroupId&&e.phase===2&&e.constructPart===1?'2 ATTACCHI · 2° AOE':e.constructGroupId?'ATTACCO SINGOLO':'2 ATTACCHI'}</div>`:''}
+      ${e.name==='Suisei Pshyco'?`<div class="boss-add-tag" style="color:var(--amber);">✦ FOLLOW-UP ${e.psychoHitCount||0}/4 · DANNI +${Math.round((e.psychoDamageBonus||0)*100)}%${e.psychoDamageBonus?' · BOOST ATTIVO':''}</div>`:''}
+      ${e.constructGroupId?'<div class="boss-add-tag" style="color:var(--amber);">PV CONDIVISI · GLI SCUDI RIFLETTONO 150% DEI DANNI ASSORBITI</div>':''}
+      ${b.mode==='apoc'?`<div class="boss-add-tag" style="color:var(--amber);">${e.apocDamageReduction>0?`RIDUZIONE DANNI ${Math.round(e.apocDamageReduction*100)}% · STACK ELEMENTALI ${e.apocStacks||0}/10`:'RIDUZIONE RIMOSSA · ENERGIA AL MASSIMO'}</div>`:''}
       ${e.seasickStacks>0?`<div class="boss-add-tag" style="color:var(--cyan);">🌊 MAL DI MARE x${e.seasickStacks} · ATK -${e.seasickStacks*5}%</div>`:''}
         ${e.name==='Custode della Civiltà'&&e.phase===2&&e.mumeiGuardActive?`<div class="boss-add-tag" style="color:var(--amber);">DANNI SUBITI -40% · ${e.mumeiGuardRounds} ROUND · ${e.mumeiGuardSkillPointsSpent}/5 PA</div>`:''}
         ${e.name==='Titano dell’Eclissi'&&e.phase===2?'<div class="boss-add-tag" style="color:var(--amber);">RESISTENZA 80% · ATTACCHI BASE E ULTIMATE</div>':''}
@@ -4297,7 +4606,7 @@ function renderBattle(){
   const spPanel = el(`<div class="hud-panel" style="padding:12px;display:flex;flex-direction:column;justify-content:center;gap:8px;">
     <div class="mini-lbl" style="font-size:10px;">PUNTI ABILITÀ</div>
     <div style="display:flex;gap:6px;" id="spPips"></div>
-    <div class="mini-lbl" style="font-size:10px;margin-top:8px;">${b.mode==='pf'?`TURNO ${b.round}/${PF_ROUNDS} · PUNTI ${b.pf.score}`:b.mode==='su'?`ONDATA ${state.su.wave}/${SU_WAVES}${b.suFight?' · SCONTRO':''} · ROUND ${b.round}`:`ROUND ${b.round}`}</div>
+    <div class="mini-lbl" style="font-size:10px;margin-top:8px;">${b.mode==='pf'?`TURNO ${b.round}/${PF_ROUNDS} · PUNTI ${b.pf.score}`:b.mode==='apoc'?`TURNO ${b.round}/${APOC_ROUNDS}`:b.mode==='su'?`ONDATA ${state.su.wave}/${SU_WAVES}${b.suFight?' · SCONTRO':''} · ROUND ${b.round}`:`ROUND ${b.round}`}</div>
   </div>`);
   const pipsWrap = spPanel.querySelector('#spPips');
   for(let i=0;i<b.spMax;i++){
@@ -4460,7 +4769,7 @@ function renderMemoryOfChaos(){
     }
     return wrap;
   }
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Sconfiggi due boss consecutivi con squadre distinte. Boss e potenziamenti sono gli stessi per tutti e ruotano ogni giorno; i boss scalano con il massimo piano raggiunto. Le ricompense si possono ottenere una volta al giorno.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Sconfiggi due boss consecutivi con squadre distinte. Boss e potenziamenti sono gli stessi per tutti e ruotano ogni giorno; i boss scalano con il massimo piano raggiunto e hanno 2,5 volte i PV dei boss della Torre. Le ricompense si possono ottenere una volta al giorno.</div>`));
   wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;"><div class="eyebrow">Boss e potenziamenti di oggi</div><div class="stat-row"><span>Boss 1</span><b class="moc-boss-info">${setup.bosses[0]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[0])}</span></b></div><div class="stat-row"><span>Boss 2</span><b class="moc-boss-info">${setup.bosses[1]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[1])}</span></b></div><div style="margin-top:8px;"><b>${setup.buffs.general.name}</b> · <span class="hint">${setup.buffs.general.desc}</span></div><div style="margin-top:6px;"><b>${setup.buffs.theme.name}</b> · <span class="hint">${setup.buffs.theme.desc}</span></div></div>`));
   const tierPanel=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense di oggi · Boss sconfitti: ${day.clears}/2</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="mocTimer"></b></div></div>`);
   startPFTimer(tierPanel.querySelector('#mocTimer'));
@@ -4494,9 +4803,56 @@ function renderMemoryOfChaos(){
   return wrap;
 }
 
+function renderApocalypticShadow(){
+  const wrap=document.createElement('div');
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Sfida endgame · Un boss</span><h2>Apocalyptic Shadow</h2></div>`));
+  if(state.maxStageReached<=APOC_UNLOCK_STAGE){
+    wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;text-align:center;"><div class="hero-name" style="font-size:18px;">🔒 Bloccata</div><div class="hint">Si sblocca dopo aver superato il Piano ${APOC_UNLOCK_STAGE} della Torre. Massimo raggiunto: piano ${state.maxStageReached}.</div></div>`));
+    return wrap;
+  }
+  const day=ensureApocDay();
+  const setup=state.apoc?.setup||getApocSetup();
+  const buffs=setup.buffs;
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Affronta il boss di oggi con tutta la squadra. Hai ${APOC_ROUNDS} round. La riduzione ai danni del 90% si rimuove accumulando 10 colpi con un elemento efficace; Laplus può superare il requisito elementale. Quando la barriera cede, tutti gli alleati ottengono energia massima.</div>`));
+  wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;">
+    <div class="eyebrow">Boss e potenziamenti di oggi</div>
+    <div class="stat-row"><span>Boss</span><b class="moc-boss-info">${setup.boss}<span class="moc-boss-elements">${renderMOCBossElements(setup.boss)}</span></b></div>
+    <div style="margin-top:8px;"><b>${buffs.general.name}</b> · <span class="hint">${buffs.general.desc}</span></div>
+    <div style="margin-top:6px;"><b>${buffs.theme.name}</b> · <span class="hint">${buffs.theme.desc}</span></div>
+  </div>`));
+  const tiers=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense giornaliere · Miglior risultato: ${day.bestRounds===null?'—':`${day.bestRounds} round`}</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="apocTimer"></b></div></div>`);
+  startPFTimer(tiers.querySelector('#apocTimer'));
+  APOC_TIERS.forEach((tier,index)=>tiers.appendChild(el(`<div class="stat-row"><span>${tier.label}</span><b style="color:${day.claimed[index]?'var(--green)':'var(--amber)'}">${day.claimed[index]?'✓ riscossa':`+${tier.reward} 💠`}</b></div>`)));
+  wrap.appendChild(tiers);
+  const start=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="apocStart" style="padding:12px 26px;font-size:15px;">Affronta il boss ▶</button></div>`);
+  start.querySelector('#apocStart').onclick=startApocalypticShadow;
+  wrap.appendChild(start);
+  return wrap;
+}
+
+function renderApocalypticShadowResult(){
+  const result=state.battle.apocResult;
+  const day=ensureApocDay();
+  const cleared=result.reason==='victory'&&result.rounds<=APOC_ROUNDS;
+  const wrap=el(`<div class="hud-panel center-msg ${cleared?'win':'lose'}">
+    <h2>Apocalyptic Shadow · Risultato</h2>
+    <div class="hint">${cleared?`${state.apoc.setup.boss} sconfitto.`:result.reason==='defeat'?'La squadra è stata sconfitta.':'I 12 round sono terminati.'}</div>
+    <div class="hero-name" style="font-size:24px;margin:10px 0;">${result.rounds}/${APOC_ROUNDS} round</div>
+    <div class="hint">Stack elementali: ${result.stacks}/10 · Miglior risultato di oggi: ${day.bestRounds===null?'—':`${day.bestRounds} round`}</div>
+    <div class="hint" style="margin-top:8px;">${day.claimed.some(Boolean)?`Premi giornalieri ottenuti: +${day.claimed.reduce((sum,claimed,index)=>sum+(claimed?APOC_TIERS[index].reward:0),0)} 💠 Frammenti`:'Nessuna ricompensa giornaliera riscossa.'}</div>
+  </div>`);
+  const tiers=el(`<div class="hud-panel section" style="padding:16px;margin:10px 0;"></div>`);
+  APOC_TIERS.forEach((tier,index)=>tiers.appendChild(el(`<div class="stat-row"><span>${tier.label}</span><b style="color:${day.claimed[index]?'var(--green)':'var(--text-dim)'}">${day.claimed[index]?'✓ riscossa':'—'}</b></div>`)));
+  wrap.appendChild(tiers);
+  const done=el(`<div style="text-align:center;"><button class="primary" id="apocBack">Torna al Travel Log ▶</button></div>`);
+  done.querySelector('#apocBack').onclick=()=>{state.apoc=null;state.townTab='viaggi';state.travelTab='apoc';state.screen='town';render();};
+  wrap.appendChild(done);
+  return wrap;
+}
+
 function renderTravelLogTab(){
   const wrap=document.createElement('div');
-  const modes=[['purefiction','Pure Fiction'],['moc','Memory of Chaos'],['universo','Universo Simulato'],['domini','Domini']];
+  const modes=[['purefiction','Pure Fiction'],['moc','Memory of Chaos'],['apoc','Apocalyptic Shadow'],['universo','Universo Simulato'],['domini','Domini']];
   const bar=el(`<div class="subtab-bar travel-mode-bar"></div>`);
   modes.forEach(([key,label])=>{
     const button=el(`<button class="subtab-btn ${state.travelTab===key?'active':''}">${label}</button>`);
@@ -4506,6 +4862,7 @@ function renderTravelLogTab(){
   wrap.appendChild(bar);
   if(state.travelTab==='purefiction') wrap.appendChild(renderPureFictionTab());
   else if(state.travelTab==='moc') wrap.appendChild(renderMemoryOfChaos());
+  else if(state.travelTab==='apoc') wrap.appendChild(renderApocalypticShadow());
   else if(state.travelTab==='universo') wrap.appendChild(renderUniversoTab());
   else wrap.appendChild(renderDominiTab());
   return wrap;
