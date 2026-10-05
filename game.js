@@ -111,6 +111,10 @@ const ENEMY_NAMES = ['Larva del Vuoto','Sentinella Corrotta','Sciame Spinato','C
 const BOSS_NAMES = ['Custode di Cristallo','Araldo del Vuoto','Colosso Corroso','Regina Ombra','Abisso Primordiale','Custode della Civiltà','Titano dell’Eclissi','Suisei Pshyco','Costrutto Immergreen'];
 const MAX_ENEMIES_IN_BATTLE = 5;
 const BOSS_HP_FACTOR = 1.5, BOSS_ATK_FACTOR = 0.75;
+const TOWER_MAX_FLOOR = 150;
+const TOWER_MAX_COMBAT_RANK = 50;
+const TOWER_MAX_HP_RANK = 160;
+const FINAL_GRADE_BOSS_HP = 100000;
 const BOSS_MECHANICS = {
   'Custode di Cristallo':{phase1:'shield',phase2:'area'},
   'Araldo del Vuoto':{phase1:'summon',phase2:'summon'},
@@ -595,6 +599,7 @@ let state = {
   moc:null,
   apocDaily:null,
   apoc:null,
+  modeGrades:{pf:'C',moc:'C',apoc:'C'},
   suCleared:false,
   su:null,
   suDaily:null,
@@ -645,6 +650,7 @@ function getSaveData(){
     mocDaily: state.mocDaily,
     mocTeams: state.mocTeams,
     apocDaily: state.apocDaily,
+    modeGrades: state.modeGrades,
     suCleared: state.suCleared,
     suDaily: state.suDaily,
     dailyMissions: state.dailyMissions,
@@ -714,6 +720,9 @@ function loadGame(){
     state.mocDaily = data.mocDaily || null;
     state.mocTeams = Array.isArray(data.mocTeams) && data.mocTeams.length===2 ? data.mocTeams : [[],[]];
     state.apocDaily = data.apocDaily || null;
+    state.modeGrades = {...state.modeGrades,...(data.modeGrades||{})};
+    state.maxStageReached = clamp(state.maxStageReached,1,TOWER_MAX_FLOOR+1);
+    state.stage = clamp(state.stage,1,TOWER_MAX_FLOOR);
     state.suCleared = !!data.suCleared;
     state.suDaily = data.suDaily || null;
     state.dailyMissions = data.dailyMissions || null;
@@ -732,7 +741,7 @@ function resetSave(){
   try{ localStorage.removeItem(SAVE_KEY); } catch(e){}
   state.gold=0; state.credits=0; state.stage=1; state.maxStageReached=1; state.inventory=[]; state.itemUidCounter=1;
   state.weaponInventory=[]; state.weaponUidCounter=1; state.pityCounter=0; state.pity5Counter=0; state.lastPullResults=[];
-  state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.pfCleared=false; state.mocDaily=null; state.mocTeams=[[],[]]; state.moc=null; state.apocDaily=null; state.apoc=null; state.travelTab='purefiction'; state.suCleared=false; state.suDaily=null; state.su=null; state.dailyMissions=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
+  state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.pfCleared=false; state.mocDaily=null; state.mocTeams=[[],[]]; state.moc=null; state.apocDaily=null; state.apoc=null; state.modeGrades={pf:'C',moc:'C',apoc:'C'}; state.travelTab='purefiction'; state.suCleared=false; state.suDaily=null; state.su=null; state.dailyMissions=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
   state.claimedQuests={}; state.questTiers={}; state.questExhausted={}; state.totalPullsDone=0; state.totalArtifactsSold=0;
   initRoster();
   state.party=['kaelaKolvalskia'];
@@ -770,15 +779,30 @@ function hexToRgba(hex, alpha){
 const BATTLE_PACE = 1.7; // global multiplier: higher = slower battle flow
 function sleepMs(ms){ return new Promise(resolve=>setTimeout(resolve, ms*BATTLE_PACE)); }
 
-/* ============ TOWER (INFINITE) ============ */
+/* ============ TOWER (FINITE) ============ */
 function isBossStage(n){return n%5===0;}
+function towerCombatRank(floor){
+  return 1+(clamp(floor,1,TOWER_MAX_FLOOR)-1)*(TOWER_MAX_COMBAT_RANK-1)/(TOWER_MAX_FLOOR-1);
+}
+function towerHpRank(combatRank){
+  return 1+(clamp(combatRank,1,TOWER_MAX_COMBAT_RANK)-1)*(TOWER_MAX_HP_RANK-1)/(TOWER_MAX_COMBAT_RANK-1);
+}
+function getScaledBossHp(combatRank){
+  const rank=clamp(combatRank,1,TOWER_MAX_COMBAT_RANK);
+  const hpRank=towerHpRank(rank);
+  const baseHp=Math.round((1100+hpRank*190+hpRank*hpRank*2.6)*0.65*BOSS_HP_FACTOR);
+  const finalBaseHp=Math.round((1100+TOWER_MAX_HP_RANK*190+TOWER_MAX_HP_RANK*TOWER_MAX_HP_RANK*2.6)*0.65*BOSS_HP_FACTOR);
+  const progress=(rank-1)/(TOWER_MAX_COMBAT_RANK-1);
+  const finalMultiplier=FINAL_GRADE_BOSS_HP/finalBaseHp;
+  return Math.round(baseHp*(1+progress*(finalMultiplier-1)));
+}
 function getFloorEnemyBaseHp(stageNum){
   return Math.round(260+stageNum*58+stageNum*stageNum*1.5);
 }
 function expandConstructBossParts(boss){
   if(boss.name!=='Costrutto Immergreen') return [boss];
   const groupId=`${boss.id}_shared`;
-  const sharedMaxHp=boss.maxHp*2;
+  const sharedMaxHp=boss.maxHp*4;
   return ['sinistro','centrale','destro'].map((part,index)=>({
     ...boss,
     id:`${boss.id}_${part}`,
@@ -792,22 +816,22 @@ function expandConstructBossParts(boss){
     dots:[],
   }));
 }
-function generateEnemies(stageNum){
-  const n = stageNum;
-  const boss = isBossStage(n);
-  const count = boss ? 1 : Math.min(MAX_ENEMIES_IN_BATTLE, 1+Math.floor((n-1)/2));
+// Tower content can stretch HP separately while preserving the established ATK, DEF, and speed ranks.
+function generateEnemies(stageNum,combatRank=stageNum,scaleSpeed=false,hpRank=combatRank){
+  const n = combatRank;
+  const boss = isBossStage(stageNum);
+  const count = boss ? 1 : Math.min(MAX_ENEMIES_IN_BATTLE, 1+Math.floor((stageNum-1)/2));
   const enemies=[];
   for(let i=0;i<count;i++){
-    // Enemies hit hard and scale quadratically so the tower keeps getting tougher forever.
-    const hpBase = boss ? Math.round((1100 + n*190 + n*n*2.6)*0.65*BOSS_HP_FACTOR) : getFloorEnemyBaseHp(n);
+    const hpBase = boss ? getScaledBossHp(n) : getFloorEnemyBaseHp(hpRank);
     const atk = boss ? Math.round((150  + n*24  + n*n*0.22)*BOSS_ATK_FACTOR) : Math.round(95  + n*17  + n*n*0.14);
     const def = boss ? Math.round(35   + n*6   + n*n*0.05) : Math.round(10  + n*2.6  + n*n*0.02);
-    const special = !boss && n>=3 && Math.random()<0.5 ? pick(Object.keys(SPECIAL_ENEMIES)) : null;
-    const name = boss ? BOSS_NAMES[(Math.floor(n/5)-1) % BOSS_NAMES.length] : (special || ENEMY_NAMES[i % ENEMY_NAMES.length]);
+    const special = !boss && stageNum>=3 && Math.random()<0.5 ? pick(Object.keys(SPECIAL_ENEMIES)) : null;
+    const name = boss ? BOSS_NAMES[(Math.floor(stageNum/5)-1) % BOSS_NAMES.length] : (special || ENEMY_NAMES[i % ENEMY_NAMES.length]);
     const role = special ? SPECIAL_ENEMIES[special].role : null;
     const hp = special ? Math.round(hpBase*SPECIAL_ENEMIES[special].hpMult) : hpBase;
     const elements = ENEMY_ELEMENT_SETS[name].slice();
-    const speed = 90+Math.floor(Math.random()*31);
+    const speed = 90+Math.floor(Math.random()*31)+(scaleSpeed?Math.floor((n-1)/10)*4:0);
     enemies.push({id:'e'+i,name,role,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed,element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,isBoss:boss,phase:boss?1:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0,psychoHitCount:0,psychoTriggeredThisRound:false});
   }
   return enemies.flatMap(expandConstructBossParts);
@@ -828,8 +852,90 @@ function getTurnActor(b, entry=b.turnOrder[b.turnIndex]){
     : b.enemies.find(actor=>actor.id===entry.id);
 }
 
+const MODE_GRADE_DEFS=[
+  {id:'C',floor:1,pfEnemies:3,pfSpecialChance:0.1,phases:1,mocDamageReduction:0,phaseAtkMultiplier:1.1,apocDamageReduction:0.25,apocStacksRequired:3,roundLimit:18,apocRequiresWeakness:false},
+  {id:'B',floor:10,pfEnemies:3,pfSpecialChance:0.2,phases:1,mocDamageReduction:0,phaseAtkMultiplier:1.15,apocDamageReduction:0.35,apocStacksRequired:4,roundLimit:16,apocRequiresWeakness:false},
+  {id:'A',floor:25,pfEnemies:4,pfSpecialChance:0.3,phases:1,mocDamageReduction:0.05,phaseAtkMultiplier:1.2,apocDamageReduction:0.5,apocStacksRequired:5,roundLimit:14,apocRequiresWeakness:true},
+  {id:'S',floor:50,pfEnemies:4,pfSpecialChance:0.4,phases:2,mocDamageReduction:0.1,phaseAtkMultiplier:1.25,apocDamageReduction:0.65,apocStacksRequired:7,roundLimit:12,apocRequiresWeakness:true},
+  {id:'SS',floor:100,pfEnemies:5,pfSpecialChance:0.5,phases:2,mocDamageReduction:0.15,phaseAtkMultiplier:1.35,apocDamageReduction:0.8,apocStacksRequired:9,roundLimit:10,apocRequiresWeakness:true},
+  {id:'EX',floor:150,pfEnemies:5,pfSpecialChance:0.6,phases:2,mocDamageReduction:0.2,phaseAtkMultiplier:1.45,apocDamageReduction:0.9,apocStacksRequired:10,roundLimit:8,apocRequiresWeakness:true},
+];
+function getModeGrade(mode){
+  return MODE_GRADE_DEFS.find(grade=>grade.id===state.modeGrades?.[mode])||MODE_GRADE_DEFS[0];
+}
+function getModeGradeIndex(gradeId){
+  const index=MODE_GRADE_DEFS.findIndex(grade=>grade.id===gradeId);
+  return index<0?0:index;
+}
+function getClearedTowerFloor(){
+  return clamp(state.maxStageReached-1,0,TOWER_MAX_FLOOR);
+}
+function isModeGradeUnlocked(grade){
+  return MODE_GRADE_DEFS.includes(grade);
+}
+function setModeGrade(mode,gradeId){
+  const grade=MODE_GRADE_DEFS.find(entry=>entry.id===gradeId);
+  if(!grade||!isModeGradeUnlocked(grade)) return;
+  state.modeGrades[mode]=grade.id;
+  render();
+}
+function renderModeGradePicker(mode){
+  const selected=getModeGrade(mode);
+  const picker=el(`<div class="hud-panel section mode-grade-panel" style="padding:14px;margin:12px 0;"><div class="eyebrow">Grado di difficoltà</div><div class="subtab-bar mode-grade-picker"></div><div class="hint mode-grade-hint"></div></div>`);
+  const buttons=picker.querySelector('.mode-grade-picker');
+  MODE_GRADE_DEFS.forEach(grade=>{
+    const unlocked=isModeGradeUnlocked(grade);
+    const button=el(`<button class="subtab-btn ${selected.id===grade.id?'active':''}" type="button" ${unlocked?'':'disabled'}>${grade.id}${unlocked?'':` · Piano ${grade.floor}`}</button>`);
+    button.title=unlocked?`Grado ${grade.id}`:`Completa il Piano ${grade.floor} della Torre`;
+    button.onclick=()=>setModeGrade(mode,grade.id);
+    buttons.appendChild(button);
+  });
+  const combatRank=towerCombatRank(selected.floor);
+  picker.querySelector('.mode-grade-hint').textContent=`Grado ${selected.id} · Rango ATK/DIF ${combatRank.toFixed(1)} · Rango PV ${towerHpRank(combatRank).toFixed(1)}. Tutti i gradi sono selezionabili fin dall'inizio.`;
+  return picker;
+}
+function getModeRewardAmount(baseReward,gradeId){
+  return Math.round(baseReward*(1+getModeGradeIndex(gradeId)*0.1));
+}
+function getCumulativeModeReward(baseReward,gradeId){
+  const current=getModeGradeIndex(gradeId);
+  return MODE_GRADE_DEFS.slice(0,current+1).reduce((total,grade)=>total+getModeRewardAmount(baseReward,grade.id),0);
+}
+function getClaimedGradeIndex(day,index){
+  const stored=day.claimedGrade?.[index];
+  if(Number.isInteger(stored)&&stored>=0) return clamp(stored,0,MODE_GRADE_DEFS.length-1);
+  return day.claimed?.[index]?0:-1;
+}
+function getClaimedModeRewardTotal(day,index,baseReward){
+  const stored=day.claimedRewardTotal?.[index];
+  if(Number.isFinite(stored)&&stored>=0) return stored;
+  const previous=getClaimedGradeIndex(day,index);
+  return previous>=0?getModeRewardAmount(baseReward,MODE_GRADE_DEFS[previous].id):0;
+}
+function claimModeReward(day,index,baseReward,gradeId){
+  if(!Array.isArray(day.claimedGrade)) day.claimedGrade=[];
+  const previous=getClaimedGradeIndex(day,index);
+  const current=getModeGradeIndex(gradeId);
+  if(current<=previous) return 0;
+  const total=getCumulativeModeReward(baseReward,gradeId);
+  const amount=total-getClaimedModeRewardTotal(day,index,baseReward);
+  day.claimed=day.claimed||[];
+  day.claimed[index]=true;
+  day.claimedGrade[index]=current;
+  if(!Array.isArray(day.claimedRewardTotal)) day.claimedRewardTotal=[];
+  day.claimedRewardTotal[index]=total;
+  state.gold+=amount;
+  return amount;
+}
+function getModeRewardStatus(day,index,baseReward,gradeId){
+  const previous=getClaimedGradeIndex(day,index);
+  const current=getModeGradeIndex(gradeId);
+  if(current<=previous) return `✓ Grado ${MODE_GRADE_DEFS[Math.max(0,previous)].id}`;
+  const amount=getCumulativeModeReward(baseReward,gradeId)-getClaimedModeRewardTotal(day,index,baseReward);
+  return `+${amount} 💠`;
+}
+
 /* ============ PURE FICTION ============ */
-const PF_UNLOCK_STAGE = 10; // unlocked once floor 10 is cleared
 const PF_ROUNDS = 12; // every hero acts once per round
 const PF_TIERS = [{points:2000,reward:600},{points:5000,reward:1200},{points:10000,reward:1800}];
 const PF_GENERAL_BUFFS = [
@@ -864,14 +970,14 @@ function pfHash(str){
 function ensurePFDay(){
   const key=pfDateKey();
   if(!state.pfDaily || state.pfDaily.date!==key) state.pfDaily={date:key,best:0,claimed:[false,false,false]};
+  if(!Array.isArray(state.pfDaily.claimedGrade)) state.pfDaily.claimedGrade=state.pfDaily.claimed.map(claimed=>claimed?0:-1);
+  while(state.pfDaily.claimedGrade.length<PF_TIERS.length) state.pfDaily.claimedGrade.push(-1);
   return state.pfDaily;
 }
 function getPFDailyBuffs(){
   const key=pfDateKey();
   return {general:PF_GENERAL_BUFFS[pfHash(key+'g')%PF_GENERAL_BUFFS.length], theme:PF_THEME_BUFFS[pfHash(key+'t')%PF_THEME_BUFFS.length]};
 }
-const APOC_UNLOCK_STAGE=PF_UNLOCK_STAGE;
-const APOC_ROUNDS=PF_ROUNDS;
 const APOC_TIERS=[
   {id:'stacks',label:'Rimuovi la riduzione ai danni',reward:600},
   {id:'phase',label:'Svuota la prima barra del boss',reward:1200},
@@ -883,7 +989,9 @@ function ensureApocDay(){
     state.apocDaily={date,claimed:[false,false,false],bestRounds:null};
   }
   if(!Array.isArray(state.apocDaily.claimed)) state.apocDaily.claimed=[false,false,false];
+  if(!Array.isArray(state.apocDaily.claimedGrade)) state.apocDaily.claimedGrade=state.apocDaily.claimed.map(claimed=>claimed?0:-1);
   while(state.apocDaily.claimed.length<APOC_TIERS.length) state.apocDaily.claimed.push(false);
+  while(state.apocDaily.claimedGrade.length<APOC_TIERS.length) state.apocDaily.claimedGrade.push(-1);
   return state.apocDaily;
 }
 function getApocSetup(){
@@ -897,17 +1005,15 @@ function getApocSetup(){
     },
   };
 }
-function claimApocTier(index){
+function claimApocTier(index,gradeId=getModeGrade('apoc').id){
   const day=ensureApocDay();
   const tier=APOC_TIERS[index];
-  if(!tier || day.claimed[index]) return 0;
-  day.claimed[index]=true;
-  state.gold+=tier.reward;
-  return tier.reward;
+  if(!tier) return 0;
+  return claimModeReward(day,index,tier.reward,gradeId);
 }
 function claimApocProgressRewards(boss){
-  if(boss.apocStacks>=10) claimApocTier(0);
-  if(boss.phase>=2) claimApocTier(1);
+  if(boss.apocStacks>=boss.apocStacksRequired) claimApocTier(0,boss.modeGrade);
+  if(boss.phase>=2||(boss.maxPhases===1&&boss.hp<=0)) claimApocTier(1,boss.modeGrade);
 }
 function applyPFBuffs(allies,buffs){
   allies.forEach(a=>{
@@ -932,26 +1038,36 @@ function startPFTimer(node){
   tick(true);
   pfTimerHandle=setInterval(tick,1000);
 }
-function buildPFEnemy(id,name){
-  const n=Math.max(10,state.maxStageReached-1);
+function buildPFEnemy(id,name,rank=towerCombatRank(getModeGrade('pf').floor),hpRank=towerHpRank(rank)){
+  const n=rank;
   const special=SPECIAL_ENEMIES[name]||null;
-  const hpBase=Math.round(getFloorEnemyBaseHp(n)*1.4);
-  const hp=special?Math.round(hpBase*special.hpMult):hpBase;
+  const hpBase=Math.round(getFloorEnemyBaseHp(hpRank)*1.4);
+  const hp=Math.min(8000,special?Math.round(hpBase*special.hpMult):hpBase);
   const atk=Math.round((95+n*17+n*n*0.14)*0.25);
   const def=Math.round(10+n*2.6+n*n*0.02);
   const elements=ENEMY_ELEMENT_SETS[name].slice();
-  return {id,name,role:special?special.role:null,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed:90+Math.floor(Math.random()*31),element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,isBoss:false,phase:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0};
+  return {id,name,role:special?special.role:null,specialTurns:0,rageStacks:0,hp,maxHp:hp,atk,def,speed:90+Math.floor(Math.random()*31)+Math.floor((n-1)/10)*4,element:elements[0],elements,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,isBoss:false,phase:0,bossTurns:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0};
+}
+function getPFEnemyPool(specialChance){
+  return [...ENEMY_NAMES,...Object.keys(SPECIAL_ENEMIES).filter(()=>Math.random()<specialChance)];
 }
 function generatePFEnemies(){
-  return shuffleArr(pfAllEnemyNames()).slice(0,5).map((name,i)=>buildPFEnemy('p'+i,name));
+  const grade=getModeGrade('pf');
+  const names=shuffleArr(getPFEnemyPool(grade.pfSpecialChance));
+  const count=grade.pfEnemies;
+  const rank=towerCombatRank(grade.floor);
+  const hpRank=towerHpRank(rank);
+  return names.slice(0,count).map((name,i)=>buildPFEnemy('p'+i,name,rank,hpRank));
 }
 function spawnPFEnemy(b,spawned){
   const pf=b.pf;
   const aliveNames=b.enemies.filter(x=>x.hp>0).map(x=>x.name);
-  const pool=pfAllEnemyNames().filter(nm=>nm!==pf.lastSpawn&&!aliveNames.includes(nm));
-  const name=pick(pool.length?pool:pfAllEnemyNames());
+  const excluded=nm=>nm!==pf.lastSpawn&&!aliveNames.includes(nm);
+  const pool=getPFEnemyPool(pf.specialChance).filter(excluded);
+  const fallback=ENEMY_NAMES.filter(excluded);
+  const name=pick(pool.length?pool:fallback.length?fallback:ENEMY_NAMES);
   pf.lastSpawn=name;
-  const fresh=buildPFEnemy('p'+(b.summonCounter++),name);
+  const fresh=buildPFEnemy('p'+(b.summonCounter++),name,pf.rank,pf.hpRank);
   b.enemies.push(fresh);
   applyKoboCorrosionIfNeeded(b,fresh);
   spawned.push(fresh);
@@ -969,7 +1085,7 @@ function pfProcessKills(b){
     spawnPFEnemy(b,spawned);
   });
   // safety net: the field must always hold 5 living enemies
-  while(b.enemies.filter(x=>x.hp>0).length<5) spawnPFEnemy(b,spawned);
+  while(b.enemies.filter(x=>x.hp>0).length<b.pf.enemyCount) spawnPFEnemy(b,spawned);
   if(spawned.length>0){
     const future=b.turnOrder.slice(b.turnIndex+1);
     future.push(...spawned.map(enemy=>({side:'enemy',id:enemy.id,speed:enemy.speed})));
@@ -987,23 +1103,27 @@ function endPureFiction(reason){
   day.best=Math.max(day.best,score);
   const gained=[];
   PF_TIERS.forEach((tier,i)=>{
-    if(score>=tier.points && !day.claimed[i]){
-      day.claimed[i]=true;
-      state.gold+=tier.reward;
-      gained.push(tier.reward);
-    }
+    if(score>=b.pf.thresholds[i]) gained.push(claimModeReward(day,i,tier.reward,b.pf.grade));
   });
-  b.pfResult={score,kills:b.pf.kills,gained,total:gained.reduce((sum,v)=>sum+v,0),reason};
+  b.pfResult={score,kills:b.pf.kills,gained:gained.filter(amount=>amount>0),total:gained.reduce((sum,v)=>sum+v,0),reason,grade:b.pf.grade,thresholds:b.pf.thresholds};
   state.screen='pfresult';
 }
+function getPFScoreThresholds(gradeId,partySize){
+  const rank=towerCombatRank(MODE_GRADE_DEFS[getModeGradeIndex(gradeId)].floor);
+  const referenceHp=getFloorEnemyBaseHp(10)*1.4;
+  const rankHp=Math.min(8000,getFloorEnemyBaseHp(towerHpRank(rank))*1.4);
+  const squadFactor=Math.max(0.25,partySize/4);
+  return PF_TIERS.map(tier=>Math.max(100,Math.round(tier.points*(rankHp/referenceHp)*squadFactor/100)*100));
+}
 function startPureFiction(){
-  if(state.maxStageReached<=PF_UNLOCK_STAGE) return;
+  if(!isModeGradeUnlocked(getModeGrade('pf'))) return;
   startBattle('pf');
 }
 
 function startApocalypticShadow(){
-  if(state.maxStageReached<=APOC_UNLOCK_STAGE) return;
-  state.apoc={setup:getApocSetup()};
+  const grade=getModeGrade('apoc');
+  if(!isModeGradeUnlocked(grade)) return;
+  state.apoc={grade:grade.id,setup:getApocSetup()};
   startBattle('apoc');
 }
 function endApocalypticShadow(reason){
@@ -1013,21 +1133,27 @@ function endApocalypticShadow(reason){
   state.autoBattle=false;
   const boss=b.enemies.find(enemy=>enemy.isBoss);
   if(boss) claimApocProgressRewards(boss);
-  if(reason==='victory'&&b.round<=APOC_ROUNDS){
-    claimApocTier(2);
+  const grade=getModeGrade(b.apoc?.grade||'C');
+  const rounds=grade.roundLimit;
+  if(reason==='victory'&&b.round<=rounds){
+    claimApocTier(2,grade.id);
     const day=ensureApocDay();
+    day.bestRoundsByGrade=day.bestRoundsByGrade||{};
+    const best=day.bestRoundsByGrade[grade.id];
+    day.bestRoundsByGrade[grade.id]=best===undefined?b.round:Math.min(best,b.round);
     day.bestRounds=day.bestRounds===null?b.round:Math.min(day.bestRounds,b.round);
   }
-  b.apocResult={reason,rounds:b.round,stacks:boss?.apocStacks||0,phase:boss?.phase||1};
+  b.apocResult={reason,rounds:b.round,stacks:boss?.apocStacks||0,stacksRequired:boss?.apocStacksRequired||grade.apocStacksRequired,phase:boss?.phase||1,grade:grade.id,roundLimit:rounds};
   state.screen='apocresult';
 }
 
 /* ============ MEMORY OF CHAOS ============ */
-const MOC_UNLOCK_STAGE = 10;
 const MOC_TIERS = [{clears:1,reward:600},{clears:2,reward:1200},{clears:2,maxRounds:12,reward:1800}];
 function ensureMOCDay(){
   const key=pfDateKey();
   if(!state.mocDaily || state.mocDaily.date!==key) state.mocDaily={date:key,clears:0,bestRounds:null,claimed:[false,false,false]};
+  if(!Array.isArray(state.mocDaily.claimedGrade)) state.mocDaily.claimedGrade=state.mocDaily.claimed.map(claimed=>claimed?0:-1);
+  while(state.mocDaily.claimedGrade.length<MOC_TIERS.length) state.mocDaily.claimedGrade.push(-1);
   return state.mocDaily;
 }
 function getMOCSetup(){
@@ -1043,24 +1169,24 @@ function toggleMOCHero(teamIndex,charId){
   const teams=state.mocTeams;
   const team=teams[teamIndex];
   if(team.includes(charId)) team.splice(team.indexOf(charId),1);
-  else if(team.length<4 && !teams[1-teamIndex].includes(charId)) team.push(charId);
+  else if(team.length<4 && (getModeGrade('moc').id==='C'||!teams[1-teamIndex].includes(charId))) team.push(charId);
   render();
 }
 function startMemoryOfChaos(){
-  if(state.maxStageReached<=MOC_UNLOCK_STAGE || state.moc) return;
+  const grade=getModeGrade('moc');
+  if(!isModeGradeUnlocked(grade) || state.moc) return;
   const [first,second]=state.mocTeams;
-  if(first.length===0 || second.length===0 || first.some(id=>second.includes(id))) return;
-  state.moc={phase:'first',bossIndex:0,rounds:0,setup:getMOCSetup()};
+  const singleTeam=grade.id==='C';
+  if(first.length===0 || (!singleTeam&&(second.length===0 || first.some(id=>second.includes(id))))) return;
+  state.moc={phase:'first',bossIndex:0,rounds:0,grade:grade.id,singleTeam,setup:getMOCSetup()};
   startBattle('moc');
 }
-function claimMOCTiers(day,clears,rounds){
+function claimMOCTiers(day,clears,rounds,gradeId=getModeGrade('moc').id){
   let gained=0;
+  const grade=MODE_GRADE_DEFS[getModeGradeIndex(gradeId)];
   MOC_TIERS.forEach((tier,index)=>{
-    if(clears>=tier.clears && (tier.maxRounds===undefined || rounds<=tier.maxRounds) && !day.claimed[index]){
-      day.claimed[index]=true;
-      state.gold+=tier.reward;
-      gained+=tier.reward;
-    }
+    const requiredClears=grade.id==='C'&&index!==1?1:tier.clears;
+    if(clears>=requiredClears && (index!==2 || rounds<=grade.roundLimit)) gained+=claimModeReward(day,index,tier.reward,grade.id);
   });
   return gained;
 }
@@ -1081,13 +1207,19 @@ function onMOCBattleWin(){
   const day=ensureMOCDay();
   if(moc.bossIndex===0){
     day.clears=Math.max(day.clears,1);
-    claimMOCTiers(day,1,moc.rounds);
-    moc.bossIndex=1;
-    moc.phase='second';
+    if(moc.singleTeam){
+      day.bestRounds=day.bestRounds===null?moc.rounds:Math.min(day.bestRounds,moc.rounds);
+      claimMOCTiers(day,1,moc.rounds,moc.grade);
+      moc.phase='complete';
+    } else {
+      claimMOCTiers(day,1,moc.rounds,moc.grade);
+      moc.bossIndex=1;
+      moc.phase='second';
+    }
   } else {
     day.clears=2;
     day.bestRounds=day.bestRounds===null?moc.rounds:Math.min(day.bestRounds,moc.rounds);
-    claimMOCTiers(day,2,moc.rounds);
+    claimMOCTiers(day,2,moc.rounds,moc.grade);
     moc.phase='complete';
   }
   state.battle=null;
@@ -1116,25 +1248,29 @@ function retryMOC(){
   startMemoryOfChaos();
 }
 function generateMOCBoss(name,index){
-  const stage=Math.max(MOC_UNLOCK_STAGE,state.maxStageReached-1);
-  const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR*1.5*2.5);
+  const grade=MODE_GRADE_DEFS[getModeGradeIndex(state.moc.grade)];
+  const stage=towerCombatRank(grade.floor);
+  const hp=getScaledBossHp(stage);
   const elements=ENEMY_ELEMENT_SETS[name].slice();
-  const boss={id:`moc${index}`,name,hp,maxHp:hp,atk:Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR),def:Math.round(35+stage*6+stage*stage*0.05),speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0,psychoHitCount:0,psychoTriggeredThisRound:false};
+  const boss={id:`moc${index}`,name,hp,maxHp:hp,atk:Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR),def:Math.round(35+stage*6+stage*stage*0.05),speed:100+Math.floor((stage-1)/10)*4,element:elements[0],elements,isBoss:true,phase:1,maxPhases:grade.phases,mocDamageReduction:grade.mocDamageReduction,phaseTwoAttackMultiplier:grade.phaseAtkMultiplier,modeGrade:grade.id,bossTurns:0,role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0,psychoHitCount:0,psychoTriggeredThisRound:false};
   return expandConstructBossParts(boss);
 }
+
 function generateApocalypticShadowBoss(name){
-  const stage=Math.max(APOC_UNLOCK_STAGE,state.maxStageReached-1);
-  const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR);
+  const grade=MODE_GRADE_DEFS[getModeGradeIndex(state.apoc.grade)];
+  const stage=towerCombatRank(grade.floor);
+  const hp=getScaledBossHp(stage);
   const atk=Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR);
   const elements=ENEMY_ELEMENT_SETS[name].slice();
   const boss={
     id:'apoc0',name,hp,maxHp:hp,atk,
     def:Math.round(35+stage*6+stage*stage*0.05),
-    speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,
+    speed:100+Math.floor((stage-1)/10)*4,element:elements[0],elements,isBoss:true,phase:1,maxPhases:grade.phases,bossTurns:0,
     role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,
     defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,
     addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0,
-    apocStacks:0,apocDamageReduction:0.9,apocShieldRemoved:false,
+    apocStacks:0,apocStacksRequired:grade.apocStacksRequired,apocRequiresWeakness:grade.apocRequiresWeakness,
+    apocDamageReduction:grade.apocDamageReduction,apocShieldRemoved:false,modeGrade:grade.id,
   };
   return expandConstructBossParts(boss);
 }
@@ -1410,6 +1546,8 @@ function startBattle(mode,fight){
   const pf = mode==='pf';
   const moc = mode==='moc';
   const apoc = mode==='apoc';
+  if(!su&&!domain&&!pf&&!moc&&!apoc&&(state.stage<1||state.stage>Math.min(state.maxStageReached,TOWER_MAX_FLOOR))) return;
+  const pfGrade=pf?getModeGrade('pf'):null;
   const pfBuffs = pf ? getPFDailyBuffs() : null;
   const activeParty=moc?state.mocTeams[state.moc.bossIndex]:state.party;
   const mocBuffs=moc?state.moc.setup.buffs:null;
@@ -1445,7 +1583,7 @@ function startBattle(mode,fight){
       if(state.su.pendingStart){ applySUBlessing(state.su.pendingStart); state.su.pendingStart=null; }
     }
   }
-  const enemies = pf ? generatePFEnemies() : moc ? generateMOCBoss(state.moc.setup.bosses[state.moc.bossIndex],state.moc.bossIndex) : apoc ? generateApocalypticShadowBoss(state.apoc.setup.boss) : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage);
+  const enemies = pf ? generatePFEnemies() : moc ? generateMOCBoss(state.moc.setup.bosses[state.moc.bossIndex],state.moc.bossIndex) : apoc ? generateApocalypticShadowBoss(state.apoc.setup.boss) : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage,towerCombatRank(state.stage),true,towerHpRank(towerCombatRank(state.stage)));
   const turnOrder = buildTurnOrder(allies,enemies);
   const spMaxBonus = activeParty.reduce((sum,id)=>sum+(CHAR_DB[id].passiveSpCapBonus||0),0);
   const spMax = 5+spMaxBonus;
@@ -1467,9 +1605,9 @@ function startBattle(mode,fight){
     mode:pf?'pf':moc?'moc':apoc?'apoc':su?'su':domain?'domain':'tower',
     domainSet:domain?fight:null,
     suFight:su&&!!fight,
-    pf:pf?{score:0,kills:0,lastSpawn:null,buffs:pfBuffs}:null,
+    pf:pf?{score:0,kills:0,lastSpawn:null,buffs:pfBuffs,grade:pfGrade.id,rank:towerCombatRank(pfGrade.floor),hpRank:towerHpRank(towerCombatRank(pfGrade.floor)),enemyCount:pfGrade.pfEnemies,specialChance:pfGrade.pfSpecialChance,thresholds:getPFScoreThresholds(pfGrade.id,activeParty.length)}:null,
     mocBossIndex:moc?state.moc.bossIndex:null,
-    apoc:apoc?{bossName:state.apoc.setup.boss}:null,
+    apoc:apoc?{bossName:state.apoc.setup.boss,grade:state.apoc.grade}:null,
     apocTurns:0,
     koboCorrosionAura:false,
     koboCorrosionDamageMult:1,
@@ -1479,9 +1617,9 @@ function startBattle(mode,fight){
   logMsg(pf
     ? `Pure Fiction — Turno 1/${PF_ROUNDS}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : apoc
-    ? `Apocalyptic Shadow — ${enemies[0].name}. Riduzione danni 90%: colpisci 10 volte con un elemento efficace per rimuoverla. Hai ${APOC_ROUNDS} round. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
+    ? `Apocalyptic Shadow ${state.apoc.grade} — ${enemies[0].name}. Riduzione danni ${Math.round(enemies[0].apocDamageReduction*100)}%: ${enemies[0].apocStacksRequired} colpi ${enemies[0].apocRequiresWeakness?'con un elemento efficace ':''}per rimuoverla. Hai ${getModeGrade('apoc').roundLimit} round. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : moc
-    ? `Memory of Chaos — Boss ${state.moc.bossIndex+1}/2: ${enemies[0].name}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
+    ? `Memory of Chaos ${state.moc.grade} — Boss ${state.moc.bossIndex+1}/${state.moc.singleTeam?1:2}: ${enemies[0].name}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : su
     ? `Universo Simulato — Ondata ${state.su.wave}/${SU_WAVES}${fight?' (scontro)':''}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : domain
@@ -1541,7 +1679,7 @@ async function advanceTurn(){
       render();
       return;
     }
-    if((b.mode==='pf'||b.mode==='apoc') && b.round>=PF_ROUNDS){
+    if((b.mode==='pf'&&b.round>=PF_ROUNDS)||(b.mode==='apoc'&&b.round>=getModeGrade(b.apoc.grade).roundLimit)){
       if(b.mode==='apoc'){
         endApocalypticShadow('rounds');
         render();
@@ -1740,6 +1878,9 @@ function applyBossDamageReduction(enemy,dmg,attackType=''){
   if(state.battle?.mode==='apoc'&&enemy.apocDamageReduction>0){
     return Math.max(1,Math.round(dmg*(1-enemy.apocDamageReduction)));
   }
+  if(state.battle?.mode==='moc'&&enemy.mocDamageReduction>0){
+    return Math.max(1,Math.round(dmg*(1-enemy.mocDamageReduction)));
+  }
   if(enemy.name==='Custode della Civiltà'&&enemy.phase===2&&enemy.mumeiGuardActive){
     return Math.max(1,Math.round(dmg*0.6));
   }
@@ -1760,6 +1901,7 @@ function syncConstructHealth(enemy){
       part.apocStacks=enemy.apocStacks;
       part.apocDamageReduction=enemy.apocDamageReduction;
       part.apocShieldRemoved=enemy.apocShieldRemoved;
+      part.apocStacksRequired=enemy.apocStacksRequired;
     }
   });
 }
@@ -1782,10 +1924,10 @@ function recordApocalypticShadowHit(boss,attacker){
   const b=state.battle;
   if(b?.mode!=='apoc'||!attacker||boss.apocDamageReduction<=0) return;
   const weakHit=getElementMultiplier(attacker.element,boss.elements||boss.element)>1;
-  if(!weakHit&&attacker.charId!=='laplusDarkness') return;
-  boss.apocStacks=Math.min(10,(boss.apocStacks||0)+1);
-  logMsg(`${attacker.name} centra un colpo efficace: stack elementali ${boss.apocStacks}/10.`);
-  if(boss.apocStacks>=10){
+  if(boss.apocRequiresWeakness&&!weakHit&&attacker.charId!=='laplusDarkness') return;
+  boss.apocStacks=Math.min(boss.apocStacksRequired,(boss.apocStacks||0)+1);
+  logMsg(`${attacker.name} centra un colpo efficace: stack elementali ${boss.apocStacks}/${boss.apocStacksRequired}.`);
+  if(boss.apocStacks>=boss.apocStacksRequired){
     boss.apocDamageReduction=0;
     boss.apocShieldRemoved=true;
     grantApocalypticShadowEnergy(boss);
@@ -1955,13 +2097,13 @@ async function processFinanaFollowUps(b){
 }
 
 function updateBossPhase(enemy){
-  if(!enemy.isBoss || enemy.phase>=2 || enemy.hp>0) return false;
+  if(!enemy.isBoss || enemy.phase>=(enemy.maxPhases||2) || enemy.hp>0) return false;
   // First bar emptied: refill for the second bar and drop every unfinished phase-1 action.
   enemy.finanaTriggered=false;
   enemy.phase=2;
   enemy.hp=enemy.maxHp;
   enemy.shield=0;
-  enemy.atk=Math.round(enemy.atk*1.2);
+  enemy.atk=Math.round(enemy.atk*(enemy.phaseTwoAttackMultiplier||1.2));
   enemy.bossTurns=0;
   enemy.addsWaveStarted=false;
   enemy.addsWaveResolved=false;
@@ -2915,7 +3057,7 @@ function onVictory(){
   const creditReward = getStageGoldReward(state.stage);
   b.creditReward = creditReward;
   state.credits += creditReward;
-  state.maxStageReached = Math.max(state.maxStageReached, state.stage+1);
+  state.maxStageReached = Math.min(TOWER_MAX_FLOOR+1,Math.max(state.maxStageReached,state.stage+1));
   recordDailyMissionProgress('battle');
   state.autoBattle=false;
   state.screen='victory';
@@ -2927,7 +3069,7 @@ function onDefeat(){
 }
 
 function goToTown(advance){
-  if(advance) state.stage = state.stage+1;
+  if(advance) state.stage = Math.min(TOWER_MAX_FLOOR,state.stage+1);
   state.battle=null;
   state.screen='town';
   render();
@@ -3445,7 +3587,7 @@ function getHighestArtifactLevel(){
 
 // Infinite quest tracks: each time claimed, the target and reward both increase for next time.
 const QUEST_TRACKS = [
-  {id:'tower',  label:t=>`Raggiungi il Piano ${t} della Torre`, baseTarget:5, step:5,  baseReward:600, rewardStep:300, getValue:()=>Math.max(0,state.maxStageReached-1)},
+  {id:'tower',  label:t=>`Raggiungi il Piano ${t} della Torre`, baseTarget:5, step:5,  baseReward:600, rewardStep:300, getValue:()=>Math.max(0,state.maxStageReached-1), maxTarget:TOWER_MAX_FLOOR},
   {id:'heroes', label:t=>`Sblocca ${t} eroi`,                   baseTarget:2, step:1,  baseReward:750, rewardStep:500, getValue:countUnlockedHeroes, maxTarget:Object.keys(CHAR_DB).length},
   {id:'pulls',  label:t=>`Effettua ${t} evocazioni totali`,     baseTarget:5, step:15, baseReward:450, rewardStep:300, getValue:()=>state.totalPullsDone},
   {id:'sells',  label:t=>`Vendi ${t} manufatti`,                baseTarget:3, step:5,  baseReward:300, rewardStep:240, getValue:()=>state.totalArtifactsSold},
@@ -3528,7 +3670,7 @@ function renderTopbar(){
       <div class="glyph">◈</div>
       <div>
         <h1>Eco del Vuoto</h1>
-        <div class="sub">Piano ${state.stage} · Torre Infinita</div>
+        <div class="sub">Piano ${state.stage}/${TOWER_MAX_FLOOR} · Torre del Vuoto</div>
       </div>
     </div>
     <div class="stats">
@@ -3554,7 +3696,7 @@ function renderHome(){
   wrap.appendChild(el(`<div class="hud-panel home-hero">
     <div class="eyebrow">Demo di base — combattimento a turni</div>
     <h1>ECO DEL VUOTO</h1>
-    <p>Inizi con un solo eroe su una torre infinita. Attacco base, Skill a punti condivisi, Ultimate a energia: sconfiggi i nemici, raccogli manufatti, sali sempre più in alto — e sblocca altri eroi lungo la strada.</p>
+    <p>Inizi con un solo eroe e affronti una Torre di ${TOWER_MAX_FLOOR} piani. Attacco base, Skill a punti condivisi, Ultimate a energia: sconfiggi i nemici, raccogli manufatti e sblocca altri eroi lungo la strada.</p>
   </div>`));
   const existing = hasSave();
   const btnRow = el(`<div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;"></div>`);
@@ -4123,7 +4265,7 @@ function renderTutorialTab(){
     ['Elementi e danni', `<p>Ogni eroe ha un elemento; ogni nemico ha sempre gli stessi 3 elementi, mostrati nell'Indice e in battaglia. Un attacco dello stesso elemento infligge metà danno. Un elemento forte contro uno dei tipi del nemico infligge il doppio; gli altri attacchi infliggono danno normale.</p><ul>${Object.keys(ELEMENT_DATA).map(element=>`<li><b>${ELEMENT_DATA[element].label}</b> è forte contro ${ELEMENT_DATA[ELEMENT_DATA[element].strongAgainst].label}.</li>`).join('')}</ul>`],
     ['Manufatti e set', `<p>Equipaggia fino a 5 manufatti per eroe. Le statistiche principali e secondarie aumentano i parametri; i bonus set si attivano con 2 e 4 pezzi dello stesso set. Puoi potenziare un manufatto fino al livello 20; ogni 5 livelli migliora una statistica secondaria casuale.</p>`],
     ['Armi', `<p>Ogni eroe ha uno slot arma. Ogni arma ha rarità, ATK, statistica secondaria ed effetto fissi. Potenziala fino al livello 20 spendendo Crediti; ascendi fino al grado 5 consumando un doppione identico e vendila dall'Armeria. Ci sono due Banner armi: uno con le armi esclusive degli eroi 4 stelle e uno con quelle degli eroi 5 stelle.</p>`],
-    ['Torre, domini e ricompense', `<p>Avanza nella Torre Infinita: ogni piano aumenta la difficoltà e ogni 5 piani affronti un boss. Le vittorie in Torre e nei domini danno Crediti e manufatti; usa i Crediti per potenziare armi e manufatti e i Frammenti (ottenuti nel Travel Log) per evocare dal Banner.</p>`],
+    ['Torre, domini e ricompense', `<p>Avanza nella Torre del Vuoto: la progressione termina al Piano ${TOWER_MAX_FLOOR} e ogni 5 piani affronti un boss. Pure Fiction, Memory of Chaos e Apocalyptic Shadow sono accessibili dall'inizio con tutti i gradi di difficoltà già selezionabili. Le vittorie in Torre e nei domini danno Crediti e manufatti; usa i Crediti per potenziare armi e manufatti e i Frammenti (ottenuti nel Travel Log) per evocare dal Banner.</p>`],
     ['Banner e missioni', `<p>Un'evocazione costa 300 Frammenti. Il Banner personaggi garantisce un personaggio 4 stelle entro 10 evocazioni e uno 5 stelle entro 50. Nei Banner armi i personaggi hanno le stesse probabilità base ma nessuna garanzia: un'arma esclusiva (4 o 5 stelle a seconda del banner) è invece garantita ogni 30 evocazioni su quel banner. Le missioni ricorrenti offrono Crediti; le quattro missioni giornaliere danno 300 Frammenti ciascuna e si azzerano a mezzanotte.</p>`],
   ];
   const grid = el(`<div class="tutorial-grid"></div>`);
@@ -4273,13 +4415,13 @@ function renderBannerTab(){
 
 function renderTorreTab(){
   const wrap = document.createElement('div');
-  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Ascensione infinita</span><h2>Torre del Vuoto</h2></div>`));
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">La torre non ha fine: ogni piano è più duro del precedente, ogni 5° piano c'è un boss. Scegli il piano da affrontare tra quelli già raggiunti.</div>`));
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Progressione principale · ${TOWER_MAX_FLOOR} piani</span><h2>Torre del Vuoto</h2></div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">La Torre termina al Piano ${TOWER_MAX_FLOOR}; ogni 5° piano c'è un boss. La difficoltà cresce fino al rango massimo, poi la Torre è completata. Scegli un piano già raggiunto.</div>`));
 
   const towerPanel = el(`<div class="hud-panel section" style="padding:16px;"></div>`);
   const scroller = el(`<div class="tower-scroller"></div>`);
   const windowStart = 1;
-  const windowEnd = state.maxStageReached;
+  const windowEnd = Math.min(state.maxStageReached,TOWER_MAX_FLOOR);
   for(let n=windowStart;n<=windowEnd;n++){
     const boss = isBossStage(n);
     const cleared = n < state.maxStageReached;
@@ -4298,14 +4440,14 @@ function renderTorreTab(){
 
   const info = el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;text-align:center;">
     <div class="hero-name" style="font-size:20px;">Piano selezionato: ${state.stage} ${isBossStage(state.stage)?'· BOSS':''}</div>
-    <div class="hint">Massimo raggiunto: piano ${state.maxStageReached}</div>
-    <div style="margin-top:8px;"><label class="hint">Vai al piano <input type="number" id="stageJump" min="1" value="${state.stage}" style="width:80px;"></label> <button id="stageJumpBtn">Vai</button></div>
-    <button class="primary" id="deployBtn2" style="margin-top:12px;padding:12px 26px;font-size:15px;">Avvia Piano ${state.stage} ▶</button>
+    <div class="hint">${getClearedTowerFloor()>=TOWER_MAX_FLOOR?`Torre completata · ${TOWER_MAX_FLOOR}/${TOWER_MAX_FLOOR} piani`:`Massimo raggiunto: piano ${windowEnd}/${TOWER_MAX_FLOOR}`}</div>
+    <div style="margin-top:8px;"><label class="hint">Vai al piano <input type="number" id="stageJump" min="1" max="${windowEnd}" value="${state.stage}" style="width:80px;"></label> <button id="stageJumpBtn">Vai</button></div>
+    <button class="primary" id="deployBtn2" style="margin-top:12px;padding:12px 26px;font-size:15px;">${getClearedTowerFloor()>=TOWER_MAX_FLOOR?'Rigioca':'Avvia'} Piano ${state.stage} ▶</button>
   </div>`);
   info.querySelector('#deployBtn2').onclick=()=>startBattle();
   info.querySelector('#stageJumpBtn').onclick=()=>{
     const n=parseInt(info.querySelector('#stageJump').value,10);
-    if(n>=1){ state.stage=n; render(); }
+    if(Number.isInteger(n)&&n>=1&&n<=windowEnd){ state.stage=n; render(); }
   };
   wrap.appendChild(info);
   return wrap;
@@ -4570,10 +4712,10 @@ function renderBattle(){
       <div class="name">${e.name}</div>
       ${e.partLabel?`<div class="boss-add-tag" style="color:var(--cyan);">${e.partLabel==='centrale'?'NUCLEO CENTRALE':`PARTE ${e.partLabel.toUpperCase()}`}</div>`:''}
       ${e.inaMarked?'<div class="ina-mark-tag">✦ MARCHIATO · INA</div>':''}
-      ${e.isBoss?`<div class="boss-tag">BARRA ${e.phase||1}/2 · ${e.name==='Suisei Pshyco'&&e.phase===2?'1 ATTACCO + CURA':e.constructGroupId&&e.phase===2&&e.constructPart===1?'2 ATTACCHI · 2° AOE':e.constructGroupId?'ATTACCO SINGOLO':'2 ATTACCHI'}</div>`:''}
+      ${e.isBoss?`<div class="boss-tag">BARRA ${e.phase||1}/${e.maxPhases||2} · ${e.name==='Suisei Pshyco'&&e.phase===2?'1 ATTACCO + CURA':e.constructGroupId&&e.phase===2&&e.constructPart===1?'2 ATTACCHI · 2° AOE':e.constructGroupId?'ATTACCO SINGOLO':'2 ATTACCHI'}</div>`:''}
       ${e.name==='Suisei Pshyco'?`<div class="boss-add-tag" style="color:var(--amber);">✦ FOLLOW-UP ${e.psychoHitCount||0}/4 · DANNI +${Math.round((e.psychoDamageBonus||0)*100)}%${e.psychoDamageBonus?' · BOOST ATTIVO':''}</div>`:''}
       ${e.constructGroupId?'<div class="boss-add-tag" style="color:var(--amber);">PV CONDIVISI · GLI SCUDI RIFLETTONO 150% DEI DANNI ASSORBITI</div>':''}
-      ${b.mode==='apoc'?`<div class="boss-add-tag" style="color:var(--amber);">${e.apocDamageReduction>0?`RIDUZIONE DANNI ${Math.round(e.apocDamageReduction*100)}% · STACK ELEMENTALI ${e.apocStacks||0}/10`:'RIDUZIONE RIMOSSA · ENERGIA AL MASSIMO'}</div>`:''}
+      ${b.mode==='apoc'?`<div class="boss-add-tag" style="color:var(--amber);">${e.apocDamageReduction>0?`RIDUZIONE DANNI ${Math.round(e.apocDamageReduction*100)}% · STACK ELEMENTALI ${e.apocStacks||0}/${e.apocStacksRequired}`:'RIDUZIONE RIMOSSA · ENERGIA AL MASSIMO'}</div>`:''}
       ${e.seasickStacks>0?`<div class="boss-add-tag" style="color:var(--cyan);">🌊 MAL DI MARE x${e.seasickStacks} · ATK -${e.seasickStacks*5}%</div>`:''}
         ${e.name==='Custode della Civiltà'&&e.phase===2&&e.mumeiGuardActive?`<div class="boss-add-tag" style="color:var(--amber);">DANNI SUBITI -40% · ${e.mumeiGuardRounds} ROUND · ${e.mumeiGuardSkillPointsSpent}/5 PA</div>`:''}
         ${e.name==='Titano dell’Eclissi'&&e.phase===2?'<div class="boss-add-tag" style="color:var(--amber);">RESISTENZA 80% · ATTACCHI BASE E ULTIMATE</div>':''}
@@ -4588,7 +4730,7 @@ function renderBattle(){
       }).join('')}</div>
       ${(e.defDownRounds>0||e.vulnerableRounds>0)?`<div class="enemy-status-tags">${e.defDownRounds>0?`<span class="enemy-defdown">DIF -${Math.round(e.defDownPct*100)}%</span>`:''}${e.vulnerableRounds>0&&e.vulnerableToElement?`<span class="enemy-vulnerability">Vulnerabile a ${ELEMENT_DATA[e.vulnerableToElement].label}</span>`:''}</div>`:''}
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(e.hp/e.maxHp*100)}%"></div></div>
-      ${e.isBoss&&e.phase<2?'<div class="bar-track" style="height:4px;margin-top:2px;opacity:.55;"><div class="bar-fill hp-fill" style="width:100%"></div></div>':''}
+      ${e.isBoss&&e.phase<(e.maxPhases||2)?'<div class="bar-track" style="height:4px;margin-top:2px;opacity:.55;"><div class="bar-fill hp-fill" style="width:100%"></div></div>':''}
       <div class="mini-lbl"><span>${e.hp}/${e.maxHp}</span></div>
       ${(e.dots||[]).map(dot=>`<div class="burn-tag">${dot.name==='Corrosione'?'☣️':dot.name==='Sanguinamento'?'🩸':'🔥'} ${dot.name} x${dot.stacks}</div>`).join('')}
       ${e.shield>0?`<div class="shield-tag">🛡 ${e.shield}</div>`:''}
@@ -4606,7 +4748,7 @@ function renderBattle(){
   const spPanel = el(`<div class="hud-panel" style="padding:12px;display:flex;flex-direction:column;justify-content:center;gap:8px;">
     <div class="mini-lbl" style="font-size:10px;">PUNTI ABILITÀ</div>
     <div style="display:flex;gap:6px;" id="spPips"></div>
-    <div class="mini-lbl" style="font-size:10px;margin-top:8px;">${b.mode==='pf'?`TURNO ${b.round}/${PF_ROUNDS} · PUNTI ${b.pf.score}`:b.mode==='apoc'?`TURNO ${b.round}/${APOC_ROUNDS}`:b.mode==='su'?`ONDATA ${state.su.wave}/${SU_WAVES}${b.suFight?' · SCONTRO':''} · ROUND ${b.round}`:`ROUND ${b.round}`}</div>
+    <div class="mini-lbl" style="font-size:10px;margin-top:8px;">${b.mode==='pf'?`TURNO ${b.round}/${PF_ROUNDS} · PUNTI ${b.pf.score}`:b.mode==='apoc'?`TURNO ${b.round}/${getModeGrade(b.apoc.grade).roundLimit}`:b.mode==='su'?`ONDATA ${state.su.wave}/${SU_WAVES}${b.suFight?' · SCONTRO':''} · ROUND ${b.round}`:`ROUND ${b.round}`}</div>
   </div>`);
   const pipsWrap = spPanel.querySelector('#spPips');
   for(let i=0;i<b.spMax;i++){
@@ -4714,13 +4856,12 @@ function renderBattle(){
 function renderPureFictionTab(){
   const wrap = document.createElement('div');
   wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Modalità a punteggio</span><h2>Pure Fiction</h2></div>`));
-  if(state.maxStageReached<=PF_UNLOCK_STAGE){
-    wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;text-align:center;"><div class="hero-name" style="font-size:18px;">🔒 Bloccata</div><div class="hint">Si sblocca dopo aver superato il Piano ${PF_UNLOCK_STAGE} della Torre. Massimo raggiunto: piano ${state.maxStageReached}.</div></div>`));
-    return wrap;
-  }
+  const grade=getModeGrade('pf');
+  const thresholds=getPFScoreThresholds(grade.id,state.party.length);
+  wrap.appendChild(renderModeGradePicker('pf'));
   const day=ensurePFDay();
   const buffs=getPFDailyBuffs();
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Cinque nemici in campo: ogni nemico sconfitto dà punti (100, 150 per i nemici speciali) e viene subito sostituito da uno diverso. Ogni eroe ha ${PF_ROUNDS} turni: quando finiscono la sfida termina e ottieni il risultato. Puoi rigiocare quanto vuoi, ma ogni ricompensa si ottiene una sola volta al giorno (reset a mezzanotte).</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${grade.pfEnemies} nemici in campo: ogni nemico sconfitto dà punti (100, 150 per i nemici speciali) e viene subito sostituito. La probabilità di nemici speciali è ${Math.round(grade.pfSpecialChance*100)}%. Ogni eroe ha ${PF_ROUNDS} turni. Soglie punti adattate al grado e alla squadra schierata; le ricompense si ottengono una volta al giorno e sono cumulative: completando un grado superiore ricevi anche i premi dei gradi precedenti.</div>`));
   wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;">
     <div class="eyebrow">Potenziamenti di oggi</div>
     <div style="margin-top:8px;"><b>${buffs.general.name}</b> · <span class="hint">${buffs.general.desc}</span></div>
@@ -4729,10 +4870,10 @@ function renderPureFictionTab(){
   const tiers=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense di oggi · Miglior punteggio: ${day.best}</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="pfTimer"></b></div></div>`);
   startPFTimer(tiers.querySelector('#pfTimer'));
   PF_TIERS.forEach((tier,i)=>{
-    tiers.appendChild(el(`<div class="stat-row"><span>${tier.points} punti</span><b style="color:${day.claimed[i]?'var(--green)':'var(--amber)'}">${day.claimed[i]?'✓ riscossa':'+'+tier.reward+' 💠'}</b></div>`));
+    tiers.appendChild(el(`<div class="stat-row"><span>${thresholds[i]} punti</span><b style="color:${day.claimedGrade[i]>=getModeGradeIndex(grade.id)?'var(--green)':'var(--amber)'}">${getModeRewardStatus(day,i,tier.reward,grade.id)}</b></div>`));
   });
   wrap.appendChild(tiers);
-  const startRow=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="pfStart" style="padding:12px 26px;font-size:15px;">Avvia Pure Fiction ▶</button></div>`);
+  const startRow=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="pfStart" style="padding:12px 26px;font-size:15px;">Avvia Pure Fiction · ${grade.id} ▶</button></div>`);
   startRow.querySelector('#pfStart').onclick=()=>startPureFiction();
   wrap.appendChild(startRow);
   return wrap;
@@ -4740,19 +4881,17 @@ function renderPureFictionTab(){
 
 function renderMemoryOfChaos(){
   const wrap=document.createElement('div');
-  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Sfida a due squadre</span><h2>Memory of Chaos</h2></div>`));
-  if(state.maxStageReached<=MOC_UNLOCK_STAGE){
-    wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;text-align:center;"><div class="hero-name" style="font-size:18px;">🔒 Bloccata</div><div class="hint">Si sblocca dopo aver superato il Piano ${MOC_UNLOCK_STAGE} della Torre. Massimo raggiunto: piano ${state.maxStageReached}.</div></div>`));
-    return wrap;
-  }
+  wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Boss a difficoltà graduata</span><h2>Memory of Chaos</h2></div>`));
+  const grade=getModeGrade('moc');
+  if(!state.moc) wrap.appendChild(renderModeGradePicker('moc'));
   const day=ensureMOCDay();
   const setup=state.moc?.setup||getMOCSetup();
   if(!state.moc && state.mocTeams.every(team=>team.length===0)) state.mocTeams[0]=state.party.slice(0,4);
   if(state.moc){
     const phase=state.moc.phase;
     const title=phase==='second'?'Primo boss sconfitto':phase==='complete'?'Memory of Chaos completato':'Squadra sconfitta';
-    const message=phase==='second'?`Ora affronta ${setup.bosses[1]} con la seconda squadra.`:phase==='complete'?`Entrambi i boss sono stati sconfitti in ${state.moc.rounds} round.`:`La sfida si è fermata al boss ${state.moc.bossIndex+1}. Puoi riprovare con le stesse squadre.`;
-    wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;text-align:center;"><div class="eyebrow">${title}</div><div class="hero-name" style="font-size:18px;margin:8px 0;">${message}</div><div class="hint">Ricompense giornaliere già ottenute: ${day.claimed.map((claimed,index)=>claimed?MOC_TIERS[index].reward:0).reduce((sum,reward)=>sum+reward,0)} Frammenti</div></div>`));
+    const message=phase==='second'?`Ora affronta ${setup.bosses[1]} con la seconda squadra.`:phase==='complete'?`${state.moc.singleTeam?'Boss sconfitto':'Entrambi i boss sconfitti'} in ${state.moc.rounds} round.`:`La sfida si è fermata al boss ${state.moc.bossIndex+1}. Puoi riprovare con le stesse squadre.`;
+    wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;text-align:center;"><div class="eyebrow">${title} · Grado ${state.moc.grade}</div><div class="hero-name" style="font-size:18px;margin:8px 0;">${message}</div><div class="hint">Ricompense giornaliere già ottenute: ${day.claimed.map((claimed,index)=>claimed?getClaimedModeRewardTotal(day,index,MOC_TIERS[index].reward):0).reduce((sum,reward)=>sum+reward,0)} Frammenti</div></div>`));
     if(phase==='second'){
       const button=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="mocContinue">Affronta il secondo boss ▶</button></div>`);
       button.querySelector('#mocContinue').onclick=continueMOC;
@@ -4769,24 +4908,27 @@ function renderMemoryOfChaos(){
     }
     return wrap;
   }
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Sconfiggi due boss consecutivi con squadre distinte. Boss e potenziamenti sono gli stessi per tutti e ruotano ogni giorno; i boss scalano con il massimo piano raggiunto e hanno 2,5 volte i PV dei boss della Torre. Le ricompense si possono ottenere una volta al giorno.</div>`));
-  wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;"><div class="eyebrow">Boss e potenziamenti di oggi</div><div class="stat-row"><span>Boss 1</span><b class="moc-boss-info">${setup.bosses[0]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[0])}</span></b></div><div class="stat-row"><span>Boss 2</span><b class="moc-boss-info">${setup.bosses[1]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[1])}</span></b></div><div style="margin-top:8px;"><b>${setup.buffs.general.name}</b> · <span class="hint">${setup.buffs.general.desc}</span></div><div style="margin-top:6px;"><b>${setup.buffs.theme.name}</b> · <span class="hint">${setup.buffs.theme.desc}</span></div></div>`));
-  const tierPanel=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense di oggi · Boss sconfitti: ${day.clears}/2</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="mocTimer"></b></div></div>`);
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${grade.id==='C'?'Affronta un boss con una sola squadra: il grado C è pensato anche per il roster iniziale.':'Sconfiggi due boss consecutivi con squadre distinte.'} I boss mantengono fasi e pattern propri; dal grado A si aggiunge una riduzione ai danni, mentre i gradi S+ introducono la seconda fase. Le ricompense si ottengono una volta al giorno e sono cumulative tra i gradi, senza rendere quelli alti necessari alla progressione.</div>`));
+  wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;"><div class="eyebrow">Boss e potenziamenti di oggi</div><div class="stat-row"><span>Boss 1</span><b class="moc-boss-info">${setup.bosses[0]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[0])}</span></b></div>${grade.id==='C'?'':`<div class="stat-row"><span>Boss 2</span><b class="moc-boss-info">${setup.bosses[1]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[1])}</span></b></div>`}<div style="margin-top:8px;"><b>${setup.buffs.general.name}</b> · <span class="hint">${setup.buffs.general.desc}</span></div><div style="margin-top:6px;"><b>${setup.buffs.theme.name}</b> · <span class="hint">${setup.buffs.theme.desc}</span></div></div>`));
+  const clearTarget=grade.id==='C'?1:2;
+  const tierPanel=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense di oggi · Boss sconfitti: ${Math.min(day.clears,clearTarget)}/${clearTarget}</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="mocTimer"></b></div></div>`);
   startPFTimer(tierPanel.querySelector('#mocTimer'));
   MOC_TIERS.forEach((tier,index)=>{
-    const label=index===0?'Sconfiggi il primo boss':index===1?'Sconfiggi entrambi i boss':'Entrambi entro 12 round';
-    tierPanel.appendChild(el(`<div class="stat-row"><span>${label}</span><b style="color:${day.claimed[index]?'var(--green)':'var(--amber)'}">${day.claimed[index]?'✓ riscossa':'+'+tier.reward+' 💠'}</b></div>`));
+    const unavailable=grade.id==='C'&&index===1;
+    const label=index===0?'Sconfiggi il primo boss':index===1?'Sconfiggi entrambi i boss · Grado B+':`${grade.id==='C'?'Sconfiggi il boss':'Completa'} entro ${grade.roundLimit} round`;
+    tierPanel.appendChild(el(`<div class="stat-row"><span>${label}</span><b style="color:${unavailable?'var(--text-dim)':day.claimedGrade[index]>=getModeGradeIndex(grade.id)?'var(--green)':'var(--amber)'}">${unavailable?'Dal grado B':getModeRewardStatus(day,index,tier.reward,grade.id)}</b></div>`));
   });
   wrap.appendChild(tierPanel);
 
   const teamsPanel=el(`<div class="moc-teams"></div>`);
   state.mocTeams.forEach((team,teamIndex)=>{
+    if(grade.id==='C'&&teamIndex===1) return;
     const bossName=setup.bosses[teamIndex];
     const panel=el(`<section class="hud-panel moc-team-panel"><h3>Squadra ${teamIndex+1} <span>${team.length}/4</span></h3><div class="moc-team-elements" title="${bossName}">${renderMOCBossElements(bossName)}</div><div class="moc-hero-list"></div></section>`);
     const list=panel.querySelector('.moc-hero-list');
     Object.entries(CHAR_DB).filter(([id])=>state.roster[id]?.unlocked).forEach(([id,char])=>{
       const selected=team.includes(id);
-      const assignedOther=state.mocTeams[1-teamIndex].includes(id);
+      const assignedOther=grade.id!=='C'&&state.mocTeams[1-teamIndex].includes(id);
       const disabled=assignedOther||(!selected&&team.length>=4);
       const strongAgainst=isElementStrongAgainstMOCBoss(char.element,bossName);
       const option=el(`<button class="moc-hero-option ${selected?'selected':''} ${strongAgainst?'strong-against':''}" type="button" aria-label="${char.name}${strongAgainst?', elemento efficace contro '+bossName:''}" ${disabled?'disabled':''}><span class="moc-hero-glyph" style="background:${char.color}">${char.glyph}</span><span>${char.name}</span><span class="moc-hero-check">${selected?'✓':''}</span></button>`);
@@ -4796,8 +4938,8 @@ function renderMemoryOfChaos(){
     teamsPanel.appendChild(panel);
   });
   wrap.appendChild(teamsPanel);
-  const valid=state.mocTeams.every(team=>team.length>0)&&!state.mocTeams[0].some(id=>state.mocTeams[1].includes(id));
-  const start=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="mocStart" ${valid?'':'disabled'}>Avvia Memory of Chaos ▶</button></div>`);
+  const valid=grade.id==='C'?state.mocTeams[0].length>0:state.mocTeams.every(team=>team.length>0)&&!state.mocTeams[0].some(id=>state.mocTeams[1].includes(id));
+  const start=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="mocStart" ${valid?'':'disabled'}>Avvia Memory of Chaos · ${grade.id} ▶</button></div>`);
   start.querySelector('#mocStart').onclick=startMemoryOfChaos;
   wrap.appendChild(start);
   return wrap;
@@ -4806,25 +4948,27 @@ function renderMemoryOfChaos(){
 function renderApocalypticShadow(){
   const wrap=document.createElement('div');
   wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Sfida endgame · Un boss</span><h2>Apocalyptic Shadow</h2></div>`));
-  if(state.maxStageReached<=APOC_UNLOCK_STAGE){
-    wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;text-align:center;"><div class="hero-name" style="font-size:18px;">🔒 Bloccata</div><div class="hint">Si sblocca dopo aver superato il Piano ${APOC_UNLOCK_STAGE} della Torre. Massimo raggiunto: piano ${state.maxStageReached}.</div></div>`));
-    return wrap;
-  }
+  const grade=getModeGrade('apoc');
+  wrap.appendChild(renderModeGradePicker('apoc'));
   const day=ensureApocDay();
   const setup=state.apoc?.setup||getApocSetup();
   const buffs=setup.buffs;
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Affronta il boss di oggi con tutta la squadra. Hai ${APOC_ROUNDS} round. La riduzione ai danni del 90% si rimuove accumulando 10 colpi con un elemento efficace; Laplus può superare il requisito elementale. Quando la barriera cede, tutti gli alleati ottengono energia massima.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Affronta il boss di oggi con tutta la squadra. Hai ${grade.roundLimit} round. La riduzione ai danni è ${Math.round(grade.apocDamageReduction*100)}% e si rimuove dopo ${grade.apocStacksRequired} colpi${grade.apocRequiresWeakness?' con un elemento efficace':''}; quando la barriera cede, tutti gli alleati ottengono energia massima. Le ricompense sono cumulative tra i gradi.</div>`));
   wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;">
     <div class="eyebrow">Boss e potenziamenti di oggi</div>
     <div class="stat-row"><span>Boss</span><b class="moc-boss-info">${setup.boss}<span class="moc-boss-elements">${renderMOCBossElements(setup.boss)}</span></b></div>
     <div style="margin-top:8px;"><b>${buffs.general.name}</b> · <span class="hint">${buffs.general.desc}</span></div>
     <div style="margin-top:6px;"><b>${buffs.theme.name}</b> · <span class="hint">${buffs.theme.desc}</span></div>
   </div>`));
-  const tiers=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense giornaliere · Miglior risultato: ${day.bestRounds===null?'—':`${day.bestRounds} round`}</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="apocTimer"></b></div></div>`);
+  const bestForGrade=day.bestRoundsByGrade?.[grade.id];
+  const tiers=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense giornaliere · Miglior risultato ${grade.id}: ${bestForGrade===undefined?'—':`${bestForGrade} round`}</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="apocTimer"></b></div></div>`);
   startPFTimer(tiers.querySelector('#apocTimer'));
-  APOC_TIERS.forEach((tier,index)=>tiers.appendChild(el(`<div class="stat-row"><span>${tier.label}</span><b style="color:${day.claimed[index]?'var(--green)':'var(--amber)'}">${day.claimed[index]?'✓ riscossa':`+${tier.reward} 💠`}</b></div>`)));
+  APOC_TIERS.forEach((tier,index)=>{
+    const label=index===0?`Rimuovi la riduzione (${grade.apocStacksRequired} stack)`:index===1?(grade.phases===1?'Sconfiggi il boss':'Svuota la prima barra del boss'):`Sconfiggi il boss entro ${grade.roundLimit} round`;
+    tiers.appendChild(el(`<div class="stat-row"><span>${label}</span><b style="color:${day.claimedGrade[index]>=getModeGradeIndex(grade.id)?'var(--green)':'var(--amber)'}">${getModeRewardStatus(day,index,tier.reward,grade.id)}</b></div>`));
+  });
   wrap.appendChild(tiers);
-  const start=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="apocStart" style="padding:12px 26px;font-size:15px;">Affronta il boss ▶</button></div>`);
+  const start=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="apocStart" style="padding:12px 26px;font-size:15px;">Affronta il boss · ${grade.id} ▶</button></div>`);
   start.querySelector('#apocStart').onclick=startApocalypticShadow;
   wrap.appendChild(start);
   return wrap;
@@ -4833,16 +4977,19 @@ function renderApocalypticShadow(){
 function renderApocalypticShadowResult(){
   const result=state.battle.apocResult;
   const day=ensureApocDay();
-  const cleared=result.reason==='victory'&&result.rounds<=APOC_ROUNDS;
+  const cleared=result.reason==='victory'&&result.rounds<=result.roundLimit;
   const wrap=el(`<div class="hud-panel center-msg ${cleared?'win':'lose'}">
-    <h2>Apocalyptic Shadow · Risultato</h2>
-    <div class="hint">${cleared?`${state.apoc.setup.boss} sconfitto.`:result.reason==='defeat'?'La squadra è stata sconfitta.':'I 12 round sono terminati.'}</div>
-    <div class="hero-name" style="font-size:24px;margin:10px 0;">${result.rounds}/${APOC_ROUNDS} round</div>
-    <div class="hint">Stack elementali: ${result.stacks}/10 · Miglior risultato di oggi: ${day.bestRounds===null?'—':`${day.bestRounds} round`}</div>
-    <div class="hint" style="margin-top:8px;">${day.claimed.some(Boolean)?`Premi giornalieri ottenuti: +${day.claimed.reduce((sum,claimed,index)=>sum+(claimed?APOC_TIERS[index].reward:0),0)} 💠 Frammenti`:'Nessuna ricompensa giornaliera riscossa.'}</div>
+    <h2>Apocalyptic Shadow · Grado ${result.grade}</h2>
+    <div class="hint">${cleared?`${state.apoc.setup.boss} sconfitto.`:result.reason==='defeat'?'La squadra è stata sconfitta.':`Sono terminati i ${result.roundLimit} round.`}</div>
+    <div class="hero-name" style="font-size:24px;margin:10px 0;">${result.rounds}/${result.roundLimit} round</div>
+    <div class="hint">Stack elementali: ${result.stacks}/${result.stacksRequired} · Miglior risultato ${result.grade}: ${day.bestRoundsByGrade?.[result.grade]===undefined?'—':`${day.bestRoundsByGrade[result.grade]} round`}</div>
+    <div class="hint" style="margin-top:8px;">${day.claimed.some(Boolean)?`Premi giornalieri ottenuti: +${day.claimed.reduce((sum,claimed,index)=>sum+(claimed?getClaimedModeRewardTotal(day,index,APOC_TIERS[index].reward):0),0)} 💠 Frammenti`:'Nessuna ricompensa giornaliera riscossa.'}</div>
   </div>`);
   const tiers=el(`<div class="hud-panel section" style="padding:16px;margin:10px 0;"></div>`);
-  APOC_TIERS.forEach((tier,index)=>tiers.appendChild(el(`<div class="stat-row"><span>${tier.label}</span><b style="color:${day.claimed[index]?'var(--green)':'var(--text-dim)'}">${day.claimed[index]?'✓ riscossa':'—'}</b></div>`)));
+  APOC_TIERS.forEach((tier,index)=>{
+    const label=index===1&&result.phase===1?'Sconfiggi il boss':index===2?`Sconfiggi il boss entro ${result.roundLimit} round`:tier.label;
+    tiers.appendChild(el(`<div class="stat-row"><span>${label}</span><b style="color:${day.claimedGrade[index]>=getModeGradeIndex(result.grade)?'var(--green)':'var(--text-dim)'}">${getModeRewardStatus(day,index,tier.reward,result.grade)}</b></div>`));
+  });
   wrap.appendChild(tiers);
   const done=el(`<div style="text-align:center;"><button class="primary" id="apocBack">Torna al Travel Log ▶</button></div>`);
   done.querySelector('#apocBack').onclick=()=>{state.apoc=null;state.townTab='viaggi';state.travelTab='apoc';state.screen='town';render();};
@@ -5017,7 +5164,7 @@ function renderPFResult(){
   const r=state.battle.pfResult;
   const day=ensurePFDay();
   const wrap=el(`<div class="hud-panel center-msg ${r.gained.length>0?'win':'lose'}">
-    <h2>Pure Fiction · Risultato</h2>
+    <h2>Pure Fiction · Grado ${r.grade}</h2>
     <div class="hint">${r.reason==='defeat'?'La squadra è stata sconfitta.':`I ${PF_ROUNDS} turni sono finiti.`}</div>
     <div class="hero-name" style="font-size:26px;margin:10px 0;">${r.score} punti</div>
     <div class="hint">Nemici sconfitti: ${r.kills} · Miglior punteggio di oggi: ${day.best}</div>
@@ -5025,7 +5172,7 @@ function renderPFResult(){
   </div>`);
   const tiers=el(`<div style="margin:10px 0;"></div>`);
   PF_TIERS.forEach((tier,i)=>{
-    tiers.appendChild(el(`<div class="stat-row"><span>${tier.points} punti</span><b style="color:${day.claimed[i]?'var(--green)':'var(--text-dim)'}">${day.claimed[i]?'✓ riscossa':'—'}</b></div>`));
+    tiers.appendChild(el(`<div class="stat-row"><span>${r.thresholds[i]} punti</span><b style="color:${day.claimedGrade[i]>=getModeGradeIndex(r.grade)?'var(--green)':'var(--text-dim)'}">${getModeRewardStatus(day,i,tier.reward,r.grade)}</b></div>`));
   });
   wrap.appendChild(tiers);
   const btnRow=el(`<div style="text-align:center;"><button class="primary" id="pfBack">Torna alla base ▶</button></div>`);
@@ -5036,9 +5183,10 @@ function renderPFResult(){
 
 function renderVictory(){
   const b = state.battle;
+  const towerComplete=b.mode!=='domain'&&state.stage===TOWER_MAX_FLOOR&&getClearedTowerFloor()>=TOWER_MAX_FLOOR;
   const wrap = el(`<div class="hud-panel center-msg win">
-    <h2>${b.mode==='domain'?'Dominio Superato':'Piano Superato'}</h2>
-    <div class="hint">${b.mode==='domain'?`Hai completato il Dominio ${ARTIFACT_SETS[b.domainSet].name}.`:`Hai sconfitto tutti i nemici del Piano ${state.stage}.`} +${b.creditReward||0} 🪙 Crediti</div>
+    <h2>${b.mode==='domain'?'Dominio Superato':towerComplete?'Torre Completata':'Piano Superato'}</h2>
+    <div class="hint">${b.mode==='domain'?`Hai completato il Dominio ${ARTIFACT_SETS[b.domainSet].name}.`:`Hai sconfitto tutti i nemici del Piano ${state.stage}${towerComplete?` · ${TOWER_MAX_FLOOR}/${TOWER_MAX_FLOOR} piani completati`:''}.`} +${b.creditReward||0} 🪙 Crediti</div>
   </div>`);
   const loot = el(`<div class="artifact-grid"></div>`);
   b.loot.forEach(it=>{
@@ -5050,14 +5198,16 @@ function renderVictory(){
     if(b.mode==='domain'){ state.townTab='viaggi'; state.travelTab='domini'; goToTown(false); }
     else goToTown(true);
   };
-  const nextBtn=el(`<button class="primary" style="margin-left:8px;">${b.mode==='domain'?'Ripeti dominio ▶':`Piano ${state.stage+1} ▶`}</button>`);
-  nextBtn.onclick=()=>{
-    if(b.mode==='domain'){ startDomain(b.domainSet); return; }
-    state.stage=state.stage+1;
-    state.battle=null;
-    startBattle();
-  };
-  btnRow.appendChild(nextBtn);
+  if(b.mode==='domain'||state.stage<TOWER_MAX_FLOOR){
+    const nextBtn=el(`<button class="primary" style="margin-left:8px;">${b.mode==='domain'?'Ripeti dominio ▶':`Piano ${state.stage+1} ▶`}</button>`);
+    nextBtn.onclick=()=>{
+      if(b.mode==='domain'){ startDomain(b.domainSet); return; }
+      state.stage=Math.min(TOWER_MAX_FLOOR,state.stage+1);
+      state.battle=null;
+      startBattle();
+    };
+    btnRow.appendChild(nextBtn);
+  }
   wrap.appendChild(btnRow);
   return wrap;
 }
