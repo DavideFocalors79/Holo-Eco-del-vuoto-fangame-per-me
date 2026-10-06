@@ -217,8 +217,9 @@ button.small{padding:5px 10px;font-size:12px;}
 .element-tag.element-strong{border-color:var(--amber);background:rgba(245,179,66,0.14);color:var(--amber);box-shadow:0 0 0 1px rgba(245,179,66,0.12);}
 .element-tag.element-not-strong{border-color:#aa88e8;background:rgba(170,136,232,0.12);color:#cbbaff;}
 .enemy-status-tags{display:flex;justify-content:center;flex-wrap:wrap;gap:4px;margin:4px 0;}
-.enemy-defdown,.enemy-vulnerability{display:inline-block;padding:2px 5px;border:1px solid rgba(182,156,255,0.45);border-radius:4px;color:#cbbaff;font-size:8px;line-height:1.2;white-space:nowrap;}
+.enemy-defdown,.enemy-vulnerability,.enemy-speeddown{display:inline-block;padding:2px 5px;border:1px solid rgba(182,156,255,0.45);border-radius:4px;color:#cbbaff;font-size:8px;line-height:1.2;white-space:nowrap;}
 .enemy-vulnerability{border-color:rgba(79,216,224,0.45);color:var(--cyan);}
+.enemy-speeddown{border-color:rgba(244,124,172,0.45);color:#f47cac;}
 .ina-mark-tag,.ina-charge-tag{margin:4px 0;color:#42c9b8;font-size:9px;font-weight:700;letter-spacing:0.04em;}
 .ina-mark-tag{padding:2px 5px;border:1px solid rgba(66,201,184,0.55);border-radius:4px;}
 .bar-track{height:6px;background:#1c2338;border-radius:3px;overflow:hidden;margin-top:3px;}

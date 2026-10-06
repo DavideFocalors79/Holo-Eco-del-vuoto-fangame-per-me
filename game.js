@@ -35,6 +35,16 @@ const CHAR_DB = {
     basic:{name:'Raggio Guida', desc:'Danno leggero a un nemico, basato sui PV massimi.', mult:0.1, target:'enemy', effect:null, hpBased:true, energyGain:20},
     skill:{name:'Benedizione', desc:'Cura un alleato, in base ai PV massimi.', mult:0.22, target:'ally', effect:'heal', hpBased:true, energyGain:30},
     ult:{name:"Grazia dell'Alba", desc:'Cura tutta la squadra, in base ai PV massimi.', mult:0.3, target:'allies_all', effect:'heal_all', hpBased:true} },
+  hakuiKoyori: {name:'Hakui Koyori',title:'Investigatrice Elettro',role:'Debuffer Electro',color:'#f47cac',glyph:'K',rarity:4,element:'electro',animStyle:'arcane',dotName:'Shock',passiveEnemySpeedDown:0.10,
+    base:{hp:1040,atk:126,def:72,speed:103,energyMax:125},
+    basic:{name:'Colpo Sperimentale',desc:'Attacco Electro normale contro un nemico.',mult:0.85,target:'enemy',effect:null,energyGain:20},
+    skill:{name:'Reazione a Catena',desc:'Colpisce il bersaglio e fino a 2 nemici adiacenti, riduce la DIF del 10% e applica Shock x1.',mult:0.8,target:'enemy_adjacent',effect:'koyori_shock',defDownPct:0.10,burnStacks:1,energyGain:30},
+    ult:{name:'Protocollo Elettroshock',desc:'Colpisce il bersaglio e fino a 2 nemici adiacenti, riduce la DIF di un ulteriore 10% e applica Shock x2.',mult:1.35,target:'enemy_adjacent',effect:'koyori_shock',defDownPct:0.10,burnStacks:2} },
+  gawrGura: {name:'Gura',title:'Squalo degli Abissi',role:'Supporto Curativo',color:'#38bdf8',glyph:'G',rarity:5,element:'hydro',animStyle:'radiant-soft',
+    base:{hp:1150,atk:86,def:82,speed:100,energyMax:135},
+    basic:{name:'Morso dello Squalo',desc:'Infligge danno Hydro a un nemico.',mult:0.75,target:'enemy',effect:null,energyGain:20},
+    skill:{name:'Marea Rigenerante',desc:'Cura tutta la squadra per il 17% dei PV massimi di Gura. Aumenta i PV massimi degli alleati del 20% per 2 round; poi tutti perdono l’1% dei propri PV massimi.',mult:0.17,target:'allies_all',effect:'heal_all',hpBased:true,maxHpBuffPct:0.2,maxHpBuffRounds:2,hpLossPct:0.01,energyGain:30},
+    ult:{name:'Onda del Grande Blu',desc:'Cura tutta la squadra per il 25% dei PV massimi di Gura.',mult:0.25,target:'allies_all',effect:'heal_all',hpBased:true} },
   monaHoshinova: { name:'Mona Hoshinova', title:'Frattura Stellare', role:'DPS Arcano', color:'#a78bfa', glyph:'M', rarity:4, element:'quantum', animStyle:'arcane',
     base:{hp:1000, atk:132, def:68, speed:100, energyMax:130},
     basic:{name:'Scheggia Arcana', desc:'Danno magico a un bersaglio.', mult:0.95, target:'enemy', effect:null, energyGain:20},
@@ -311,6 +321,9 @@ const WEAPON_DEFINITIONS = {
   'Scintilla della Fenice': {ownerId:'takanashiKiara',effect:{stat:'defPct',base:0.1,perAscension:0.02,describe:value=>`DIF +${Math.round(value*100)}%.`}},
   'Canto della Marea': {ownerId:'finanaRyugu',effect:{stat:'hpDamageMult',base:0.15,perAscension:0.03,describe:value=>`Danni delle abilita basate sui PV massimi +${Math.round(value*100)}%.`}},
   'Cuore della Regina Cremisi': {ownerId:'elizabethRoseBloodflame',effect:{stat:'shieldMult',base:0.20,perAscension:0.03,describe:value=>`Scudi generati +${Math.round(value*100)}%.`}},
+  'Risonanza del Grande Blu': {ownerId:'gawrGura',effect:{stat:'healMult',base:0.18,perAscension:0.03,describe:value=>`Cure effettuate +${Math.round(value*100)}%.`}},
+  'Protocollo della Geniale Investigatrice': {ownerId:'hakuiKoyori',effect:{stat:'defDownBonus',base:0.05,perAscension:0.02,describe:value=>`Le riduzioni della DIF nemica aumentano di ${Math.round(value*100)}%.`}},
+  'Archivio delle Mille Voci': {ownerId:'pavoliaReine',effect:{stat:'dotDamageMult',base:0.25,perAscension:0.04,describe:value=>`Danni da DoT +${Math.round(value*100)}%.`}},
 };
 const SIGNATURE_WEAPONS = [
   {name:'Aegis dell\'Ultima Alba', ownerId:'kaelaKolvalskia', atk:165, subStat:{key:'def_pct',value:0.16}},
@@ -329,6 +342,9 @@ const SIGNATURE_WEAPONS = [
   {name:'Scintilla della Fenice',ownerId:'takanashiKiara',atk:180,subStat:{key:'def_pct',value:0.16}},
   {name:'Canto della Marea',ownerId:'finanaRyugu',atk:172,subStat:{key:'hp_pct',value:0.14}},
   {name:'Cuore della Regina Cremisi',ownerId:'elizabethRoseBloodflame',atk:184,subStat:{key:'def_pct',value:0.18}},
+  {name:'Risonanza del Grande Blu',ownerId:'gawrGura',atk:148,subStat:{key:'hp_pct',value:0.14}},
+  {name:'Protocollo della Geniale Investigatrice',ownerId:'hakuiKoyori',atk:174,subStat:{key:'energy_pct',value:0.12}},
+  {name:'Archivio delle Mille Voci',ownerId:'pavoliaReine',atk:169,subStat:{key:'energy_pct',value:0.12}},
 ];
 
 function normalizeWeapon(weapon){
@@ -493,12 +509,12 @@ function getActiveSetBonuses(charId){
   return out;
 }
 function getAllyBattleStatusMarkup(ally){
-  const totals={atk:0,def:0};
+  const totals={atk:0,def:0,maxHp:0};
   (ally.activeBuffs||[]).forEach(buff=>{ totals[buff.stat]=(totals[buff.stat]||0)+buff.pct; });
   if(ally.fxHitStack) totals.dmg=0.15*(ally.hitStacks||[]).length;
   const tags=Object.entries(totals)
     .filter(([,pct])=>pct>0)
-    .map(([stat,pct])=>`<div class="buff-tag">+${Math.round(pct*100)}% ${stat==='atk'?'ATK':stat==='def'?'DIF':'DMG'}</div>`)
+    .map(([stat,pct])=>`<div class="buff-tag">+${Math.round(pct*100)}% ${stat==='atk'?'ATK':stat==='def'?'DIF':stat==='maxHp'?'PV MAX':'DMG'}</div>`)
   const artifactSets=getActiveSetBonuses(ally.charId).filter(bonus=>bonus.tier===4);
   artifactSets.forEach(bonus=>{
     if(bonus.name==='Danza Instancabile'){
@@ -597,6 +613,7 @@ let state = {
   pity5Counter:0, // pulls since the last 5★ obtained
   weaponBannerPulls:0,
   weaponBannerPulls5:0,
+  featuredWeaponTargets:{armi4:null,armi5:null},
   pfDaily:null,
   pfCleared:false,
   mocDaily:null,
@@ -650,6 +667,7 @@ function getSaveData(){
     pity5Counter: state.pity5Counter,
     weaponBannerPulls: state.weaponBannerPulls,
     weaponBannerPulls5: state.weaponBannerPulls5,
+    featuredWeaponTargets: state.featuredWeaponTargets,
     pfDaily: state.pfDaily,
     pfCleared: state.pfCleared,
     mocDaily: state.mocDaily,
@@ -720,6 +738,7 @@ function loadGame(){
     state.pity5Counter = data.pity5Counter || 0;
     state.weaponBannerPulls = data.weaponBannerPulls || 0;
     state.weaponBannerPulls5 = data.weaponBannerPulls5 || 0;
+    state.featuredWeaponTargets = {armi4:null,armi5:null,...(data.featuredWeaponTargets||{})};
     state.pfDaily = data.pfDaily || null;
     state.pfCleared = !!data.pfCleared;
     state.mocDaily = data.mocDaily || null;
@@ -747,6 +766,7 @@ function resetSave(){
   state.gold=0; state.credits=0; state.stage=1; state.maxStageReached=1; state.inventory=[]; state.itemUidCounter=1;
   state.weaponInventory=[]; state.weaponUidCounter=1; state.pityCounter=0; state.pity5Counter=0; state.lastPullResults=[];
   state.weaponBannerPulls=0; state.weaponBannerPulls5=0; state.pfDaily=null; state.pfCleared=false; state.mocDaily=null; state.mocTeams=[[],[]]; state.moc=null; state.apocDaily=null; state.apoc=null; state.modeGrades={pf:'C',moc:'C',apoc:'C'}; state.travelTab='purefiction'; state.suCleared=false; state.suDaily=null; state.su=null; state.dailyMissions=null; state.bannerType='personaggi'; state.lastPullBanner='personaggi';
+  state.featuredWeaponTargets={armi4:null,armi5:null};
   state.claimedQuests={}; state.questTiers={}; state.questExhausted={}; state.totalPullsDone=0; state.totalArtifactsSold=0;
   initRoster();
   state.party=['kaelaKolvalskia'];
@@ -844,10 +864,22 @@ function generateEnemies(stageNum,combatRank=stageNum,scaleSpeed=false,hpRank=co
 
 /* ============ BATTLE SETUP ============ */
 function buildTurnOrder(allies, enemies){
+  applyKoyoriSpeedDown(allies,enemies);
   return [
     ...allies.map(actor=>({side:'ally', id:actor.charId, speed:actor.speed})),
     ...enemies.map(actor=>({side:'enemy', id:actor.id, speed:actor.speed})),
   ].sort((first,second)=>second.speed-first.speed);
+}
+
+function applyKoyoriSpeedDown(allies,enemies){
+  if(!allies.some(actor=>actor.charId==='hakuiKoyori')) return;
+  const slow=CHAR_DB.hakuiKoyori.passiveEnemySpeedDown;
+  enemies.forEach(enemy=>{
+    if(enemy.hp<=0||enemy.koyoriSlowApplied) return;
+    enemy.speed=Math.max(1,Math.floor(enemy.speed*(1-slow)));
+    enemy.koyoriSlowApplied=true;
+    enemy.koyoriSlowPct=slow;
+  });
 }
 
 function getTurnActor(b, entry=b.turnOrder[b.turnIndex]){
@@ -1074,6 +1106,7 @@ function spawnPFEnemy(b,spawned){
   const name=pick(pool.length?pool:fallback.length?fallback:ENEMY_NAMES);
   pf.lastSpawn=name;
   const fresh=buildPFEnemy('p'+(b.summonCounter++),name,pf.rank,pf.hpRank);
+  applyKoyoriSpeedDown(b.allies,[fresh]);
   b.enemies.push(fresh);
   applyKoboCorrosionIfNeeded(b,fresh);
   spawned.push(fresh);
@@ -1373,12 +1406,20 @@ function syncAllyBuffMultipliers(ally){
   ally.atkBuffMult=1+buffs.filter(buff=>buff.stat==='atk').reduce((sum,buff)=>sum+buff.pct,0);
   ally.defBuffMult=1+buffs.filter(buff=>buff.stat==='def').reduce((sum,buff)=>sum+buff.pct,0);
   ally.dotDamageBuffMult=1+buffs.filter(buff=>buff.stat==='dotDamage').reduce((sum,buff)=>sum+buff.pct,0);
+  const maxHpBuff= buffs.filter(buff=>buff.stat==='maxHp').reduce((sum,buff)=>sum+buff.pct,0);
+  if(Number.isFinite(ally.baseMaxHp)&&(maxHpBuff>0||ally.maxHpBuffActive)){
+    ally.maxHp=Math.round(ally.baseMaxHp*(1+maxHpBuff));
+    ally.hp=Math.min(ally.hp,ally.maxHp);
+    ally.maxHpBuffActive=maxHpBuff>0;
+  }
   ally.buffRounds=buffs.filter(buff=>buff.stat==='atk').reduce((max,buff)=>Math.max(max,buff.rounds),0);
   ally.defBuffRounds=buffs.filter(buff=>buff.stat==='def').reduce((max,buff)=>Math.max(max,buff.rounds),0);
 }
 function addTimedAllyBuff(ally,name,stat,pct,rounds){
   ally.activeBuffs=ally.activeBuffs||[];
-  ally.activeBuffs.push({name,stat,pct,rounds});
+  const existing=stat==='maxHp'?ally.activeBuffs.find(buff=>buff.name===name&&buff.stat===stat):null;
+  if(existing) existing.rounds=rounds;
+  else ally.activeBuffs.push({name,stat,pct,rounds});
   syncAllyBuffMultipliers(ally);
 }
 function tickTimedAllyBuffs(ally,stat){
@@ -1395,6 +1436,7 @@ function resetAlliesForWave(allies){
     a.shield=0; a.shieldRounds=0; a.atkBuffMult=1; a.buffRounds=0;
     a.defBuffMult=1; a.defBuffRounds=0; a.dotDamageBuffMult=1;
     a.activeBuffs=[];
+    syncAllyBuffMultipliers(a);
     a.basicHits=c.basic.hits||1;
     a.skillFreeUses=c.skillFreeUses||0;
     a.inaFollowUpsRemaining=c.passiveInaFollowUps||0;
@@ -1588,6 +1630,7 @@ function startBattle(mode,fight){
       if(state.su.pendingStart){ applySUBlessing(state.su.pendingStart); state.su.pendingStart=null; }
     }
   }
+  allies.forEach(ally=>{ if(!Number.isFinite(ally.baseMaxHp)) ally.baseMaxHp=ally.maxHp; });
   const enemies = pf ? generatePFEnemies() : moc ? generateMOCBoss(state.moc.setup.bosses[state.moc.bossIndex],state.moc.bossIndex) : apoc ? generateApocalypticShadowBoss(state.apoc.setup.boss) : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage,towerCombatRank(state.stage),true,towerHpRank(towerCombatRank(state.stage)));
   const turnOrder = buildTurnOrder(allies,enemies);
   const spMaxBonus = activeParty.reduce((sum,id)=>sum+(CHAR_DB[id].passiveSpCapBonus||0),0);
@@ -2248,10 +2291,11 @@ function activateHakosUltimate(actor,b){
   const absorbed=b.allies.filter(ally=>ally!==actor && ally.hp>0);
   const absorbedShield=absorbed.reduce((sum,ally)=>sum+ally.shield,0);
   actor.hakosBaseSnapshot={
-    atk:actor.atk,def:actor.def,speed:actor.speed,maxHp:actor.maxHp,hp:actor.hp,
+    atk:actor.atk,def:actor.def,speed:actor.speed,maxHp:actor.maxHp,hp:actor.hp,baseMaxHp:actor.baseMaxHp,
   };
   actor.hakosFormStartHp=actor.hp+absorbed.reduce((sum,ally)=>sum+ally.hp,0);
   actor.maxHp+=absorbed.reduce((sum,ally)=>sum+ally.maxHp,0);
+  actor.baseMaxHp+=absorbed.reduce((sum,ally)=>sum+(ally.baseMaxHp||ally.maxHp),0);
   actor.hp=Math.min(actor.maxHp,actor.hp+absorbed.reduce((sum,ally)=>sum+ally.hp,0));
   actor.atk=Math.round(actor.atk*(actor.atkBuffMult||1)+absorbed.reduce((sum,ally)=>sum+ally.atk*(ally.atkBuffMult||1),0));
   actor.def+=absorbed.reduce((sum,ally)=>sum+ally.def,0);
@@ -2360,8 +2404,11 @@ async function executeAbility(actor, abKey, targetId){
         }
         await triggerInaFollowUpAfterHit(b,target,actor);
       }
-      if(actor.charId==='laplusDarkness'||actor.defDownBonus>0){
-        applyLaplusAttackEffects(actor,target,0,actor.charId==='laplusDarkness'&&ability.effect==='laplus_plant_weakness');
+      if(actor.charId==='laplusDarkness'||actor.defDownBonus>0||ability.effect==='koyori_shock'){
+        applyLaplusAttackEffects(actor,target,ability.effect==='koyori_shock'?(ability.defDownPct||0):0,actor.charId==='laplusDarkness'&&ability.effect==='laplus_plant_weakness');
+      }
+      if(ability.effect==='koyori_shock'&&target.hp>0){
+        applyDamageOverTime(target,actor,ability.burnStacks||1);
       }
     }
     if(ability.effect==='kiara_skill_heal'&&actor.hp>0){
@@ -2561,6 +2608,25 @@ async function executeAbility(actor, abKey, targetId){
     if(ability.effect==='heal_all'){
       allyTargets().forEach(a=>{ const amt=Math.round(effAtk*ability.mult*(actor.healMult||1)); a.hp=clamp(a.hp+amt,0,a.maxHp); a._fx={variant:'heal',label:'+'+amt}; });
       logMsg(`${actor.name} cura l'intera squadra.`);
+      if(ability.maxHpBuffPct){
+        allyTargets().forEach(a=>addTimedAllyBuff(a,ability.name,'maxHp',ability.maxHpBuffPct,ability.maxHpBuffRounds));
+        logMsg(`${actor.name} aumenta i PV massimi della squadra del ${Math.round(ability.maxHpBuffPct*100)}% per ${ability.maxHpBuffRounds} round.`);
+      }
+      if(ability.hpLossPct){
+        const allies=allyTargets();
+        allies.forEach(a=>{
+          const loss=Math.round(a.maxHp*ability.hpLossPct);
+          if(a.charId==='suiseiHoshimachi') loseSuiseiHp(a,loss);
+          else {
+            const lost=Math.min(a.hp,loss);
+            a.hp=clamp(a.hp-lost,0,a.maxHp);
+            a._fx={variant:'damage',label:'-'+lost};
+          }
+          logMsg(`${a.name} perde l'${Math.round(ability.hpLossPct*100)}% dei PV massimi (${loss} PV).`);
+        });
+        const suisei=allies.find(a=>a.charId==='suiseiHoshimachi');
+        if(suisei) await triggerSuiseiFollowUp(b,suisei);
+      }
     }
     if(ability.effect==='buff_atk'){
       allyTargets().forEach(a=>{ addTimedAllyBuff(a,ability.name,'atk',buffPct,2); a._fx={variant:'buff', label:'+'+Math.round(buffPct*100)+'% ATK'}; });
@@ -2711,6 +2777,7 @@ async function finishRound(){
     if(a.activeBuffs?.length){
       tickTimedAllyBuffs(a,'atk');
       tickTimedAllyBuffs(a,'dotDamage');
+      tickTimedAllyBuffs(a,'maxHp');
     }
     if(a.hitStacks?.length){ a.hitStacks.forEach(s=>s.r--); a.hitStacks=a.hitStacks.filter(s=>s.r>0); }
     if(a.suiseiGuardRounds>0){
@@ -2760,6 +2827,7 @@ function summonBossEnemies(boss,b,countOverride=null,addOwnerId=null){
       bossAddOwnerId:addOwnerId,bossAddResolved:false,
     };
     b.enemies.push(enemy);
+    applyKoyoriSpeedDown(b.allies,[enemy]);
     applyKoboCorrosionIfNeeded(b,enemy);
     summoned.push(enemy);
     logMsg(`${boss.name} evoca ${name}.`);
@@ -3247,7 +3315,7 @@ function getAutoEquipProfile(charId){
     : hpScaler ? {hp:1,atk:0.05,def:0.3,speed:2}
     : /Supporto/.test(c.role) ? {atk:0.6,hp:0.3,def:0.3,speed:5}
     : {atk:1,hp:0.1,def:0.3,speed:2};
-  return {w, heal:c.skill.effect==='heal'?1:0, shield:tank?0.5:0, burn:c.dotName?0.6:0, hpDamage:hpScaler?1:0};
+  return {w, heal:['heal','heal_all'].includes(c.skill.effect)?1:0, shield:tank?0.5:0, burn:c.dotName?0.6:0, hpDamage:hpScaler?1:0};
 }
 function scoreAutoEquip(eff,p){
   const base=eff.hp*p.w.hp+eff.atk*p.w.atk+eff.def*p.w.def+eff.speed*p.w.speed;
@@ -3411,12 +3479,20 @@ function getSignaturePool(type){
 }
 function pityKeyFor(type){ return type==='armi5'?'weaponBannerPulls5':'weaponBannerPulls'; }
 
+function drawFeaturedSignatureWeapon(type){
+  const pool=getSignaturePool(type);
+  const selected=pool.find(weapon=>weapon.name===state.featuredWeaponTargets[type]);
+  const weapon=selected||pick(pool);
+  if(!weapon) throw new Error(`Nessuna arma firma disponibile per il banner ${type}.`);
+  if(selected) state.featuredWeaponTargets[type]=null;
+  return createWeapon(weapon.name);
+}
+
 function drawWeaponBannerWeapon(type){
   const roll=Math.random();
   const rarity=roll<0.02?'leggendaria':roll<0.12?'epica':roll<0.47?'rara':'comune';
-  const weaponNames=rarity==='leggendaria'
-    ? getSignaturePool(type).map(weapon=>weapon.name)
-    : WEAPON_NAMES.filter(name=>WEAPON_FIXED_STATS[name].rarity===rarity);
+  if(rarity==='leggendaria') return drawFeaturedSignatureWeapon(type);
+  const weaponNames=WEAPON_NAMES.filter(name=>WEAPON_FIXED_STATS[name].rarity===rarity);
   return createWeapon(pick(weaponNames));
 }
 
@@ -3486,7 +3562,7 @@ function doSingleWeaponPull(type){
 
   let result;
   if(state[pityKey]>=WEAPON_BANNER_PITY){
-    const weapon=createWeapon(pick(getSignaturePool(type)).name);
+    const weapon=drawFeaturedSignatureWeapon(type);
     state[pityKey]=0;
     state.weaponInventory.push(weapon);
     return {type:'weapon',weapon,pity:true};
@@ -3963,6 +4039,7 @@ function renderAbilitaTab(){
       ${c.passiveInaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: marchia il nemico con meno PV. I colpi al marchiato attivano fino a ${c.passiveInaFollowUps} follow-up; la Ultimate ricarica le cariche. Ogni volta che un alleato colpisce il nemico marchiato, Ina rigenera 10 energia.</div>`:''}
       ${c.passiveZetaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: gli attacchi di un alleato diverso da Zeta attivano un follow-up, anche contro nemici senza Sanguinamento. La Ultimate ricarica le ${c.passiveZetaFollowUps} cariche.</div>`:''}
       ${c.passiveHpLossFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni ${c.passiveHpLossFollowUps} perdite di PV attiva un follow-up ad area e cura il 15% dei PV massimi.</div>`:''}
+      ${c.passiveEnemySpeedDown?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: riduce la VEL di tutti i nemici del ${Math.round(c.passiveEnemySpeedDown*100)}% per la battaglia.</div>`:''}
       ${c.revivesPerBattle?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: può rinascere ${c.revivesPerBattle} volte per battaglia con il 60% dei PV massimi.</div>`:''}
     </div>
   </div>`);
@@ -4036,6 +4113,7 @@ function effectLabel(ability){
     case 'heal': return `Cura un alleato.`;
     case 'heal_all': return `Cura l'intera squadra.`;
     case 'burn': return `Applica ${ability.burnStacks} carica/e di Sanguinamento (danno nel tempo).`;
+    case 'koyori_shock': return `Riduce la DIF del ${Math.round((ability.defDownPct||0)*100)}% e applica Shock x${ability.burnStacks||1} (danno nel tempo) a ogni bersaglio colpito.`;
     case 'burn_all': return `Applica ${ability.burnStacks} carica/e di Sanguinamento a tutti i nemici colpiti.`;
     case 'reine_dot': return `Applica ${ability.burnStacks} stack di Incanto a tutti i nemici: danno nel tempo.`;
     case 'reine_skill': return `Applica ${ability.burnStacks} stack di Incanto a tutti i nemici e aumenta del ${Math.round(ability.dotDamageBuff*100)}% i danni da DoT degli alleati per 2 turni.`;
@@ -4455,9 +4533,38 @@ function renderBannerTab(){
   });
   wrap.appendChild(modeBar);
   const bannerDescription=weaponBanner
-    ? `Ogni evocazione costa ${PULL_COST} Frammenti. Le armi esclusive 5 stelle in palio sono quelle degli eroi ${state.bannerType==='armi5'?'5':'4'} stelle (${getSignaturePool(state.bannerType).map(weapon=>weapon.name).join(', ')}), più le ${WEAPON_NAMES.length} armi standard. Personaggi ★★★★★: 2%; ★★★★: 5%, senza garanzie. Un'arma esclusiva è garantita ogni ${WEAPON_BANNER_PITY} evocazioni su questo banner.`
+    ? `Ogni evocazione costa ${PULL_COST} Frammenti. Le armi esclusive 5 stelle in palio sono quelle degli eroi ${state.bannerType==='armi5'?'5':'4'} stelle (${getSignaturePool(state.bannerType).map(weapon=>weapon.name).join(', ')}), più le ${WEAPON_NAMES.length} armi standard. Personaggi ★★★★★: 2%; ★★★★: 5%, senza garanzie. Un'arma esclusiva è garantita ogni ${WEAPON_BANNER_PITY} evocazioni su questo banner. La prossima arma esclusiva 5★ selezionata è garantita al prossimo drop 5★.`
     : `Ogni evocazione costa ${PULL_COST} Frammenti. Personaggi ★★★★★: 2% (garantito ogni ${PITY_LIMIT_5}); ★★★★: 5% (garantito ogni ${PITY_LIMIT_4} senza averne ottenuto uno). Il resto sono armi.`;
   wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${bannerDescription}</div>`));
+
+  if(weaponBanner){
+    const targetPanel=el(`<div class="hud-panel section" style="padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;"></div>`);
+    const targetLabel=document.createElement('label');
+    targetLabel.htmlFor='featured-weapon-target';
+    targetLabel.textContent='Scegli la prossima arma esclusiva 5★:';
+    const targetSelect=document.createElement('select');
+    targetSelect.id='featured-weapon-target';
+    targetSelect.style.cssText='min-width:220px;max-width:100%;padding:8px;background:var(--bg-panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;';
+    const randomOption=document.createElement('option');
+    randomOption.value='';
+    randomOption.textContent='Nessuna preferenza (casuale)';
+    targetSelect.appendChild(randomOption);
+    getSignaturePool(state.bannerType).forEach(weapon=>{
+      const option=document.createElement('option');
+      option.value=weapon.name;
+      option.textContent=weapon.name;
+      targetSelect.appendChild(option);
+    });
+    targetSelect.value=state.featuredWeaponTargets[state.bannerType]||'';
+    targetSelect.onchange=()=>{
+      state.featuredWeaponTargets[state.bannerType]=targetSelect.value||null;
+      saveGame();
+      render();
+    };
+    targetPanel.append(targetLabel,targetSelect);
+    targetPanel.appendChild(el('<span class="hint">La scelta si consuma quando ottieni un’arma esclusiva 5★, anche tramite la garanzia.</span>'));
+    wrap.appendChild(targetPanel);
+  }
 
   const info = el(`<div class="hud-panel section" style="padding:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center;">
     <div>
@@ -4803,7 +4910,7 @@ function renderBattle(){
         const affinityLabel=affinity==='element-strong'?'Forte contro questo nemico':'Non forte contro questo nemico';
         return `<span class="element-tag ${affinity}" title="${activeAllyElement?`${affinityLabel} · ${ELEMENT_DATA[activeAllyElement].label}`:`Elemento ${ELEMENT_DATA[element]?.label||element}`} ">${ELEMENT_DATA[element]?.label||element}</span>`;
       }).join('')}</div>
-      ${(e.defDownRounds>0||e.vulnerableRounds>0)?`<div class="enemy-status-tags">${e.defDownRounds>0?`<span class="enemy-defdown">DIF -${Math.round(e.defDownPct*100)}%</span>`:''}${e.vulnerableRounds>0&&e.vulnerableToElement?`<span class="enemy-vulnerability">Vulnerabile a ${ELEMENT_DATA[e.vulnerableToElement].label}</span>`:''}</div>`:''}
+      ${(e.defDownRounds>0||e.vulnerableRounds>0||e.koyoriSlowApplied)?`<div class="enemy-status-tags">${e.defDownRounds>0?`<span class="enemy-defdown">DIF -${Math.round(e.defDownPct*100)}%</span>`:''}${e.koyoriSlowApplied?`<span class="enemy-speeddown">VEL -${Math.round(e.koyoriSlowPct*100)}%</span>`:''}${e.vulnerableRounds>0&&e.vulnerableToElement?`<span class="enemy-vulnerability">Vulnerabile a ${ELEMENT_DATA[e.vulnerableToElement].label}</span>`:''}</div>`:''}
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(e.hp/e.maxHp*100)}%"></div></div>
       ${e.isBoss&&e.phase<(e.maxPhases||2)?'<div class="bar-track" style="height:4px;margin-top:2px;opacity:.55;"><div class="bar-fill hp-fill" style="width:100%"></div></div>':''}
       <div class="mini-lbl"><span>${e.hp}/${e.maxHp}</span></div>
