@@ -55,6 +55,11 @@ const CHAR_DB = {
     basic:{name:'Spruzzo Salmastro',desc:'Infligge danno a un nemico e applica 1 stack di Mal di mare: ATK -5% per stack, fino a 10 stack.',mult:0.95,target:'enemy',effect:'kobo_seasick',energyGain:20},
     skill:{name:'Marea Turbolenta',desc:'Infligge danno a tutti i nemici, detona le DoT dannose e applica 1 stack di Mal di mare a ciascuno.',mult:1.05,target:'enemies_all',effect:'kobo_seasick_all',energyGain:30},
     ult:{name:'Tifone di Kobo',desc:'Infligge danno a tutti i nemici, detona le DoT dannose e attiva per il resto della battaglia un’aura che applica Corrosione a chi ne è privo, anche ai nuovi nemici.',mult:1.6,target:'enemies_all',effect:'kobo_detonate_dots'} },
+  pavoliaReine: {name:'Pavolia Reine',title:'Regina delle Mille Voci',role:'Supporto DoT AoE',color:'#d4a64a',glyph:'R',rarity:4,element:'ether',animStyle:'celestial',dotName:'Incanto',
+    base:{hp:1080,atk:104,def:78,speed:102,energyMax:125},
+    basic:{name:'Piume Iridescenti',desc:'Danneggia tutti i nemici e applica 1 stack di Incanto.',mult:0.45,target:'enemies_all',effect:'reine_dot',burnStacks:1,energyGain:20},
+    skill:{name:'Danza della Ruota',desc:'Danneggia tutti i nemici, applica 2 stack di Incanto e aumenta del 25% i danni da DoT degli alleati per 2 turni.',mult:0.65,target:'enemies_all',effect:'reine_skill',burnStacks:2,dotDamageBuff:0.25,energyGain:30},
+    ult:{name:'Trono del Pavone',desc:'Danneggia tutti i nemici, applica 2 stack di Incanto e fa detonare tutte le DoT dannose sui bersagli.',mult:0.9,target:'enemies_all',effect:'reine_ultimate',burnStacks:2} },
   IRyS: { name:'IRyS', title:'Voce del Comando', role:'Supporto Buff', color:'#7dd3fc', glyph:'I', rarity:4, element:'ether', animStyle:'surge',
     base:{hp:1000, atk:86, def:80, speed:100, energyMax:125},
     basic:{name:'Colpo Tattico', desc:'Danno leggero a un bersaglio.', mult:0.7, target:'enemy', effect:null, energyGain:20},
@@ -860,6 +865,7 @@ const MODE_GRADE_DEFS=[
   {id:'SS',floor:100,pfEnemies:5,pfSpecialChance:0.5,phases:2,mocDamageReduction:0.15,phaseAtkMultiplier:1.35,apocDamageReduction:0.8,apocStacksRequired:9,roundLimit:10,apocRequiresWeakness:true},
   {id:'EX',floor:150,pfEnemies:5,pfSpecialChance:0.6,phases:2,mocDamageReduction:0.2,phaseAtkMultiplier:1.45,apocDamageReduction:0.9,apocStacksRequired:10,roundLimit:8,apocRequiresWeakness:true},
 ];
+const MODE_REWARD_GRADE=MODE_GRADE_DEFS[1];
 function getModeGrade(mode){
   return MODE_GRADE_DEFS.find(grade=>grade.id===state.modeGrades?.[mode])||MODE_GRADE_DEFS[0];
 }
@@ -894,12 +900,9 @@ function renderModeGradePicker(mode){
   picker.querySelector('.mode-grade-hint').textContent=`Grado ${selected.id} · Rango ATK/DIF ${combatRank.toFixed(1)} · Rango PV ${towerHpRank(combatRank).toFixed(1)}. Tutti i gradi sono selezionabili fin dall'inizio.`;
   return picker;
 }
-function getModeRewardAmount(baseReward,gradeId){
-  return Math.round(baseReward*(1+getModeGradeIndex(gradeId)*0.1));
-}
 function getCumulativeModeReward(baseReward,gradeId){
   const current=getModeGradeIndex(gradeId);
-  return MODE_GRADE_DEFS.slice(0,current+1).reduce((total,grade)=>total+getModeRewardAmount(baseReward,grade.id),0);
+  return Math.round(baseReward*(current+1)/MODE_GRADE_DEFS.length);
 }
 function getClaimedGradeIndex(day,index){
   const stored=day.claimedGrade?.[index];
@@ -910,7 +913,7 @@ function getClaimedModeRewardTotal(day,index,baseReward){
   const stored=day.claimedRewardTotal?.[index];
   if(Number.isFinite(stored)&&stored>=0) return stored;
   const previous=getClaimedGradeIndex(day,index);
-  return previous>=0?getModeRewardAmount(baseReward,MODE_GRADE_DEFS[previous].id):0;
+  return previous>=0?getCumulativeModeReward(baseReward,MODE_GRADE_DEFS[previous].id):0;
 }
 function claimModeReward(day,index,baseReward,gradeId){
   if(!Array.isArray(day.claimedGrade)) day.claimedGrade=[];
@@ -918,12 +921,13 @@ function claimModeReward(day,index,baseReward,gradeId){
   const current=getModeGradeIndex(gradeId);
   if(current<=previous) return 0;
   const total=getCumulativeModeReward(baseReward,gradeId);
-  const amount=total-getClaimedModeRewardTotal(day,index,baseReward);
+  const previousTotal=getClaimedModeRewardTotal(day,index,baseReward);
+  const amount=Math.max(0,total-previousTotal);
   day.claimed=day.claimed||[];
   day.claimed[index]=true;
   day.claimedGrade[index]=current;
   if(!Array.isArray(day.claimedRewardTotal)) day.claimedRewardTotal=[];
-  day.claimedRewardTotal[index]=total;
+  day.claimedRewardTotal[index]=Math.max(total,previousTotal);
   state.gold+=amount;
   return amount;
 }
@@ -937,7 +941,7 @@ function getModeRewardStatus(day,index,baseReward,gradeId){
 
 /* ============ PURE FICTION ============ */
 const PF_ROUNDS = 12; // every hero acts once per round
-const PF_TIERS = [{points:2000,reward:600},{points:5000,reward:1200},{points:10000,reward:1800}];
+const PF_TIERS = [{points:2000,reward:400},{points:5000,reward:650},{points:10000,reward:950}];
 const PF_GENERAL_BUFFS = [
   {name:'Furia del Vuoto', desc:'Tutta la squadra: +15% ATK.', apply:a=>{ a.atk=Math.round(a.atk*1.15); }},
   {name:'Pelle di Cristallo', desc:'Tutta la squadra: +20% PV massimi.', apply:a=>{ a.maxHp=Math.round(a.maxHp*1.2); a.hp=a.maxHp; }},
@@ -979,9 +983,9 @@ function getPFDailyBuffs(){
   return {general:PF_GENERAL_BUFFS[pfHash(key+'g')%PF_GENERAL_BUFFS.length], theme:PF_THEME_BUFFS[pfHash(key+'t')%PF_THEME_BUFFS.length]};
 }
 const APOC_TIERS=[
-  {id:'stacks',label:'Rimuovi la riduzione ai danni',reward:600},
-  {id:'phase',label:'Svuota la prima barra del boss',reward:1200},
-  {id:'clear',label:'Sconfiggi il boss entro 12 round',reward:1800},
+  {id:'stacks',label:`Accumula ${MODE_REWARD_GRADE.apocStacksRequired} stack elementali`,stacksRequired:MODE_REWARD_GRADE.apocStacksRequired,reward:400},
+  {id:'phase',label:'Sconfiggi il boss',reward:650},
+  {id:'clear',label:`Sconfiggi il boss entro ${MODE_REWARD_GRADE.roundLimit} round`,roundLimit:MODE_REWARD_GRADE.roundLimit,reward:950},
 ];
 function ensureApocDay(){
   const date=pfDateKey();
@@ -1012,8 +1016,8 @@ function claimApocTier(index,gradeId=getModeGrade('apoc').id){
   return claimModeReward(day,index,tier.reward,gradeId);
 }
 function claimApocProgressRewards(boss){
-  if(boss.apocStacks>=boss.apocStacksRequired) claimApocTier(0,boss.modeGrade);
-  if(boss.phase>=2||(boss.maxPhases===1&&boss.hp<=0)) claimApocTier(1,boss.modeGrade);
+  if(boss.apocStacks>=APOC_TIERS[0].stacksRequired) claimApocTier(0,boss.modeGrade);
+  if(boss.hp<=0) claimApocTier(1,boss.modeGrade);
 }
 function applyPFBuffs(allies,buffs){
   allies.forEach(a=>{
@@ -1108,8 +1112,8 @@ function endPureFiction(reason){
   b.pfResult={score,kills:b.pf.kills,gained:gained.filter(amount=>amount>0),total:gained.reduce((sum,v)=>sum+v,0),reason,grade:b.pf.grade,thresholds:b.pf.thresholds};
   state.screen='pfresult';
 }
-function getPFScoreThresholds(gradeId,partySize){
-  const rank=towerCombatRank(MODE_GRADE_DEFS[getModeGradeIndex(gradeId)].floor);
+function getPFScoreThresholds(partySize){
+  const rank=towerCombatRank(MODE_REWARD_GRADE.floor);
   const referenceHp=getFloorEnemyBaseHp(10)*1.4;
   const rankHp=Math.min(8000,getFloorEnemyBaseHp(towerHpRank(rank))*1.4);
   const squadFactor=Math.max(0.25,partySize/4);
@@ -1135,7 +1139,7 @@ function endApocalypticShadow(reason){
   if(boss) claimApocProgressRewards(boss);
   const grade=getModeGrade(b.apoc?.grade||'C');
   const rounds=grade.roundLimit;
-  if(reason==='victory'&&b.round<=rounds){
+  if(reason==='victory'&&b.round<=APOC_TIERS[2].roundLimit){
     claimApocTier(2,grade.id);
     const day=ensureApocDay();
     day.bestRoundsByGrade=day.bestRoundsByGrade||{};
@@ -1148,7 +1152,7 @@ function endApocalypticShadow(reason){
 }
 
 /* ============ MEMORY OF CHAOS ============ */
-const MOC_TIERS = [{clears:1,reward:600},{clears:2,reward:1200},{clears:2,maxRounds:12,reward:1800}];
+const MOC_TIERS = [{clears:1,reward:400},{clears:2,reward:650},{clears:2,maxRounds:MODE_REWARD_GRADE.roundLimit,reward:950}];
 function ensureMOCDay(){
   const key=pfDateKey();
   if(!state.mocDaily || state.mocDaily.date!==key) state.mocDaily={date:key,clears:0,bestRounds:null,claimed:[false,false,false]};
@@ -1183,10 +1187,8 @@ function startMemoryOfChaos(){
 }
 function claimMOCTiers(day,clears,rounds,gradeId=getModeGrade('moc').id){
   let gained=0;
-  const grade=MODE_GRADE_DEFS[getModeGradeIndex(gradeId)];
   MOC_TIERS.forEach((tier,index)=>{
-    const requiredClears=grade.id==='C'&&index!==1?1:tier.clears;
-    if(clears>=requiredClears && (index!==2 || rounds<=grade.roundLimit)) gained+=claimModeReward(day,index,tier.reward,grade.id);
+    if(clears>=tier.clears && (index!==2 || rounds<=tier.maxRounds)) gained+=claimModeReward(day,index,tier.reward,gradeId);
   });
   return gained;
 }
@@ -1368,6 +1370,7 @@ function syncAllyBuffMultipliers(ally){
   const buffs=ally.activeBuffs||[];
   ally.atkBuffMult=1+buffs.filter(buff=>buff.stat==='atk').reduce((sum,buff)=>sum+buff.pct,0);
   ally.defBuffMult=1+buffs.filter(buff=>buff.stat==='def').reduce((sum,buff)=>sum+buff.pct,0);
+  ally.dotDamageBuffMult=1+buffs.filter(buff=>buff.stat==='dotDamage').reduce((sum,buff)=>sum+buff.pct,0);
   ally.buffRounds=buffs.filter(buff=>buff.stat==='atk').reduce((max,buff)=>Math.max(max,buff.rounds),0);
   ally.defBuffRounds=buffs.filter(buff=>buff.stat==='def').reduce((max,buff)=>Math.max(max,buff.rounds),0);
 }
@@ -1388,7 +1391,7 @@ function resetAlliesForWave(allies){
   allies.forEach(a=>{
     const c=CHAR_DB[a.charId];
     a.shield=0; a.shieldRounds=0; a.atkBuffMult=1; a.buffRounds=0;
-    a.defBuffMult=1; a.defBuffRounds=0;
+    a.defBuffMult=1; a.defBuffRounds=0; a.dotDamageBuffMult=1;
     a.activeBuffs=[];
     a.basicHits=c.basic.hits||1;
     a.skillFreeUses=c.skillFreeUses||0;
@@ -1564,7 +1567,7 @@ function startBattle(mode,fight){
       formDamageMult:eff.formDamageMult, defDownBonus:eff.defDownBonus, hpDamageMult:eff.hpDamageMult, skillDamageMult:eff.skillDamageMult,
       fxSkillSp:eff.fxSkillSp, fxAbsent:eff.fxAbsent, fxHitStack:eff.fxHitStack, turnSkillCount:0, hitStacks:[],
       shield:0, shieldRounds:0, atkBuffMult:1, buffRounds:0,
-      defBuffMult:1, defBuffRounds:0, activeBuffs:[],
+      defBuffMult:1, defBuffRounds:0, dotDamageBuffMult:1, activeBuffs:[],
       basicHits: CHAR_DB[id].basic.hits||1,
       skillFreeUses: CHAR_DB[id].skillFreeUses||0,
       inaFollowUpsRemaining: CHAR_DB[id].passiveInaFollowUps||0,
@@ -1605,7 +1608,7 @@ function startBattle(mode,fight){
     mode:pf?'pf':moc?'moc':apoc?'apoc':su?'su':domain?'domain':'tower',
     domainSet:domain?fight:null,
     suFight:su&&!!fight,
-    pf:pf?{score:0,kills:0,lastSpawn:null,buffs:pfBuffs,grade:pfGrade.id,rank:towerCombatRank(pfGrade.floor),hpRank:towerHpRank(towerCombatRank(pfGrade.floor)),enemyCount:pfGrade.pfEnemies,specialChance:pfGrade.pfSpecialChance,thresholds:getPFScoreThresholds(pfGrade.id,activeParty.length)}:null,
+    pf:pf?{score:0,kills:0,lastSpawn:null,buffs:pfBuffs,grade:pfGrade.id,rank:towerCombatRank(pfGrade.floor),hpRank:towerHpRank(towerCombatRank(pfGrade.floor)),enemyCount:pfGrade.pfEnemies,specialChance:pfGrade.pfSpecialChance,thresholds:getPFScoreThresholds(activeParty.length)}:null,
     mocBossIndex:moc?state.moc.bossIndex:null,
     apoc:apoc?{bossName:state.apoc.setup.boss,grade:state.apoc.grade}:null,
     apocTurns:0,
@@ -1828,7 +1831,6 @@ async function performZetaFollowUp(b){
 }
 
 async function triggerInaFollowUpAfterHit(b,target,attacker){
-  const targetHadBleed=(target.dots||[]).some(dot=>dot.name==='Sanguinamento');
   if(attacker?.charId!=='ninomaeInaNis' && target.inaMarked){
     const ina=getInaActor(b);
     if(ina && !ina.hakosForm){
@@ -1844,7 +1846,7 @@ async function triggerInaFollowUpAfterHit(b,target,attacker){
     }
     if(target) await performInaFollowUp(b,target,true);
   }
-  if(attacker?.charId!=='vestiaZeta'&&targetHadBleed) await performZetaFollowUp(b);
+  if(attacker?.charId!=='vestiaZeta') await performZetaFollowUp(b);
 }
 
 function isEnemyWeakTo(element,enemy){
@@ -1931,8 +1933,8 @@ function recordApocalypticShadowHit(boss,attacker){
     boss.apocDamageReduction=0;
     boss.apocShieldRemoved=true;
     grantApocalypticShadowEnergy(boss);
-    claimApocProgressRewards(boss);
   }
+  claimApocProgressRewards(boss);
   syncConstructHealth(boss);
 }
 function triggerSuiseiPsychoFollowUp(boss){
@@ -2040,7 +2042,8 @@ function triggerDamageOverTime(b,enemy,dot,detonate=false,deferKoboEnergy=false)
     enemy.dots=enemy.dots.filter(entry=>entry!==dot);
     return detonate?triggerKoboDotEnergy(b,dot,deferKoboEnergy):0;
   }
-  const damage=Math.max(1,Math.round(enemy.maxHp*dot.damagePct*dot.stacks*(dot.damageMult||1)));
+  const source=b.allies.find(ally=>ally.charId===dot.sourceId);
+  const damage=Math.max(1,Math.round(enemy.maxHp*dot.damagePct*dot.stacks*(dot.damageMult||1)*(source?.dotDamageBuffMult||1)));
   const applied=applyBossDamageReduction(enemy,damage,'dot');
   applyEnemyHealthDamage(enemy,applied);
   updateBossPhase(enemy);
@@ -2463,6 +2466,10 @@ async function executeAbility(actor, abKey, targetId){
     }
   }
   else if(ability.target==='enemies_all'){
+    if(ability.effect==='reine_skill'){
+      b.allies.filter(ally=>ally.hp>0).forEach(ally=>addTimedAllyBuff(ally,ability.name,'dotDamage',ability.dotDamageBuff,2));
+      logMsg(`${actor.name} aumenta del ${Math.round(ability.dotDamageBuff*100)}% i danni da DoT degli alleati per 2 turni.`);
+    }
     for(const t of enemyTargets()){
       const targetVulnerability=t.vulnerableRounds>0?t.vulnerableToElement:null;
       const dmg = calcDamage(effAtk,ability.mult,getEffectiveEnemyDefense(t),actor.element,t.elements||t.element,actor,abKey,targetVulnerability);
@@ -2479,6 +2486,12 @@ async function executeAbility(actor, abKey, targetId){
       }
       if(ability.effect==='burn_all'){
         applyDamageOverTime(t,actor,ability.burnStacks);
+      }
+      if(ability.effect==='reine_dot'||ability.effect==='reine_skill'||ability.effect==='reine_ultimate'){
+        applyDamageOverTime(t,actor,ability.burnStacks);
+      }
+      if(ability.effect==='reine_ultimate'){
+        detonateEnemyDamageOverTime(b,t);
       }
       if(ability.effect==='kobo_seasick_all'){
         applyKoboSeasick(t);
@@ -2678,7 +2691,10 @@ async function finishRound(){
 
   b.allies.forEach(a=>{
     if(a.shieldRounds>0){ a.shieldRounds--; if(a.shieldRounds<=0) a.shield=0; }
-    if(a.activeBuffs?.length) tickTimedAllyBuffs(a,'atk');
+    if(a.activeBuffs?.length){
+      tickTimedAllyBuffs(a,'atk');
+      tickTimedAllyBuffs(a,'dotDamage');
+    }
     if(a.hitStacks?.length){ a.hitStacks.forEach(s=>s.r--); a.hitStacks=a.hitStacks.filter(s=>s.r>0); }
     if(a.suiseiGuardRounds>0){
       if(a.suiseiGuardFresh) a.suiseiGuardFresh=false;
@@ -3916,7 +3932,7 @@ function renderAbilitaTab(){
       ${c.passiveKiaraCounter?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: quando Kiara viene colpita e sopravvive, contrattacca il nemico con un follow-up equivalente alla Skill.</div>`:''}
       ${c.passiveFinanaFollowUp?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che un nemico scende al 50% dei PV per la prima volta, lancia un follow-up identico al Basic.</div>`:''}
       ${c.passiveInaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: marchia il nemico con meno PV. I colpi al marchiato attivano fino a ${c.passiveInaFollowUps} follow-up; la Ultimate ricarica le cariche. Ogni volta che un alleato colpisce il nemico marchiato, Ina rigenera 10 energia.</div>`:''}
-      ${c.passiveZetaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: quando un alleato diverso da Zeta colpisce un nemico con Sanguinamento, Zeta attiva un follow-up. La Ultimate ricarica le ${c.passiveZetaFollowUps} cariche.</div>`:''}
+      ${c.passiveZetaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: gli attacchi di un alleato diverso da Zeta attivano un follow-up, anche contro nemici senza Sanguinamento. La Ultimate ricarica le ${c.passiveZetaFollowUps} cariche.</div>`:''}
       ${c.passiveHpLossFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni ${c.passiveHpLossFollowUps} perdite di PV attiva un follow-up ad area e cura il 15% dei PV massimi.</div>`:''}
       ${c.revivesPerBattle?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: può rinascere ${c.revivesPerBattle} volte per battaglia con il 60% dei PV massimi.</div>`:''}
     </div>
@@ -3945,7 +3961,7 @@ function renderAbilitaTab(){
   }
   if(id==='vestiaZeta'){
     cards.appendChild(renderAbilityCard(
-      {name:'Danza Sanguinaria',desc:'Quando un alleato diverso da Zeta colpisce un nemico con Sanguinamento, Zeta attacca fino a due nemici casuali.'},
+      {name:'Danza Sanguinaria',desc:'Quando un alleato diverso da Zeta attacca, Zeta colpisce fino a due nemici casuali, anche se non hanno Sanguinamento.'},
       'basic','Passiva · Follow-up',
       `<span><b>Moltiplicatore:</b> 85% ATK per bersaglio</span><span><b>Bersagli:</b> Fino a 2 nemici casuali, senza ripetizioni</span><span><b>Effetto:</b> Applica 1 stack di Sanguinamento a ciascun bersaglio sopravvissuto</span><span><b>Cariche:</b> ${c.passiveZetaFollowUps} · ricaricate dalla Ultimate</span>`
     ));
@@ -3988,6 +4004,9 @@ function effectLabel(ability){
     case 'heal_all': return `Cura l'intera squadra.`;
     case 'burn': return `Applica ${ability.burnStacks} carica/e di Sanguinamento (danno nel tempo).`;
     case 'burn_all': return `Applica ${ability.burnStacks} carica/e di Sanguinamento a tutti i nemici colpiti.`;
+    case 'reine_dot': return `Applica ${ability.burnStacks} stack di Incanto a tutti i nemici: danno nel tempo.`;
+    case 'reine_skill': return `Applica ${ability.burnStacks} stack di Incanto a tutti i nemici e aumenta del ${Math.round(ability.dotDamageBuff*100)}% i danni da DoT degli alleati per 2 turni.`;
+    case 'reine_ultimate': return `Applica ${ability.burnStacks} stack di Incanto a tutti i nemici e detona le DoT dannose presenti.`;
     case 'kobo_seasick': return `Applica 1 stack di Mal di mare: ATK nemico -5% per stack, fino a 10 stack (-50%).`;
     case 'kobo_seasick_all': return `Detona tutte le DoT dannose con un tick normale per i loro stack, poi applica 1 stack di Mal di mare a ogni nemico colpito (massimo 10).`;
     case 'kobo_detonate_dots': return `Detona tutte le DoT dannose con un tick normale per i loro stack, poi attiva per il resto della battaglia un'aura che applica Corrosione agli avversari che ne sono privi.`;
@@ -4857,11 +4876,11 @@ function renderPureFictionTab(){
   const wrap = document.createElement('div');
   wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Modalità a punteggio</span><h2>Pure Fiction</h2></div>`));
   const grade=getModeGrade('pf');
-  const thresholds=getPFScoreThresholds(grade.id,state.party.length);
+  const thresholds=getPFScoreThresholds(state.party.length);
   wrap.appendChild(renderModeGradePicker('pf'));
   const day=ensurePFDay();
   const buffs=getPFDailyBuffs();
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${grade.pfEnemies} nemici in campo: ogni nemico sconfitto dà punti (100, 150 per i nemici speciali) e viene subito sostituito. La probabilità di nemici speciali è ${Math.round(grade.pfSpecialChance*100)}%. Ogni eroe ha ${PF_ROUNDS} turni. Soglie punti adattate al grado e alla squadra schierata; le ricompense si ottengono una volta al giorno e sono cumulative: completando un grado superiore ricevi anche i premi dei gradi precedenti.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${grade.pfEnemies} nemici sono in campo: ogni nemico sconfitto assegna 100 punti (150 se speciale), prima di eventuali potenziamenti al punteggio, e viene sostituito. La probabilità che appaia un nemico speciale è ${Math.round(grade.pfSpecialChance*100)}%. La sfida dura ${PF_ROUNDS} round, in cui ogni eroe agisce una volta. Le tre soglie per i frammenti sono quelle del grado B e si adattano alla squadra. I premi si accumulano salendo di grado; completando tutte le soglie al grado EX puoi ottenere fino a 2.000 frammenti al giorno in Pure Fiction.</div>`));
   wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;">
     <div class="eyebrow">Potenziamenti di oggi</div>
     <div style="margin-top:8px;"><b>${buffs.general.name}</b> · <span class="hint">${buffs.general.desc}</span></div>
@@ -4908,15 +4927,15 @@ function renderMemoryOfChaos(){
     }
     return wrap;
   }
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${grade.id==='C'?'Affronta un boss con una sola squadra: il grado C è pensato anche per il roster iniziale.':'Sconfiggi due boss consecutivi con squadre distinte.'} I boss mantengono fasi e pattern propri; dal grado A si aggiunge una riduzione ai danni, mentre i gradi S+ introducono la seconda fase. Le ricompense si ottengono una volta al giorno e sono cumulative tra i gradi, senza rendere quelli alti necessari alla progressione.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${grade.id==='C'?'Al grado C affronti un solo boss con una squadra, una modalità pensata anche per il roster iniziale.':'Affronti due boss consecutivi con squadre distinte.'} I boss mantengono fasi e pattern propri; dal grado A hanno una riduzione ai danni, mentre dal grado S hanno una seconda fase. I requisiti dei premi in frammenti sono: sconfiggere il primo boss, sconfiggere entrambi i boss e sconfiggerli entrambi entro ${MOC_TIERS[2].maxRounds} round totali. Al grado C è disponibile solo il primo requisito, perché si affronta un solo boss. I premi si accumulano salendo di grado; completando tutti e tre i requisiti al grado EX puoi ottenere fino a 2.000 frammenti al giorno in Memory of Chaos.</div>`));
   wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;"><div class="eyebrow">Boss e potenziamenti di oggi</div><div class="stat-row"><span>Boss 1</span><b class="moc-boss-info">${setup.bosses[0]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[0])}</span></b></div>${grade.id==='C'?'':`<div class="stat-row"><span>Boss 2</span><b class="moc-boss-info">${setup.bosses[1]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[1])}</span></b></div>`}<div style="margin-top:8px;"><b>${setup.buffs.general.name}</b> · <span class="hint">${setup.buffs.general.desc}</span></div><div style="margin-top:6px;"><b>${setup.buffs.theme.name}</b> · <span class="hint">${setup.buffs.theme.desc}</span></div></div>`));
-  const clearTarget=grade.id==='C'?1:2;
+  const clearTarget=2;
   const tierPanel=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense di oggi · Boss sconfitti: ${Math.min(day.clears,clearTarget)}/${clearTarget}</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="mocTimer"></b></div></div>`);
   startPFTimer(tierPanel.querySelector('#mocTimer'));
   MOC_TIERS.forEach((tier,index)=>{
-    const unavailable=grade.id==='C'&&index===1;
-    const label=index===0?'Sconfiggi il primo boss':index===1?'Sconfiggi entrambi i boss · Grado B+':`${grade.id==='C'?'Sconfiggi il boss':'Completa'} entro ${grade.roundLimit} round`;
-    tierPanel.appendChild(el(`<div class="stat-row"><span>${label}</span><b style="color:${unavailable?'var(--text-dim)':day.claimedGrade[index]>=getModeGradeIndex(grade.id)?'var(--green)':'var(--amber)'}">${unavailable?'Dal grado B':getModeRewardStatus(day,index,tier.reward,grade.id)}</b></div>`));
+    const unavailable=grade.id==='C'&&index>0;
+    const label=index===0?'Sconfiggi il primo boss':index===1?'Sconfiggi entrambi i boss':`Sconfiggi entrambi i boss entro ${tier.maxRounds} round`;
+    tierPanel.appendChild(el(`<div class="stat-row"><span>${label}</span><b style="color:${unavailable?'var(--text-dim)':day.claimedGrade[index]>=getModeGradeIndex(grade.id)?'var(--green)':'var(--amber)'}">${unavailable?'Non disponibile al grado C':getModeRewardStatus(day,index,tier.reward,grade.id)}</b></div>`));
   });
   wrap.appendChild(tierPanel);
 
@@ -4953,7 +4972,7 @@ function renderApocalypticShadow(){
   const day=ensureApocDay();
   const setup=state.apoc?.setup||getApocSetup();
   const buffs=setup.buffs;
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Affronta il boss di oggi con tutta la squadra. Hai ${grade.roundLimit} round. La riduzione ai danni è ${Math.round(grade.apocDamageReduction*100)}% e si rimuove dopo ${grade.apocStacksRequired} colpi${grade.apocRequiresWeakness?' con un elemento efficace':''}; quando la barriera cede, tutti gli alleati ottengono energia massima. Le ricompense sono cumulative tra i gradi.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Affronta il boss di oggi con tutta la squadra entro ${grade.roundLimit} round. La riduzione ai danni è ${Math.round(grade.apocDamageReduction*100)}% e si rimuove dopo ${grade.apocStacksRequired} colpi${grade.apocRequiresWeakness?' contro la debolezza elementale':''}; quando la barriera cede, tutti gli alleati recuperano tutta l’energia. I requisiti dei premi in frammenti sono fissi come al grado B: accumulare 4 stack elementali, sconfiggere il boss e vincere entro ${APOC_TIERS[2].roundLimit} round. Ai gradi alti la barriera può richiedere più colpi per essere rimossa, ma la prima soglia del premio resta a 4 stack. Completando tutti e tre i requisiti al grado EX puoi ottenere fino a 2.000 frammenti al giorno in Apocalyptic Shadow.</div>`));
   wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;">
     <div class="eyebrow">Boss e potenziamenti di oggi</div>
     <div class="stat-row"><span>Boss</span><b class="moc-boss-info">${setup.boss}<span class="moc-boss-elements">${renderMOCBossElements(setup.boss)}</span></b></div>
@@ -4964,7 +4983,7 @@ function renderApocalypticShadow(){
   const tiers=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense giornaliere · Miglior risultato ${grade.id}: ${bestForGrade===undefined?'—':`${bestForGrade} round`}</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="apocTimer"></b></div></div>`);
   startPFTimer(tiers.querySelector('#apocTimer'));
   APOC_TIERS.forEach((tier,index)=>{
-    const label=index===0?`Rimuovi la riduzione (${grade.apocStacksRequired} stack)`:index===1?(grade.phases===1?'Sconfiggi il boss':'Svuota la prima barra del boss'):`Sconfiggi il boss entro ${grade.roundLimit} round`;
+    const label=tier.label;
     tiers.appendChild(el(`<div class="stat-row"><span>${label}</span><b style="color:${day.claimedGrade[index]>=getModeGradeIndex(grade.id)?'var(--green)':'var(--amber)'}">${getModeRewardStatus(day,index,tier.reward,grade.id)}</b></div>`));
   });
   wrap.appendChild(tiers);
@@ -4987,7 +5006,7 @@ function renderApocalypticShadowResult(){
   </div>`);
   const tiers=el(`<div class="hud-panel section" style="padding:16px;margin:10px 0;"></div>`);
   APOC_TIERS.forEach((tier,index)=>{
-    const label=index===1&&result.phase===1?'Sconfiggi il boss':index===2?`Sconfiggi il boss entro ${result.roundLimit} round`:tier.label;
+    const label=tier.label;
     tiers.appendChild(el(`<div class="stat-row"><span>${label}</span><b style="color:${day.claimedGrade[index]>=getModeGradeIndex(result.grade)?'var(--green)':'var(--text-dim)'}">${getModeRewardStatus(day,index,tier.reward,result.grade)}</b></div>`));
   });
   wrap.appendChild(tiers);
