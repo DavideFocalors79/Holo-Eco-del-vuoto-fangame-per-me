@@ -27,9 +27,9 @@ const ELEMENT_RELATION = {
 const CHAR_DB = {
   kaelaKolvalskia: { name:'Kaela kolvalskia', title:'Baluardo di Ferro', role:'Tank', color:'#4fd8e0', glyph:'K', rarity:4, element:'physical', animStyle:'heavy',
     base:{hp:1450, atk:92, def:150, speed:100, energyMax:120},
-    basic:{name:'Colpo di Scudo', desc:'Danno fisico a un bersaglio.', mult:1.0, target:'enemy', effect:null, energyGain:20},
-    skill:{name:'Presa Ferrea', desc:'Danno, si scherma per 2 turni e scherma anche l\'alleato con meno PV.', mult:1.2, target:'enemy', effect:'shield_self', shieldPct:0.18, energyGain:30},
-    ult:{name:'Muro Indistruttibile', desc:'Scherma tutta la squadra per 2 turni.', mult:0, target:'allies_all', effect:'shield_all', shieldPct:0.22} },
+    basic:{name:'Colpo di Scudo', desc:'Danno fisico a un bersaglio, basato sulla DIF.', mult:1.0, target:'enemy', effect:null, defBased:true, energyGain:20},
+    skill:{name:'Presa Ferrea', desc:'Danno basato sulla DIF; si scherma per 2 turni e scherma anche l\'alleato con meno PV.', mult:1.2, target:'enemy', effect:'shield_self', shieldDefMult:1.8, defBased:true, energyGain:30},
+    ult:{name:'Muro Indistruttibile', desc:'Scherma tutta la squadra per 2 turni in base alla DIF.', mult:0, target:'allies_all', effect:'shield_all', shieldDefMult:2.1} },
   ceciliaImmergreen: { name:'Cecilia Immergreen', title:"Luce dell'Aurora", role:'Supporto Curativo', color:'#6ee7a0', glyph:'C', rarity:4, element:'dendro', animStyle:'radiant-soft',
     base:{hp:980, atk:76, def:75, speed:100, energyMax:110},
     basic:{name:'Raggio Guida', desc:'Danno leggero a un nemico, basato sui PV massimi.', mult:0.1, target:'enemy', effect:null, hpBased:true, energyGain:20},
@@ -902,7 +902,9 @@ function renderModeGradePicker(mode){
 }
 function getCumulativeModeReward(baseReward,gradeId){
   const current=getModeGradeIndex(gradeId);
-  return Math.round(baseReward*(current+1)/MODE_GRADE_DEFS.length);
+  const totalWeight=MODE_GRADE_DEFS.length*(MODE_GRADE_DEFS.length+1)/2;
+  const earnedWeight=(current+1)*(current+2)/2;
+  return Math.round(baseReward*2*earnedWeight/totalWeight);
 }
 function getClaimedGradeIndex(day,index){
   const stored=day.claimedGrade?.[index];
@@ -913,13 +915,13 @@ function getClaimedModeRewardTotal(day,index,baseReward){
   const stored=day.claimedRewardTotal?.[index];
   if(Number.isFinite(stored)&&stored>=0) return stored;
   const previous=getClaimedGradeIndex(day,index);
-  return previous>=0?getCumulativeModeReward(baseReward,MODE_GRADE_DEFS[previous].id):0;
+  return previous>=0?Math.round(baseReward*(previous+1)/MODE_GRADE_DEFS.length):0;
 }
 function claimModeReward(day,index,baseReward,gradeId){
   if(!Array.isArray(day.claimedGrade)) day.claimedGrade=[];
   const previous=getClaimedGradeIndex(day,index);
   const current=getModeGradeIndex(gradeId);
-  if(current<=previous) return 0;
+  if(current<previous) return 0;
   const total=getCumulativeModeReward(baseReward,gradeId);
   const previousTotal=getClaimedModeRewardTotal(day,index,baseReward);
   const amount=Math.max(0,total-previousTotal);
@@ -1598,6 +1600,7 @@ function startBattle(mode,fight){
     phase:turnOrder[0].side==='ally'?'ally_turn':'enemy_turn',
     pendingAbility:null,
     busy:false,
+    finanaFollowUpsThisRound:0,
     screenFx:null,
     log:[],
     loot:[],
@@ -1693,10 +1696,16 @@ async function advanceTurn(){
       return;
     }
     b.round++;
+    b.finanaFollowUpsThisRound=0;
     b.turnOrder = buildTurnOrder(b.allies,b.enemies);
     ensureHakosExtraTurn(b);
     b.turnIndex=0;
     logMsg(`— Round ${b.round} —`);
+    await processFinanaFollowUps(b);
+    if(checkBattleEnd()){
+      render();
+      return;
+    }
   }
 
   b.phase = b.turnOrder[b.turnIndex].side==='ally' ? 'ally_turn' : 'enemy_turn';
@@ -2068,7 +2077,7 @@ function detonateEnemyDamageOverTime(b,enemy,deferKoboEnergy=false){
   return deferredEnergy;
 }
 
-// Finana: each enemy dropping to 50% HP for the first time queues one follow-up (a copy of her Basic).
+// Finana: each enemy dropping to 50% HP for the first time queues one follow-up.
 function noteFinanaThreshold(enemy){
   const b=state.battle;
   if(!b || enemy.finanaTriggered || enemy.hp<=0 || enemy.hp>enemy.maxHp*0.5) return;
@@ -2079,17 +2088,18 @@ async function processFinanaFollowUps(b){
   if(b.finanaActive) return;
   b.finanaActive=true;
   let guard=0;
-  while((b.finanaPending||0)>0 && guard++<8){
+  while((b.finanaPending||0)>0 && b.finanaFollowUpsThisRound<4 && guard++<8){
     b.finanaPending--;
+    b.finanaFollowUpsThisRound++;
     const finana=b.allies.find(a=>a.charId==='finanaRyugu'&&a.hp>0);
     const targets=b.enemies.filter(e=>e.hp>0);
     if(!finana||targets.length===0){ b.finanaPending=0; break; }
     const ability=CHAR_DB.finanaRyugu.basic;
     finana._fxAttack='basic';
-    logMsg(`${finana.name} lancia un follow-up: ${ability.name}!`);
+    logMsg(`${finana.name} lancia un follow-up: ${ability.name} (3% PV)!`);
     for(const t of targets){
       const vulnerability=t.vulnerableRounds>0?t.vulnerableToElement:null;
-      const dmg=calcDamage(Math.round(finana.maxHp*(finana.hpDamageMult||1)),ability.mult,getEffectiveEnemyDefense(t),finana.element,t.elements||t.element,finana,'basic',vulnerability);
+      const dmg=calcDamage(Math.round(finana.maxHp*(finana.hpDamageMult||1)),0.03,getEffectiveEnemyDefense(t),finana.element,t.elements||t.element,finana,'basic',vulnerability);
       const applied=dealDamageToEnemy(t,dmg,'basic',true,finana);
       logMsg(`${finana.name} colpisce ${t.name} per ${applied}.`);
     }
@@ -2291,6 +2301,13 @@ function restoreHakosUltimate(b,reason='expired'){
   return true;
 }
 
+function getAbilityShieldAmount(source,target,ability){
+  if(ability.shieldDefMult!==undefined){
+    return Math.round(source.def*(source.defBuffMult||1)*ability.shieldDefMult*(source.shieldMult||1));
+  }
+  return Math.round(target.maxHp*ability.shieldPct*(source.shieldMult||1));
+}
+
 async function executeAbility(actor, abKey, targetId){
   const b = state.battle;
   const ability = getAbilityForActor(actor,abKey);
@@ -2378,14 +2395,14 @@ async function executeAbility(actor, abKey, targetId){
       actor.basicHits = CHAR_DB[actor.charId].basic.hits||1; // Danza di Lame si resetta dopo l'Attacco Base
     }
     if(ability.effect==='shield_self'){
-      const amt = Math.round(actor.maxHp*ability.shieldPct*(actor.shieldMult||1));
+      const amt = getAbilityShieldAmount(actor,actor,ability);
       actor.shield += amt;
       actor.shieldRounds = 2;
       actor._fx = {variant:'shield', label:'🛡+'+amt};
       logMsg(`${actor.name} ottiene uno scudo.`);
       const weakest=allyTargets().filter(a=>a!==actor).sort((x,y)=>x.hp/x.maxHp-y.hp/y.maxHp)[0];
       if(weakest){
-        const shared=Math.round(weakest.maxHp*ability.shieldPct*(actor.shieldMult||1));
+        const shared=getAbilityShieldAmount(actor,weakest,ability);
         weakest.shield+=shared;
         weakest.shieldRounds=2;
         weakest._fx={variant:'shield',label:'🛡+'+shared};
@@ -2538,7 +2555,7 @@ async function executeAbility(actor, abKey, targetId){
   }
   else if(ability.target==='allies_all'){
     if(ability.effect==='shield_all'){
-      allyTargets().forEach(a=>{ const amt=Math.round(a.maxHp*ability.shieldPct*(actor.shieldMult||1)); a.shield+=amt; a.shieldRounds=2; a._fx={variant:'shield',label:'🛡+'+amt}; });
+      allyTargets().forEach(a=>{ const amt=getAbilityShieldAmount(actor,a,ability); a.shield+=amt; a.shieldRounds=2; a._fx={variant:'shield',label:'🛡+'+amt}; });
       logMsg(`${actor.name} scherma tutta la squadra.`);
     }
     if(ability.effect==='heal_all'){
@@ -3565,6 +3582,10 @@ const ONE_OFF_QUESTS = [
   {id:'kiara',        desc:'Completa Pure Fiction per la prima volta', reward:800, unlockChar:'takanashiKiara', rewardText:'Sblocca Kiara Takanashi (★★★★)', check:()=>state.pfCleared},
 ];
 
+const STARTER_TOWER_MISSIONS = Array.from(
+  {length:Math.min(5,Math.floor(TOWER_MAX_FLOOR/5))},
+  (_,index)=>({id:`starterTower${(index+1)*5}`,floor:(index+1)*5})
+);
 const DAILY_MISSION_REWARD = 300;
 const DAILY_MISSIONS = [
   {id:'battle', desc:'Vinci una battaglia nella Torre o in un Dominio'},
@@ -3644,6 +3665,14 @@ function claimQuest(id){
   if(q.unlockChar&&!duplicateCharacter) state.roster[q.unlockChar].unlocked = true;
   if(duplicateCharacter) state.gold += 2000;
   else state.credits += q.reward;
+  render();
+}
+
+function claimStarterTowerMission(id){
+  const mission=STARTER_TOWER_MISSIONS.find(entry=>entry.id===id);
+  if(!mission || state.claimedQuests[id] || getClearedTowerFloor()<mission.floor) return;
+  state.claimedQuests[id]=true;
+  state.gold+=PULL_COST*5;
   render();
 }
 
@@ -3930,7 +3959,7 @@ function renderAbilitaTab(){
       ${c.passiveSpCapBonus?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: mentre è in squadra, il cap dei Punti Abilità sale da 5 a ${5+c.passiveSpCapBonus}.</div>`:''}
       ${c.passiveSelfHeal?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che attacca recupera il ${Math.round(c.passiveSelfHeal*100)}% dei PV massimi.</div>`:''}
       ${c.passiveKiaraCounter?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: quando Kiara viene colpita e sopravvive, contrattacca il nemico con un follow-up equivalente alla Skill.</div>`:''}
-      ${c.passiveFinanaFollowUp?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che un nemico scende al 50% dei PV per la prima volta, lancia un follow-up identico al Basic.</div>`:''}
+      ${c.passiveFinanaFollowUp?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: quando un nemico scende al 50% dei PV per la prima volta, Finana lancia un follow-up ad area che infligge danni pari al 3% dei suoi PV massimi per bersaglio (massimo 4 per round).</div>`:''}
       ${c.passiveInaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: marchia il nemico con meno PV. I colpi al marchiato attivano fino a ${c.passiveInaFollowUps} follow-up; la Ultimate ricarica le cariche. Ogni volta che un alleato colpisce il nemico marchiato, Ina rigenera 10 energia.</div>`:''}
       ${c.passiveZetaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: gli attacchi di un alleato diverso da Zeta attivano un follow-up, anche contro nemici senza Sanguinamento. La Ultimate ricarica le ${c.passiveZetaFollowUps} cariche.</div>`:''}
       ${c.passiveHpLossFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni ${c.passiveHpLossFollowUps} perdite di PV attiva un follow-up ad area e cura il 15% dei PV massimi.</div>`:''}
@@ -3997,8 +4026,12 @@ function effectLabel(ability){
   switch(ability.effect){
     case 'kiara_skill_heal': return `Dopo il colpo, cura Kiara del ${Math.round(ability.healPct*100)}% della sua DIF.`;
     case 'kiara_def_buff': return `Aumenta la DIF di Kiara del ${Math.round(ability.defBuffPct*100)}% per 2 turni.`;
-    case 'shield_self': return `Scudo su se stesso pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni. Lo stesso scudo (sui PV massimi dell'alleato) va anche all'alleato con meno PV.`;
-    case 'shield_all': return `Scudo su tutta la squadra pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni.`;
+    case 'shield_self': return ability.shieldDefMult!==undefined
+      ? `Scudo pari al ${Math.round(ability.shieldDefMult*100)}% della DIF di chi lo genera, per 2 turni. Lo stesso scudo protegge anche l'alleato con meno PV.`
+      : `Scudo su se stesso pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni. Lo stesso scudo (sui PV massimi dell'alleato) va anche all'alleato con meno PV.`;
+    case 'shield_all': return ability.shieldDefMult!==undefined
+      ? `Scudo su tutta la squadra pari al ${Math.round(ability.shieldDefMult*100)}% della DIF di chi lo genera, per 2 turni.`
+      : `Scudo su tutta la squadra pari al ${Math.round(ability.shieldPct*100)}% dei PV massimi, per 2 turni.`;
     case 'elizabeth_shield_taunt': return `Scudo su un alleato pari al ${Math.round(ability.shieldDefMult*100)}% della DIF di Elizabeth. I nemici lo prendono di mira per ${ability.tauntTurns} turni.`;
     case 'heal': return `Cura un alleato.`;
     case 'heal_all': return `Cura l'intera squadra.`;
@@ -4285,7 +4318,7 @@ function renderTutorialTab(){
     ['Manufatti e set', `<p>Equipaggia fino a 5 manufatti per eroe. Le statistiche principali e secondarie aumentano i parametri; i bonus set si attivano con 2 e 4 pezzi dello stesso set. Puoi potenziare un manufatto fino al livello 20; ogni 5 livelli migliora una statistica secondaria casuale.</p>`],
     ['Armi', `<p>Ogni eroe ha uno slot arma. Ogni arma ha rarità, ATK, statistica secondaria ed effetto fissi. Potenziala fino al livello 20 spendendo Crediti; ascendi fino al grado 5 consumando un doppione identico e vendila dall'Armeria. Ci sono due Banner armi: uno con le armi esclusive degli eroi 4 stelle e uno con quelle degli eroi 5 stelle.</p>`],
     ['Torre, domini e ricompense', `<p>Avanza nella Torre del Vuoto: la progressione termina al Piano ${TOWER_MAX_FLOOR} e ogni 5 piani affronti un boss. Pure Fiction, Memory of Chaos e Apocalyptic Shadow sono accessibili dall'inizio con tutti i gradi di difficoltà già selezionabili. Le vittorie in Torre e nei domini danno Crediti e manufatti; usa i Crediti per potenziare armi e manufatti e i Frammenti (ottenuti nel Travel Log) per evocare dal Banner.</p>`],
-    ['Banner e missioni', `<p>Un'evocazione costa 300 Frammenti. Il Banner personaggi garantisce un personaggio 4 stelle entro 10 evocazioni e uno 5 stelle entro 50. Nei Banner armi i personaggi hanno le stesse probabilità base ma nessuna garanzia: un'arma esclusiva (4 o 5 stelle a seconda del banner) è invece garantita ogni 30 evocazioni su quel banner. Le missioni ricorrenti offrono Crediti; le quattro missioni giornaliere danno 300 Frammenti ciascuna e si azzerano a mezzanotte.</p>`],
+    ['Banner e missioni', `<p>Un'evocazione costa 300 Frammenti. Il Banner personaggi garantisce un personaggio 4 stelle entro 10 evocazioni e uno 5 stelle entro 50. Nei Banner armi i personaggi hanno le stesse probabilità base ma nessuna garanzia: un'arma esclusiva (4 o 5 stelle a seconda del banner) è invece garantita ogni 30 evocazioni su quel banner. Le missioni iniziali della Torre danno 5 evocazioni ai piani 5, 10, 15, 20 e 25. Le missioni ricorrenti offrono Crediti; le quattro missioni giornaliere danno 300 Frammenti ciascuna e si azzerano a mezzanotte.</p>`],
   ];
   const grid = el(`<div class="tutorial-grid"></div>`);
   sections.forEach(([title, content])=>{
@@ -4308,9 +4341,32 @@ function renderCharUnlockCard(charId){
 function renderMissioniTab(){
   const wrap = document.createElement('div');
   const oneOffDone = ONE_OFF_QUESTS.filter(q=>state.claimedQuests[q.id]).length;
+  const starterTowerDone=STARTER_TOWER_MISSIONS.filter(mission=>state.claimedQuests[mission.id]).length;
   const daily=ensureDailyMissions();
   wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Obiettivi</span><h2>Missioni</h2></div>`));
   wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Le missioni a progressione si ripetono all'infinito: ogni volta che le riscatti, obiettivo e ricompensa aumentano per il giro successivo.</div>`));
+
+  wrap.appendChild(el(`<div class="screen-title" style="margin-top:6px;"><span class="eyebrow">All'inizio dell'avventura</span><h2>Missioni della Torre (${starterTowerDone}/${STARTER_TOWER_MISSIONS.length})</h2></div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:10px;">Completa i piani 5, 10, 15, 20 e 25: ogni traguardo ti dà 5 evocazioni (1.500 💠 Frammenti).</div>`));
+  const starterTowerGrid=el(`<div class="artifact-grid"></div>`);
+  STARTER_TOWER_MISSIONS.forEach(mission=>{
+    const claimed=!!state.claimedQuests[mission.id];
+    const completed=!claimed&&getClearedTowerFloor()>=mission.floor;
+    const statusLabel=claimed?'✓ Riscattata':completed?'Completata!':`${Math.min(getClearedTowerFloor(),mission.floor)}/${mission.floor} piani`;
+    const statusColor=claimed?'var(--green)':completed?'var(--amber)':'var(--text-dim)';
+    const card=el(`<div class="hud-panel artifact-card" style="border-color:${claimed?'var(--green)':completed?'var(--amber)':'var(--border)'}">
+      <div class="ac-name">Completa il Piano ${mission.floor}</div>
+      <div class="ac-main">Ricompensa: <b>5 evocazioni · +${PULL_COST*5} 💠 Frammenti</b></div>
+      <div class="ac-setname" style="color:${statusColor}">${statusLabel}</div>
+    </div>`);
+    if(completed){
+      const btn=el(`<button class="small primary" style="margin-top:8px;width:100%;">Riscatta 5 evocazioni</button>`);
+      btn.onclick=event=>{ event.stopPropagation(); claimStarterTowerMission(mission.id); };
+      card.appendChild(btn);
+    }
+    starterTowerGrid.appendChild(card);
+  });
+  wrap.appendChild(starterTowerGrid);
 
   wrap.appendChild(el(`<div class="screen-title" style="margin-top:6px;"><span class="eyebrow">Si rinnovano ogni giorno</span><h2>Missioni giornaliere</h2></div>`));
   wrap.appendChild(el(`<div class="hint" style="margin-bottom:10px;">Ogni missione completata dà 300 💠 Frammenti (fino a 1.200 al giorno). Reset tra <b id="dailyMissionTimer"></b></div>`));
@@ -4880,7 +4936,7 @@ function renderPureFictionTab(){
   wrap.appendChild(renderModeGradePicker('pf'));
   const day=ensurePFDay();
   const buffs=getPFDailyBuffs();
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${grade.pfEnemies} nemici sono in campo: ogni nemico sconfitto assegna 100 punti (150 se speciale), prima di eventuali potenziamenti al punteggio, e viene sostituito. La probabilità che appaia un nemico speciale è ${Math.round(grade.pfSpecialChance*100)}%. La sfida dura ${PF_ROUNDS} round, in cui ogni eroe agisce una volta. Le tre soglie per i frammenti sono quelle del grado B e si adattano alla squadra. I premi si accumulano salendo di grado; completando tutte le soglie al grado EX puoi ottenere fino a 2.000 frammenti al giorno in Pure Fiction.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${grade.pfEnemies} nemici sono in campo: ogni nemico sconfitto assegna 100 punti (150 se speciale), prima di eventuali potenziamenti al punteggio, e viene sostituito. La probabilità che appaia un nemico speciale è ${Math.round(grade.pfSpecialChance*100)}%. La sfida dura ${PF_ROUNDS} round, in cui ogni eroe agisce una volta. Le tre soglie per i frammenti sono quelle del grado B e si adattano alla squadra. Ogni grado superiore riscatta anche i premi interi dei gradi precedenti non ancora ottenuti; completando tutte le soglie al grado EX puoi ottenere fino a 4.000 frammenti al giorno in Pure Fiction.</div>`));
   wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;">
     <div class="eyebrow">Potenziamenti di oggi</div>
     <div style="margin-top:8px;"><b>${buffs.general.name}</b> · <span class="hint">${buffs.general.desc}</span></div>
@@ -4927,7 +4983,7 @@ function renderMemoryOfChaos(){
     }
     return wrap;
   }
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${grade.id==='C'?'Al grado C affronti un solo boss con una squadra, una modalità pensata anche per il roster iniziale.':'Affronti due boss consecutivi con squadre distinte.'} I boss mantengono fasi e pattern propri; dal grado A hanno una riduzione ai danni, mentre dal grado S hanno una seconda fase. I requisiti dei premi in frammenti sono: sconfiggere il primo boss, sconfiggere entrambi i boss e sconfiggerli entrambi entro ${MOC_TIERS[2].maxRounds} round totali. Al grado C è disponibile solo il primo requisito, perché si affronta un solo boss. I premi si accumulano salendo di grado; completando tutti e tre i requisiti al grado EX puoi ottenere fino a 2.000 frammenti al giorno in Memory of Chaos.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">${grade.id==='C'?'Al grado C affronti un solo boss con una squadra, una modalità pensata anche per il roster iniziale.':'Affronti due boss consecutivi con squadre distinte.'} I boss mantengono fasi e pattern propri; dal grado A hanno una riduzione ai danni, mentre dal grado S hanno una seconda fase. I requisiti dei premi in frammenti sono: sconfiggere il primo boss, sconfiggere entrambi i boss e sconfiggerli entrambi entro ${MOC_TIERS[2].maxRounds} round totali. Al grado C è disponibile solo il primo requisito, perché si affronta un solo boss. Ogni grado superiore riscatta anche i premi interi dei gradi precedenti non ancora ottenuti; completando tutti e tre i requisiti al grado EX puoi ottenere fino a 4.000 frammenti al giorno in Memory of Chaos.</div>`));
   wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;"><div class="eyebrow">Boss e potenziamenti di oggi</div><div class="stat-row"><span>Boss 1</span><b class="moc-boss-info">${setup.bosses[0]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[0])}</span></b></div>${grade.id==='C'?'':`<div class="stat-row"><span>Boss 2</span><b class="moc-boss-info">${setup.bosses[1]}<span class="moc-boss-elements">${renderMOCBossElements(setup.bosses[1])}</span></b></div>`}<div style="margin-top:8px;"><b>${setup.buffs.general.name}</b> · <span class="hint">${setup.buffs.general.desc}</span></div><div style="margin-top:6px;"><b>${setup.buffs.theme.name}</b> · <span class="hint">${setup.buffs.theme.desc}</span></div></div>`));
   const clearTarget=2;
   const tierPanel=el(`<div class="hud-panel section" style="padding:16px;margin-top:14px;"><div class="eyebrow">Ricompense di oggi · Boss sconfitti: ${Math.min(day.clears,clearTarget)}/${clearTarget}</div><div class="hint" style="margin:4px 0 8px;text-align:left;">Reset tra <b id="mocTimer"></b></div></div>`);
@@ -4972,7 +5028,7 @@ function renderApocalypticShadow(){
   const day=ensureApocDay();
   const setup=state.apoc?.setup||getApocSetup();
   const buffs=setup.buffs;
-  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Affronta il boss di oggi con tutta la squadra entro ${grade.roundLimit} round. La riduzione ai danni è ${Math.round(grade.apocDamageReduction*100)}% e si rimuove dopo ${grade.apocStacksRequired} colpi${grade.apocRequiresWeakness?' contro la debolezza elementale':''}; quando la barriera cede, tutti gli alleati recuperano tutta l’energia. I requisiti dei premi in frammenti sono fissi come al grado B: accumulare 4 stack elementali, sconfiggere il boss e vincere entro ${APOC_TIERS[2].roundLimit} round. Ai gradi alti la barriera può richiedere più colpi per essere rimossa, ma la prima soglia del premio resta a 4 stack. Completando tutti e tre i requisiti al grado EX puoi ottenere fino a 2.000 frammenti al giorno in Apocalyptic Shadow.</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Affronta il boss di oggi con tutta la squadra entro ${grade.roundLimit} round. La riduzione ai danni è ${Math.round(grade.apocDamageReduction*100)}% e si rimuove dopo ${grade.apocStacksRequired} colpi${grade.apocRequiresWeakness?' contro la debolezza elementale':''}; quando la barriera cede, tutti gli alleati recuperano tutta l’energia. I requisiti dei premi in frammenti sono fissi come al grado B: accumulare 4 stack elementali, sconfiggere il boss e vincere entro ${APOC_TIERS[2].roundLimit} round. Ai gradi alti la barriera può richiedere più colpi per essere rimossa, ma la prima soglia del premio resta a 4 stack. Ogni grado superiore riscatta anche i premi interi dei gradi precedenti non ancora ottenuti; completando tutti e tre i requisiti al grado EX puoi ottenere fino a 4.000 frammenti al giorno in Apocalyptic Shadow.</div>`));
   wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;">
     <div class="eyebrow">Boss e potenziamenti di oggi</div>
     <div class="stat-row"><span>Boss</span><b class="moc-boss-info">${setup.boss}<span class="moc-boss-elements">${renderMOCBossElements(setup.boss)}</span></b></div>
