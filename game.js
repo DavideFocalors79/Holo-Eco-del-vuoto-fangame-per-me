@@ -35,11 +35,16 @@ const CHAR_DB = {
     basic:{name:'Raggio Guida', desc:'Danno leggero a un nemico, basato sui PV massimi.', mult:0.1, target:'enemy', effect:null, hpBased:true, energyGain:20},
     skill:{name:'Benedizione', desc:'Cura un alleato, in base ai PV massimi.', mult:0.22, target:'ally', effect:'heal', hpBased:true, energyGain:30},
     ult:{name:"Grazia dell'Alba", desc:'Cura tutta la squadra, in base ai PV massimi.', mult:0.3, target:'allies_all', effect:'heal_all', hpBased:true} },
-  hakuiKoyori: {name:'Hakui Koyori',title:'Investigatrice Elettro',role:'Debuffer Electro',color:'#f47cac',glyph:'K',rarity:4,element:'electro',animStyle:'arcane',dotName:'Shock',passiveEnemySpeedDown:0.10,
+  hakuiKoyori: {name:'Hakui Koyori',title:'Investigatrice Elettro',role:'Debuffer Electro',color:'#f47cac',glyph:'K',rarity:4,element:'electro',animStyle:'arcane',dotName:'Shock',passiveEnemySpeedDown:0.10,faction:'HoloX',
     base:{hp:1040,atk:126,def:72,speed:103,energyMax:125},
     basic:{name:'Colpo Sperimentale',desc:'Attacco Electro normale contro un nemico.',mult:0.85,target:'enemy',effect:null,energyGain:20},
     skill:{name:'Reazione a Catena',desc:'Colpisce il bersaglio e fino a 2 nemici adiacenti, riduce la DIF del 10% e applica Shock x1.',mult:0.8,target:'enemy_adjacent',effect:'koyori_shock',defDownPct:0.10,burnStacks:1,energyGain:30},
     ult:{name:'Protocollo Elettroshock',desc:'Colpisce il bersaglio e fino a 2 nemici adiacenti, riduce la DIF di un ulteriore 10% e applica Shock x2.',mult:1.35,target:'enemy_adjacent',effect:'koyori_shock',defDownPct:0.10,burnStacks:2} },
+  takaneLui: {name:'Takane Lui',title:'Aquila del Comando',role:'DPS Physical',color:'#bd303f',glyph:'L',rarity:5,element:'physical',animStyle:'heavy',faction:'HoloX',ultChargeMode:'debuffs',ultChargeMax:5,holoXAttackPerMember:0.60,
+    base:{hp:1120,atk:148,def:74,speed:103,energyMax:100},
+    basic:{name:'Artiglio dell’Aquila',desc:'Infligge danno Physical a un nemico.',mult:1.0,target:'enemy',effect:null,energyGain:0},
+    skill:{name:'Assalto del Comandante',desc:'Infligge danno Physical a un singolo nemico.',mult:1.35,target:'enemy',effect:null,energyGain:0},
+    ult:{name:'Ordine: Schianto Cremisi',desc:'Infligge danno Physical ad area a tutti i nemici. Si attiva dopo aver accumulato 5 cariche, ottenute ogni volta che un alleato infligge un debuff a un nemico (le DoT contano).',mult:2.0,target:'enemies_all',effect:null} },
   gawrGura: {name:'Gura',title:'Squalo degli Abissi',role:'Supporto Curativo',color:'#38bdf8',glyph:'G',rarity:5,element:'hydro',animStyle:'radiant-soft',
     base:{hp:1150,atk:86,def:82,speed:100,energyMax:135},
     basic:{name:'Morso dello Squalo',desc:'Infligge danno Hydro a un nemico.',mult:0.75,target:'enemy',effect:null,energyGain:20},
@@ -85,7 +90,7 @@ const CHAR_DB = {
     basic:{name:'Dado Impazzito', desc:'Infligge danno normale al bersaglio e ai nemici adiacenti, fino a 3 nemici.', mult:1.0, target:'enemy_adjacent', effect:null, energyGain:20},
     skill:{name:'Caos Concentrato', desc:'Infligge danno maggiore a un nemico.', mult:1.35, target:'enemy', effect:null, energyGain:30},
     ult:{name:'Rovina del Caos', desc:'Assorbe i parametri degli alleati, agisce due volte per turno e li richiama dopo 10 azioni.', mult:0, target:'self', effect:'hakos_ultimate'} },
-  laplusDarkness: { name:'Laplus Darkness', title:'Signora della Disordine', role:'Debuffer Quantum', color:'#b69cff', glyph:'L', rarity:5, element:'quantum', animStyle:'arcane',
+  laplusDarkness: { name:'Laplus Darkness', title:'Signora della Disordine', role:'Debuffer Quantum', color:'#b69cff', glyph:'L', rarity:5, element:'quantum', animStyle:'arcane',faction:'HoloX',
     base:{hp:1080, atk:136, def:78, speed:100, energyMax:140},
     basic:{name:'Raggio Disordinato', desc:'Infligge danno a un nemico e ne riduce la DIF del 15% per 2 round.', mult:1.0, target:'enemy', effect:'laplus_def_down', energyGain:20},
     skill:{name:'Marchio del Caos', desc:'Infligge danno, riduce la DIF del 15% e pianta per 2 round la debolezza contro l’elemento forte del primo eroe in squadra.', mult:1.35, target:'enemy', effect:'laplus_plant_weakness', energyGain:30},
@@ -871,6 +876,27 @@ function buildTurnOrder(allies, enemies){
   ].sort((first,second)=>second.speed-first.speed);
 }
 
+function grantTakaneDebuffCharge(enemy,allies=state.battle?.allies){
+  if(!enemy||enemy.hp<=0) return;
+  const takane=allies?.find(actor=>actor.charId==='takaneLui'&&actor.hp>0);
+  if(!takane) return;
+  const max=CHAR_DB.takaneLui.ultChargeMax;
+  const current=Number.isFinite(takane.takaneDebuffCharges)?takane.takaneDebuffCharges:0;
+  if(current>=max) return;
+  takane.takaneDebuffCharges=current+1;
+  takane._fx={variant:'spgrant',label:'+1 CARICA'};
+  if(state.battle?.allies===allies&&state.battle.enemies.includes(enemy)){
+    logMsg(`${takane.name} accumula una carica per il debuff su ${enemy.name} (${takane.takaneDebuffCharges}/${max}).`);
+  }
+}
+
+function isUltimateReady(actor){
+  const character=CHAR_DB[actor.charId];
+  return character.ultChargeMode==='debuffs'
+    ? (actor.takaneDebuffCharges||0)>=character.ultChargeMax
+    : actor.energy>=actor.energyMax;
+}
+
 function applyKoyoriSpeedDown(allies,enemies){
   if(!allies.some(actor=>actor.charId==='hakuiKoyori')) return;
   const slow=CHAR_DB.hakuiKoyori.passiveEnemySpeedDown;
@@ -879,6 +905,7 @@ function applyKoyoriSpeedDown(allies,enemies){
     enemy.speed=Math.max(1,Math.floor(enemy.speed*(1-slow)));
     enemy.koyoriSlowApplied=true;
     enemy.koyoriSlowPct=slow;
+    grantTakaneDebuffCharge(enemy,allies);
   });
 }
 
@@ -1618,6 +1645,7 @@ function startBattle(mode,fight){
       zetaFollowUpsRemaining: CHAR_DB[id].passiveZetaFollowUps||0,
       suiseiHpLossEvents:0,suiseiFollowUpReady:false,suiseiGuardRounds:0,suiseiGuardFresh:false,
       suiseiRevivesRemaining:CHAR_DB[id].revivesPerBattle||0,
+      takaneDebuffCharges:0,
     };
   });
   if(pf) applyPFBuffs(allies,pfBuffs);
@@ -1630,6 +1658,12 @@ function startBattle(mode,fight){
       if(state.su.pendingStart){ applySUBlessing(state.su.pendingStart); state.su.pendingStart=null; }
     }
   }
+  const holoXMemberCount=allies.filter(ally=>CHAR_DB[ally.charId].faction==='HoloX').length;
+  allies.filter(ally=>ally.charId==='takaneLui'&&!ally.holoXAtkBonusApplied).forEach(ally=>{
+    ally.holoXAtkBonus=holoXMemberCount*CHAR_DB.takaneLui.holoXAttackPerMember;
+    ally.atk=Math.round(ally.atk*(1+ally.holoXAtkBonus));
+    ally.holoXAtkBonusApplied=true;
+  });
   allies.forEach(ally=>{ if(!Number.isFinite(ally.baseMaxHp)) ally.baseMaxHp=ally.maxHp; });
   const enemies = pf ? generatePFEnemies() : moc ? generateMOCBoss(state.moc.setup.bosses[state.moc.bossIndex],state.moc.bossIndex) : apoc ? generateApocalypticShadowBoss(state.apoc.setup.boss) : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage,towerCombatRank(state.stage),true,towerHpRank(towerCombatRank(state.stage)));
   const turnOrder = buildTurnOrder(allies,enemies);
@@ -1794,10 +1828,12 @@ function getEffectiveEnemyDefense(enemy){
 }
 
 function applyLaplusAttackEffects(actor,enemy,extraDefDown=0,plantWeakness=false){
+  if(enemy.hp<=0) return;
   const reduction=(actor.charId==='laplusDarkness'?0.15:0)+(actor.defDownBonus||0)+extraDefDown;
   if(reduction>0){
     enemy.defDownPct=Math.min(0.75,(enemy.defDownPct||0)+reduction);
     enemy.defDownRounds=2;
+    grantTakaneDebuffCharge(enemy);
     logMsg(`${enemy.name} subisce -${Math.round(reduction*100)}% DIF (${Math.round(enemy.defDownPct*100)}% totale).`);
   }
   if(plantWeakness){
@@ -1806,6 +1842,7 @@ function applyLaplusAttackEffects(actor,enemy,extraDefDown=0,plantWeakness=false
     if(leader){
       enemy.vulnerableToElement=leader.element;
       enemy.vulnerableRounds=2;
+      grantTakaneDebuffCharge(enemy);
       logMsg(`${enemy.name} diventa vulnerabile a ${ELEMENT_DATA[leader.element].label} per 2 round.`);
     }
   }
@@ -1819,6 +1856,7 @@ function setInaMark(b,target,log=true){
   if(!target||target.hp<=0) return;
   b.enemies.forEach(enemy=>{enemy.inaMarked=false;});
   target.inaMarked=true;
+  grantTakaneDebuffCharge(target,b.allies);
   if(log) logMsg(`${target.name} viene marchiato da Ina.`);
 }
 
@@ -2037,6 +2075,7 @@ const KOBO_SEASICK_MAX_STACKS=10;
 function applyKoboSeasick(enemy){
   if(enemy.hp<=0) return;
   enemy.seasickStacks=Math.min(KOBO_SEASICK_MAX_STACKS,(enemy.seasickStacks||0)+1);
+  grantTakaneDebuffCharge(enemy);
   const atkReduction=enemy.seasickStacks*5;
   enemy._fx={variant:'buff',label:`ATK -${atkReduction}%`};
   logMsg(`${enemy.name} accumula Mal di mare x${enemy.seasickStacks}: ATK -${atkReduction}%.`);
@@ -2059,6 +2098,7 @@ function applyDamageOverTime(enemy,actor,stacks,nameOverride=null){
   dot.stacks+=stacks;
   dot.rounds=2;
   dot.damageMult=(actor.dotDamageMult||1)*(name==='Sanguinamento'?(actor.burnMult||1):1);
+  grantTakaneDebuffCharge(enemy);
   logMsg(`${enemy.name} riceve ${dot.stacks} cariche di ${name}.`);
 }
 
@@ -2356,6 +2396,7 @@ async function executeAbility(actor, abKey, targetId){
   const b = state.battle;
   const ability = getAbilityForActor(actor,abKey);
   if(!ability || ability.effect==='disabled') return;
+  if(abKey==='ult'&&!isUltimateReady(actor)) return;
   let deferredKoboEnergy=0;
   const effAtk = ability.defBased
     ? Math.round(actor.def*(actor.defBuffMult||1))
@@ -2419,6 +2460,7 @@ async function executeAbility(actor, abKey, targetId){
     }
     if(selenWeak && t.hp>0){
       t.stunTurns=2;
+      grantTakaneDebuffCharge(t);
       t._fx={variant:'buff',label:'⚡ STORDITO'};
       logMsg(`${t.name} è debole all'Electro: Stordito per 2 turni!`);
     }
@@ -2669,6 +2711,7 @@ async function executeAbility(actor, abKey, targetId){
     if(actor.hakosForm) actor.energy=0;
     else actor.energy = clamp(actor.energy+Math.round((ability.energyGain||0)*(actor.energyGainMult||1)),0,actor.energyMax);
   } else if(abKey==='ult'){
+    if(CHAR_DB[actor.charId].ultChargeMode==='debuffs') actor.takaneDebuffCharges=0;
     actor.energy = clamp(deferredKoboEnergy,0,actor.energyMax);
   }
   if(actor.charId==='suiseiHoshimachi') await triggerSuiseiFollowUp(b,actor);
@@ -2694,7 +2737,7 @@ async function playerChooseAbility(abKey){
   if(b.busy) return;
   if(actor.charId==='suiseiHoshimachi'&&abKey==='skill'&&actor.hp<=1) return;
   if(abKey==='skill' && b.sp<1 && actor.skillFreeUses<=0) return;
-  if(abKey==='ult' && actor.energy<actor.energyMax) return;
+  if(abKey==='ult' && !isUltimateReady(actor)) return;
 
   if(ability.target==='enemy' || ability.target==='enemy_adjacent' || ability.target==='ally'){
     b.pendingAbility = {key:abKey};
@@ -3109,7 +3152,7 @@ async function autoPlayTurn(){
   const cdb={basic:getAbilityForActor(actor,'basic'),skill:getAbilityForActor(actor,'skill'),ult:getAbilityForActor(actor,'ult')};
 
   let abKey = 'basic';
-  if(actor.energy>=actor.energyMax) abKey='ult';
+  if(isUltimateReady(actor)) abKey='ult';
   else if(b.sp>=1 || actor.skillFreeUses>0){
     const maxedHits = cdb.skill.effect==='boost_basic_hits' && actor.basicHits>=10;
     abKey = maxedHits||cdb.skill.effect==='disabled' ? 'basic' : 'skill';
@@ -4029,8 +4072,11 @@ function renderAbilitaTab(){
       <div class="hero-name" style="font-size:19px;">${c.name}</div>
       <div class="hero-title">${c.title}</div>
       <div class="hero-role">${c.role}</div>
+      ${c.faction?`<div class="element-tag" style="margin-top:4px;">Appartenenza: ${c.faction}</div>`:''}
       <div class="element-tag" style="margin-top:4px;">Elemento: ${ELEMENT_DATA[c.element].label}</div>
       <div class="hero-stars" style="color:${c.rarity===5?'#ffd700':'#9aa4c4'}">${'★'.repeat(c.rarity)}${unlocked?'':' · 🔒 Bloccato'}</div>
+      ${c.holoXAttackPerMember?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva HoloX: +${Math.round(c.holoXAttackPerMember*100)}% ATK per ogni membro HoloX in squadra (inclusa Takane).</div>`:''}
+      ${c.ultChargeMode==='debuffs'?`<div class="hint" style="text-align:left;margin-top:4px;">Carica speciale: ogni nemico che riceve un debuff da un alleato fornisce 1 carica; anche le DoT contano. Servono ${c.ultChargeMax} cariche per l'Ultimate.</div>`:''}
       ${c.passiveDotEnergy?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni stack di DoT attivato normalmente o detonata ripristina 5 energia a Kobo e a chi l'ha applicata.</div>`:''}
       ${c.passiveSpCapBonus?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: mentre è in squadra, il cap dei Punti Abilità sale da 5 a ${5+c.passiveSpCapBonus}.</div>`:''}
       ${c.passiveSelfHeal?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni volta che attacca recupera il ${Math.round(c.passiveSelfHeal*100)}% dei PV massimi.</div>`:''}
@@ -4049,15 +4095,15 @@ function renderAbilitaTab(){
   cards.appendChild(renderAbilityCard(c.basic, 'basic', 'Attacco Base',
     `<span><b>Moltiplicatore:</b> ${Math.round(c.basic.mult*100)}% ${abilityScalingLabel(c.basic)}${c.basic.hits?` x${c.basic.hits} colpi`:''}</span>
      <span><b>Genera:</b> ${c.basic.spGain!==undefined?c.basic.spGain:1} Punto/i Abilità</span>
-     <span><b>Energia:</b> +${c.basic.energyGain}</span>`));
+     ${c.ultChargeMode==='debuffs'?'':`<span><b>Energia:</b> +${c.basic.energyGain}</span>`}`));
   cards.appendChild(renderAbilityCard(c.skill, 'skill', 'Skill · 1 Punto Abilità',
     `<span><b>Moltiplicatore:</b> ${c.skill.mult>0?Math.round(c.skill.mult*100)+'% '+abilityScalingLabel(c.skill):'—'}${c.skill.hits?` x${c.skill.hits} colpi`:''}</span>
      ${c.skill.effect?`<span><b>Effetto:</b> ${effectLabel(c.skill)}</span>`:''}
-     <span><b>Energia:</b> +${c.skill.energyGain}</span>`));
-  cards.appendChild(renderAbilityCard(c.ult, 'ult', 'Ultimate · Energia Piena',
+     ${c.ultChargeMode==='debuffs'?'':`<span><b>Energia:</b> +${c.skill.energyGain}</span>`}`));
+  cards.appendChild(renderAbilityCard(c.ult, 'ult', c.ultChargeMode==='debuffs'?'Ultimate · 5 cariche':'Ultimate · Energia Piena',
     `<span><b>Moltiplicatore:</b> ${c.ult.mult>0?Math.round(c.ult.mult*100)+'% '+abilityScalingLabel(c.ult):'—'}${c.ult.hits?` x${c.ult.hits} colpi`:''}</span>
      ${c.ult.effect?`<span><b>Effetto:</b> ${effectLabel(c.ult)}</span>`:''}
-     <span><b>Energia massima:</b> ${c.base.energyMax}</span>`));
+     ${c.ultChargeMode==='debuffs'?`<span><b>Carica speciale:</b> ${c.ultChargeMax} debuff inflitti ai nemici (DoT comprese)</span>`:`<span><b>Energia massima:</b> ${c.base.energyMax}</span>`}`));
   if(id==='ninomaeInaNis'){
     cards.appendChild(renderAbilityCard(
       {name:'Tentacolo Inchiostrato',desc:'Un follow-up separato quando un alleato diverso da Ina colpisce il nemico marchiato.'},
@@ -4964,8 +5010,10 @@ function renderBattle(){
       </div>
       <div class="mini-lbl"><span>PV</span><span>${a.hp}/${a.maxHp}</span></div>
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(a.hp/a.maxHp*100)}%"></div></div>
-      <div class="mini-lbl" style="margin-top:5px;"><span>Energia</span><span>${a.energy}/${a.energyMax}</span></div>
-      <div class="bar-track"><div class="bar-fill energy-fill" style="width:${(a.energy/a.energyMax*100)}%"></div></div>
+      ${CHAR_DB[a.charId].ultChargeMode==='debuffs'
+        ? `<div class="mini-lbl" style="margin-top:5px;"><span>Carica Ultimate</span><span>${a.takaneDebuffCharges}/${CHAR_DB[a.charId].ultChargeMax} debuff</span></div><div class="bar-track"><div class="bar-fill energy-fill" style="width:${(a.takaneDebuffCharges/CHAR_DB[a.charId].ultChargeMax*100)}%"></div></div>`
+        : `<div class="mini-lbl" style="margin-top:5px;"><span>Energia</span><span>${a.energy}/${a.energyMax}</span></div><div class="bar-track"><div class="bar-fill energy-fill" style="width:${(a.energy/a.energyMax*100)}%"></div></div>`}
+      ${a.charId==='takaneLui'?`<div class="ina-charge-tag">HOLOX · ATK +${Math.round((a.holoXAtkBonus||0)*100)}%</div>`:''}
       ${a.shield>0?`<div class="shield-tag">🛡 Scudo ${a.shield}</div>`:''}
       ${statusMarkup}
       ${a.charId==='ninomaeInaNis'?`<div class="ina-charge-tag">FOLLOW-UP ${a.inaFollowUpsRemaining}/3</div>`:''}
@@ -5016,7 +5064,7 @@ function renderBattle(){
       const skillBtn = el(`<button class="ability-btn" ${skillDisabled?'disabled':''}><span class="aname">✦ ${cdb.skill.name} (${skillCostLabel})</span></button>`);
       skillBtn.onclick=()=>playerChooseAbility('skill');
 
-      const ultReady = actor.energy>=actor.energyMax;
+      const ultReady = isUltimateReady(actor);
       const ultBtn = el(`<button class="ability-btn" ${!ultReady?'disabled':''}><span class="aname">★ ${cdb.ult.name}</span></button>`);
       ultBtn.onclick=()=>playerChooseAbility('ult');
 
