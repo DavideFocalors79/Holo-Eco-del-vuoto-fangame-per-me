@@ -40,11 +40,11 @@ const CHAR_DB = {
     basic:{name:'Colpo Sperimentale',desc:'Attacco Electro normale contro un nemico.',mult:0.85,target:'enemy',effect:null,energyGain:20},
     skill:{name:'Reazione a Catena',desc:'Colpisce il bersaglio e fino a 2 nemici adiacenti, riduce la DIF del 10% e applica Shock x1.',mult:0.8,target:'enemy_adjacent',effect:'koyori_shock',defDownPct:0.10,burnStacks:1,energyGain:30},
     ult:{name:'Protocollo Elettroshock',desc:'Colpisce il bersaglio e fino a 2 nemici adiacenti, riduce la DIF di un ulteriore 10% e applica Shock x2.',mult:1.35,target:'enemy_adjacent',effect:'koyori_shock',defDownPct:0.10,burnStacks:2} },
-  takaneLui: {name:'Takane Lui',title:'Aquila del Comando',role:'DPS Physical',color:'#bd303f',glyph:'L',rarity:5,element:'physical',animStyle:'heavy',faction:'HoloX',ultChargeMode:'debuffs',ultChargeMax:5,holoXAttackPerMember:0.60,
+  takaneLui: {name:'Takane Lui',title:'Aquila del Comando',role:'DPS Physical',color:'#bd303f',glyph:'L',rarity:5,element:'physical',animStyle:'heavy',faction:'HoloX',ultChargeMode:'debuffs',ultChargeMax:10,holoXAttackPerMember:0.60,
     base:{hp:1120,atk:148,def:74,speed:103,energyMax:100},
     basic:{name:'Artiglio dell’Aquila',desc:'Infligge danno Physical a un nemico.',mult:1.0,target:'enemy',effect:null,energyGain:0},
     skill:{name:'Assalto del Comandante',desc:'Infligge danno Physical a un singolo nemico.',mult:1.35,target:'enemy',effect:null,energyGain:0},
-    ult:{name:'Ordine: Schianto Cremisi',desc:'Infligge danno Physical ad area a tutti i nemici. Si attiva dopo aver accumulato 5 cariche, ottenute ogni volta che un alleato infligge un debuff a un nemico (le DoT contano).',mult:2.0,target:'enemies_all',effect:null} },
+    ult:{name:'Ordine: Schianto Cremisi',desc:'Infligge danno Physical ad area a tutti i nemici. Si attiva dopo aver accumulato 10 cariche, ottenute ogni volta che un alleato infligge un debuff a un nemico (le DoT contano).',mult:2.0,target:'enemies_all',effect:null} },
   gawrGura: {name:'Gura',title:'Squalo degli Abissi',role:'Supporto Curativo',color:'#38bdf8',glyph:'G',rarity:5,element:'hydro',animStyle:'radiant-soft',
     base:{hp:1150,atk:86,def:82,speed:100,energyMax:135},
     basic:{name:'Morso dello Squalo',desc:'Infligge danno Hydro a un nemico.',mult:0.75,target:'enemy',effect:null,energyGain:20},
@@ -93,7 +93,7 @@ const CHAR_DB = {
   laplusDarkness: { name:'Laplus Darkness', title:'Signora della Disordine', role:'Debuffer Quantum', color:'#b69cff', glyph:'L', rarity:5, element:'quantum', animStyle:'arcane',faction:'HoloX',
     base:{hp:1080, atk:136, def:78, speed:100, energyMax:140},
     basic:{name:'Raggio Disordinato', desc:'Infligge danno a un nemico e ne riduce la DIF del 15% per 2 round.', mult:1.0, target:'enemy', effect:'laplus_def_down', energyGain:20},
-    skill:{name:'Marchio del Caos', desc:'Infligge danno, riduce la DIF del 15% e pianta per 2 round la debolezza contro l’elemento forte del primo eroe in squadra.', mult:1.35, target:'enemy', effect:'laplus_plant_weakness', energyGain:30},
+    skill:{name:'Marchio del Caos', desc:'Infligge danno, riduce la DIF del 15% e per 2 round rimuove dalla lista delle debolezze del bersaglio l’elemento del primo eroe in squadra, se presente, aggiungendo quello contrapposto.', mult:1.35, target:'enemy', effect:'laplus_remove_element', energyGain:30},
     ult:{name:'Dominio della Disordine', desc:'Danneggia tutti i nemici, riduce la DIF del 30% per 2 round e rinnova il debuff.', mult:1.6, target:'enemies_all', effect:'laplus_ultimate'} },
   ninomaeInaNis: {name:"Ninomae Ina'Nis",title:'Sacerdotessa del Vuoto',role:'DPS Follow-up',color:'#42c9b8',glyph:'I',rarity:4,element:'hydro',animStyle:'radiant-soft',passiveInaFollowUps:3,
     base:{hp:1120,atk:128,def:82,speed:100,energyMax:135},
@@ -109,7 +109,7 @@ const CHAR_DB = {
     base:{hp:1030,atk:130,def:66,speed:100,energyMax:125},
     basic:{name:'Scarica Rapida',desc:'Infligge danno elettrico a un bersaglio.',mult:0.95,target:'enemy',effect:null,energyGain:20},
     skill:{name:'Arco Voltaico',desc:'Danno elevato; molto più forte se il nemico è debole all\'Electro.',mult:1.9,weakMult:2.8,target:'enemy',effect:'selen_skill',energyGain:30},
-    ult:{name:'Giudizio del Tuono',desc:'Colpo singolo devastante. Se il nemico è debole all\'Electro (anche tramite il debuff di Laplus) lo Stordisce per 2 turni.',mult:3.0,target:'enemy',effect:'selen_ult'} },
+    ult:{name:'Giudizio del Tuono',desc:'Colpo singolo devastante. Se il nemico è debole all\'Electro lo Stordisce per 2 turni.',mult:3.0,target:'enemy',effect:'selen_ult'} },
   finanaRyugu: {name:'Finana Ryugu',title:'Marea Gentile',role:'DPS Area',color:'#38bdf8',glyph:'F',rarity:4,element:'hydro',animStyle:'radiant-soft',passiveFinanaFollowUp:true,
     base:{hp:1010,atk:118,def:70,speed:100,energyMax:120},
     basic:{name:'Onda Spumeggiante',desc:'Danno leggero a tutti i nemici, basato sui PV massimi.',mult:0.06,target:'enemies_all',effect:null,hpBased:true,energyGain:20},
@@ -220,16 +220,24 @@ const ARTIFACT_SETS = {
     bonus4:{label:'+50% danni da DoT', apply:(acc)=>{ acc.dotDamageMult+=0.50; }} },
   glaciale: { name:'Eco Glaciale', icon:'❄',
     pieces:['Cristallo Glaciale','Prisma Glaciale','Velo Glaciale','Perla Glaciale','Diadema Glaciale'],
-    bonus2:{label:'+12% ATK', apply:(acc)=>{ acc.pctBonus.atk+=0.12; }},
+    bonus2:{label:'+12% PV Massimi', apply:(acc)=>{ acc.pctBonus.hp+=0.12; }},
     bonus4:{label:'+15% cure effettuate', apply:(acc)=>{ acc.healMult+=0.15; }} },
+  supernova: { name:'Erede della Supernova', icon:'✨',
+    pieces:['Corona della Supernova','Nucleo della Supernova','Velo della Supernova','Sigillo della Supernova','Anello della Supernova'],
+    bonus2:{label:'+12% ATK', apply:(acc)=>{ acc.pctBonus.atk+=0.12; }},
+    bonus4:{label:'+30% danni delle Ultimate', apply:(acc)=>{ acc.ultDamageMult=(acc.ultDamageMult||0)+0.30; }} },
   tempesta: { name:'Tempesta Rapida', icon:'⚡',
     pieces:['Nucleo della Tempesta','Ali della Tempesta','Fascia della Tempesta','Lente della Tempesta','Spira della Tempesta'],
     bonus2:{label:'+15 energia iniziale', apply:(acc)=>{ acc.startEnergyBonus+=15; }},
     bonus4:{label:'+20% energia guadagnata', apply:(acc)=>{ acc.energyGainMult+=0.20; }} },
   custode: { name:'Custode Runico', icon:'✦',
     pieces:['Nucleo Runico','Placca Runica','Sigillo Runico','Anello Runico','Corona Runica'],
-    bonus2:{label:'+12% PV Massimi', apply:(acc)=>{ acc.pctBonus.hp+=0.12; }},
+    bonus2:{label:'+12% DEF', apply:(acc)=>{ acc.pctBonus.def+=0.12; }},
     bonus4:{label:'+25% forza degli scudi', apply:(acc)=>{ acc.shieldMult+=0.25; }} },
+  patto: { name:'Patto del Guardiano', icon:'🤝',
+    pieces:['Cuore del Patto','Voto del Patto','Mantello del Patto','Sigillo del Patto','Corona del Patto'],
+    bonus2:{label:'+12% DEF', apply:(acc)=>{ acc.pctBonus.def+=0.12; }},
+    bonus4:{label:'Skill o Ultimate su un alleato: +15% danni per 2 round', apply:(acc)=>{ acc.singleAllyDamageBuff=true; }} },
   vitale: { name:'Cuore Vitale', icon:'💗',
     pieces:['Cuore Vitale','Calice Vitale','Veste Vitale','Pendente Vitale','Fascia Vitale'],
     bonus2:{label:'+15% PV Massimi', apply:(acc)=>{ acc.pctBonus.hp+=0.15; }},
@@ -522,7 +530,9 @@ function getAllyBattleStatusMarkup(ally){
     .map(([stat,pct])=>`<div class="buff-tag">+${Math.round(pct*100)}% ${stat==='atk'?'ATK':stat==='def'?'DIF':stat==='maxHp'?'PV MAX':'DMG'}</div>`)
   const artifactSets=getActiveSetBonuses(ally.charId).filter(bonus=>bonus.tier===4);
   artifactSets.forEach(bonus=>{
-    if(bonus.name==='Danza Instancabile'){
+    if(bonus.name==='Erede della Supernova'){
+      tags.push('<div class="buff-tag">+30% DMG ULT</div>');
+    } else if(bonus.name==='Danza Instancabile'){
       const skillBonus=0.30*(ally.turnSkillCount||0);
       if(skillBonus>0) tags.push(`<div class="buff-tag">+${Math.round(skillBonus*100)}% DMG</div>`);
     } else if(bonus.name==='Assenza Siderale'){
@@ -591,12 +601,13 @@ function getEffectiveStats(charId){
     hp, atk, def, speed:base.speed+acc.flatBonus.speed, energyMax:base.energyMax,
     energyGainMult:acc.energyGainMult, healMult:acc.healMult,
     burnMult:acc.burnMult, dotDamageMult:acc.dotDamageMult, shieldMult:acc.shieldMult, startEnergyBonus:acc.startEnergyBonus,
-    damageMult:1+(acc.damageMult||0), weaknessBonus:acc.weaknessBonus||0,
+    damageMult:1+(acc.damageMult||0), ultDamageMult:1+(acc.ultDamageMult||0), weaknessBonus:acc.weaknessBonus||0,
     sameElementBonus:acc.sameElementBonus||0, basicDamageMult:1+(acc.basicDamageMult||0),
     buffPctBonus:acc.buffPctBonus||0, spGrantBonus:acc.spGrantBonus||0,
     formDamageMult:1+(acc.formDamageMult||0), defDownBonus:acc.defDownBonus||0,
     hpDamageMult:1+(acc.hpDamageMult||0), skillDamageMult:1+(acc.skillDamageMult||0),
     fxSkillSp:!!acc.fxSkillSp, fxAbsent:!!acc.fxAbsent, fxHitStack:!!acc.fxHitStack,
+    singleAllyDamageBuff:!!acc.singleAllyDamageBuff,
   };
 }
 
@@ -611,6 +622,7 @@ let state = {
   inventory:[], // artifact objects
   weaponInventory:[], // weapon objects
   party:['kaelaKolvalskia'], // starts with a single unlocked hero
+  teamPresets:[['kaelaKolvalskia'],[],[],[]],
   battle:null,
   itemUidCounter:1,
   weaponUidCounter:1,
@@ -666,6 +678,7 @@ function getSaveData(){
     inventory: state.inventory,
     weaponInventory: state.weaponInventory,
     party: state.party,
+    teamPresets: state.teamPresets,
     itemUidCounter: state.itemUidCounter,
     weaponUidCounter: state.weaponUidCounter,
     pityCounter: state.pityCounter,
@@ -713,6 +726,14 @@ function ensureRosterIntegrity(){
   // Drop any party members that no longer resolve to a valid, unlocked character.
   state.party = state.party.filter(id=>CHAR_DB[id] && state.roster[id] && state.roster[id].unlocked);
   if(state.party.length===0) state.party=['kaelaKolvalskia'];
+  state.party = [...new Set(state.party)].slice(0,4);
+  if(!Array.isArray(state.teamPresets)) state.teamPresets=[];
+  state.teamPresets=Array.from({length:4},(_,index)=>{
+    const preset=state.teamPresets[index];
+    return Array.isArray(preset)
+      ? [...new Set(preset)].filter(id=>CHAR_DB[id] && state.roster[id]?.unlocked).slice(0,4)
+      : [];
+  });
 }
 
 function loadGame(){
@@ -728,6 +749,9 @@ function loadGame(){
       });
     }
     if(Array.isArray(data.party)) data.party = data.party.map(id=>idMigration[id] || id);
+    if(Array.isArray(data.teamPresets)){
+      data.teamPresets=data.teamPresets.map(preset=>Array.isArray(preset)?preset.map(id=>idMigration[id]||id):[]);
+    }
     if(idMigration[data.abilityTabChar]) data.abilityTabChar = idMigration[data.abilityTabChar];
     state.gold = data.gold||0;
     state.credits = data.credits||0;
@@ -737,6 +761,7 @@ function loadGame(){
     state.inventory = data.inventory || [];
     state.weaponInventory = data.weaponInventory || [];
     state.party = (data.party && data.party.length>0) ? data.party : ['kaelaKolvalskia'];
+    state.teamPresets = Array.isArray(data.teamPresets) ? data.teamPresets : [state.party.slice(),[],[],[]];
     state.itemUidCounter = data.itemUidCounter || 1;
     state.weaponUidCounter = data.weaponUidCounter || 1;
     state.pityCounter = data.pityCounter || 0;
@@ -775,6 +800,7 @@ function resetSave(){
   state.claimedQuests={}; state.questTiers={}; state.questExhausted={}; state.totalPullsDone=0; state.totalArtifactsSold=0;
   initRoster();
   state.party=['kaelaKolvalskia'];
+  state.teamPresets=[state.party.slice(),[],[],[]];
   state.battle=null;
   state.autoBattle=false;
 }
@@ -795,9 +821,6 @@ function getElementMultiplier(attackerElement, targetElements, weaknessBonus=0, 
 function getEnemyElementAffinity(enemy,enemyElement,attackerElement){
   if(!attackerElement) return '';
   const enemyElements=enemy.elements||[enemy.element];
-  if(enemy.vulnerableRounds>0&&enemy.vulnerableToElement===attackerElement){
-    return enemyElement===attackerElement?'element-strong':'element-not-strong';
-  }
   if(enemyElements.includes(attackerElement)) return 'element-not-strong';
   return ELEMENT_RELATION[attackerElement]===enemyElement?'element-strong':'element-not-strong';
 }
@@ -927,6 +950,9 @@ const MODE_GRADE_DEFS=[
 const MODE_REWARD_GRADE=MODE_GRADE_DEFS[1];
 function getModeGrade(mode){
   return MODE_GRADE_DEFS.find(grade=>grade.id===state.modeGrades?.[mode])||MODE_GRADE_DEFS[0];
+}
+function getModeGradeById(gradeId){
+  return MODE_GRADE_DEFS.find(grade=>grade.id===gradeId)||MODE_GRADE_DEFS[0];
 }
 function getModeGradeIndex(gradeId){
   const index=MODE_GRADE_DEFS.findIndex(grade=>grade.id===gradeId);
@@ -1199,7 +1225,7 @@ function endApocalypticShadow(reason){
   state.autoBattle=false;
   const boss=b.enemies.find(enemy=>enemy.isBoss);
   if(boss) claimApocProgressRewards(boss);
-  const grade=getModeGrade(b.apoc?.grade||'C');
+  const grade=getModeGradeById(b.apoc?.grade||'C');
   const rounds=grade.roundLimit;
   if(reason==='victory'&&b.round<=APOC_TIERS[2].roundLimit){
     claimApocTier(2,grade.id);
@@ -1236,6 +1262,28 @@ function toggleMOCHero(teamIndex,charId){
   const team=teams[teamIndex];
   if(team.includes(charId)) team.splice(team.indexOf(charId),1);
   else if(team.length<4 && (getModeGrade('moc').id==='C'||!teams[1-teamIndex].includes(charId))) team.push(charId);
+  render();
+}
+function getMocPresetLoadState(teamIndex,presetIndex){
+  const preset=state.teamPresets[presetIndex];
+  const members=Array.isArray(preset)
+    ? [...new Set(preset)].filter(id=>CHAR_DB[id]&&state.roster[id]?.unlocked).slice(0,4)
+    : [];
+  if(members.length===0) return {members,reason:'Questo preset è vuoto o non contiene eroi sbloccati.'};
+  if(getModeGrade('moc').id!=='C'){
+    const conflicts=members.filter(id=>state.mocTeams[1-teamIndex].includes(id));
+    if(conflicts.length){
+      const names=conflicts.map(id=>CHAR_DB[id].name).join(', ');
+      return {members,reason:`Già assegnati all’altra squadra: ${names}.`};
+    }
+  }
+  return {members,reason:''};
+}
+function loadMocTeamPreset(teamIndex,presetIndex){
+  if(state.moc||teamIndex<0||teamIndex>1) return;
+  const {members,reason}=getMocPresetLoadState(teamIndex,presetIndex);
+  if(reason) return;
+  state.mocTeams[teamIndex]=members;
   render();
 }
 function startMemoryOfChaos(){
@@ -1433,6 +1481,7 @@ function syncAllyBuffMultipliers(ally){
   ally.atkBuffMult=1+buffs.filter(buff=>buff.stat==='atk').reduce((sum,buff)=>sum+buff.pct,0);
   ally.defBuffMult=1+buffs.filter(buff=>buff.stat==='def').reduce((sum,buff)=>sum+buff.pct,0);
   ally.dotDamageBuffMult=1+buffs.filter(buff=>buff.stat==='dotDamage').reduce((sum,buff)=>sum+buff.pct,0);
+  ally.damageBuffMult=1+buffs.filter(buff=>buff.stat==='damage').reduce((sum,buff)=>sum+buff.pct,0);
   const maxHpBuff= buffs.filter(buff=>buff.stat==='maxHp').reduce((sum,buff)=>sum+buff.pct,0);
   if(Number.isFinite(ally.baseMaxHp)&&(maxHpBuff>0||ally.maxHpBuffActive)){
     ally.maxHp=Math.round(ally.baseMaxHp*(1+maxHpBuff));
@@ -1442,10 +1491,10 @@ function syncAllyBuffMultipliers(ally){
   ally.buffRounds=buffs.filter(buff=>buff.stat==='atk').reduce((max,buff)=>Math.max(max,buff.rounds),0);
   ally.defBuffRounds=buffs.filter(buff=>buff.stat==='def').reduce((max,buff)=>Math.max(max,buff.rounds),0);
 }
-function addTimedAllyBuff(ally,name,stat,pct,rounds){
+function addTimedAllyBuff(ally,name,stat,pct,rounds,refresh=false){
   ally.activeBuffs=ally.activeBuffs||[];
-  const existing=stat==='maxHp'?ally.activeBuffs.find(buff=>buff.name===name&&buff.stat===stat):null;
-  if(existing) existing.rounds=rounds;
+  const existing=stat==='maxHp'||refresh?ally.activeBuffs.find(buff=>buff.name===name&&buff.stat===stat):null;
+  if(existing){ existing.rounds=rounds; existing.pct=pct; }
   else ally.activeBuffs.push({name,stat,pct,rounds});
   syncAllyBuffMultipliers(ally);
 }
@@ -1633,14 +1682,15 @@ function startBattle(mode,fight){
       hp:eff.hp, maxHp:eff.hp, atk:eff.atk, def:eff.def, speed:eff.speed,
       energy:clamp(eff.startEnergyBonus,0,eff.energyMax), energyMax:eff.energyMax,
       energyGainMult:eff.energyGainMult, healMult:eff.healMult, burnMult:eff.burnMult, dotDamageMult:eff.dotDamageMult, shieldMult:eff.shieldMult,
-      damageMult:eff.damageMult, weaknessBonus:eff.weaknessBonus, sameElementBonus:eff.sameElementBonus,
+      damageMult:eff.damageMult, ultDamageMult:eff.ultDamageMult, weaknessBonus:eff.weaknessBonus, sameElementBonus:eff.sameElementBonus,
       basicDamageMult:eff.basicDamageMult, buffPctBonus:eff.buffPctBonus, spGrantBonus:eff.spGrantBonus,
       formDamageMult:eff.formDamageMult, defDownBonus:eff.defDownBonus, hpDamageMult:eff.hpDamageMult, skillDamageMult:eff.skillDamageMult,
       fxSkillSp:eff.fxSkillSp, fxAbsent:eff.fxAbsent, fxHitStack:eff.fxHitStack, turnSkillCount:0, hitStacks:[],
-      shield:0, shieldRounds:0, atkBuffMult:1, buffRounds:0,
+      shield:0, shieldRounds:0, atkBuffMult:1, damageBuffMult:1, buffRounds:0,
       defBuffMult:1, defBuffRounds:0, dotDamageBuffMult:1, activeBuffs:[],
       basicHits: CHAR_DB[id].basic.hits||1,
       skillFreeUses: CHAR_DB[id].skillFreeUses||0,
+      singleAllyDamageBuff:eff.singleAllyDamageBuff,
       inaFollowUpsRemaining: CHAR_DB[id].passiveInaFollowUps||0,
       zetaFollowUpsRemaining: CHAR_DB[id].passiveZetaFollowUps||0,
       suiseiHpLossEvents:0,suiseiFollowUpReady:false,suiseiGuardRounds:0,suiseiGuardFresh:false,
@@ -1700,7 +1750,7 @@ function startBattle(mode,fight){
   logMsg(pf
     ? `Pure Fiction — Turno 1/${PF_ROUNDS}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : apoc
-    ? `Apocalyptic Shadow ${state.apoc.grade} — ${enemies[0].name}. Riduzione danni ${Math.round(enemies[0].apocDamageReduction*100)}%: ${enemies[0].apocStacksRequired} colpi ${enemies[0].apocRequiresWeakness?'con un elemento efficace ':''}per rimuoverla. Hai ${getModeGrade('apoc').roundLimit} round. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
+    ? `Apocalyptic Shadow ${state.apoc.grade} — ${enemies[0].name}. Riduzione danni ${Math.round(enemies[0].apocDamageReduction*100)}%: ${enemies[0].apocStacksRequired} colpi ${enemies[0].apocRequiresWeakness?'con un elemento efficace ':''}per rimuoverla. Hai ${getModeGradeById(state.apoc.grade).roundLimit} round. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : moc
     ? `Memory of Chaos ${state.moc.grade} — Boss ${state.moc.bossIndex+1}/${state.moc.singleTeam?1:2}: ${enemies[0].name}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : su
@@ -1762,7 +1812,7 @@ async function advanceTurn(){
       render();
       return;
     }
-    if((b.mode==='pf'&&b.round>=PF_ROUNDS)||(b.mode==='apoc'&&b.round>=getModeGrade(b.apoc.grade).roundLimit)){
+    if((b.mode==='pf'&&b.round>=PF_ROUNDS)||(b.mode==='apoc'&&b.round>=getModeGradeById(b.apoc.grade).roundLimit)){
       if(b.mode==='apoc'){
         endApocalypticShadow('rounds');
         render();
@@ -1827,7 +1877,7 @@ function getEffectiveEnemyDefense(enemy){
   return Math.max(0,enemy.def*(1-(enemy.defDownPct||0)));
 }
 
-function applyLaplusAttackEffects(actor,enemy,extraDefDown=0,plantWeakness=false){
+function applyLaplusAttackEffects(actor,enemy,extraDefDown=0,removeLeaderElement=false){
   if(enemy.hp<=0) return;
   const reduction=(actor.charId==='laplusDarkness'?0.15:0)+(actor.defDownBonus||0)+extraDefDown;
   if(reduction>0){
@@ -1836,14 +1886,44 @@ function applyLaplusAttackEffects(actor,enemy,extraDefDown=0,plantWeakness=false
     grantTakaneDebuffCharge(enemy);
     logMsg(`${enemy.name} subisce -${Math.round(reduction*100)}% DIF (${Math.round(enemy.defDownPct*100)}% totale).`);
   }
-  if(plantWeakness){
+  if(removeLeaderElement){
     const leaderId=state.battle?.allies[0]?.charId||state.party[0];
     const leader=CHAR_DB[leaderId];
-    if(leader){
-      enemy.vulnerableToElement=leader.element;
-      enemy.vulnerableRounds=2;
-      grantTakaneDebuffCharge(enemy);
-      logMsg(`${enemy.name} diventa vulnerabile a ${ELEMENT_DATA[leader.element].label} per 2 round.`);
+    const elementToRemove=leader?.element;
+    const counterElement=elementToRemove&&ELEMENT_RELATION[elementToRemove];
+    if(elementToRemove&&counterElement){
+      const affected=enemy.constructGroupId
+        ? state.battle.enemies.filter(part=>part.constructGroupId===enemy.constructGroupId)
+        : [enemy];
+      const elements=enemy.elements||(enemy.elements=[enemy.element]);
+      const previousRemoval=affected.find(part=>part.laplusRemovedElement===elementToRemove);
+      const previousAddition=affected.find(part=>part.laplusAddedElement===counterElement);
+      const removedIndex=elements.indexOf(elementToRemove);
+      const removedWasPresent=removedIndex>=0||!!previousRemoval?.laplusRemovedWeaknessWasPresent;
+      const restoreIndex=previousRemoval?previousRemoval.laplusRemovedElementIndex:removedIndex;
+      if(removedIndex>=0) elements.splice(removedIndex,1);
+
+      const addedIndex=elements.indexOf(counterElement);
+      const addedWasAbsent=previousAddition
+        ? previousAddition.laplusAddedElementWasAbsent
+        : addedIndex<0;
+      const restoreAddedIndex=previousAddition
+        ? previousAddition.laplusAddedElementIndex
+        : elements.length;
+      if(addedIndex<0) elements.push(counterElement);
+
+      affected.forEach(part=>{
+        part.laplusRemovedElement=elementToRemove;
+        part.laplusRemovedWeaknessWasPresent=removedWasPresent;
+        part.laplusRemovedElementIndex=restoreIndex;
+        part.laplusAddedElement=counterElement;
+        part.laplusAddedElementWasAbsent=addedWasAbsent;
+        part.laplusAddedElementIndex=restoreAddedIndex;
+        part.vulnerableRounds=2;
+        part.vulnerableToElement=null;
+      });
+      if(removedWasPresent) grantTakaneDebuffCharge(enemy);
+      logMsg(`${enemy.name} perde ${ELEMENT_DATA[elementToRemove].label} e acquisisce ${ELEMENT_DATA[counterElement].label} per 2 round.`);
     }
   }
 }
@@ -1958,7 +2038,7 @@ function calcDamage(atk, mult, def, attackerElement, targetElement, attackerStat
   raw = Math.max(raw, atk*mult*0.2);
   const variance = rnd(0.9,1.1);
   const elementMult = getElementMultiplier(attackerElement, targetElement, attackerStats?.weaknessBonus||0, attackerStats?.sameElementBonus||0, vulnerableToElement);
-  const weaponMult = (attackerStats?.damageMult||1)*(abilityKey==='basic'?(attackerStats?.basicDamageMult||1):1)*(abilityKey==='skill'||abilityKey==='ult'?(attackerStats?.skillDamageMult||1):1)*(attackerStats?.formDamageMult||1)*getSetDynamicMult(attackerStats);
+  const weaponMult = (attackerStats?.damageMult||1)*(attackerStats?.damageBuffMult||1)*(abilityKey==='basic'?(attackerStats?.basicDamageMult||1):1)*(abilityKey==='skill'||abilityKey==='ult'?(attackerStats?.skillDamageMult||1):1)*(abilityKey==='ult'?(attackerStats?.ultDamageMult||1):1)*(attackerStats?.formDamageMult||1)*getSetDynamicMult(attackerStats);
   return Math.max(1, Math.round(raw*variance*elementMult*weaponMult));
 }
 
@@ -2016,7 +2096,7 @@ function recordApocalypticShadowHit(boss,attacker){
   const b=state.battle;
   if(b?.mode!=='apoc'||!attacker||boss.apocDamageReduction<=0) return;
   const weakHit=getElementMultiplier(attacker.element,boss.elements||boss.element)>1;
-  if(boss.apocRequiresWeakness&&!weakHit&&attacker.charId!=='laplusDarkness') return;
+  if(boss.apocRequiresWeakness&&!weakHit) return;
   boss.apocStacks=Math.min(boss.apocStacksRequired,(boss.apocStacks||0)+1);
   logMsg(`${attacker.name} centra un colpo efficace: stack elementali ${boss.apocStacks}/${boss.apocStacksRequired}.`);
   if(boss.apocStacks>=boss.apocStacksRequired){
@@ -2446,7 +2526,7 @@ async function executeAbility(actor, abKey, targetId){
         await triggerInaFollowUpAfterHit(b,target,actor);
       }
       if(actor.charId==='laplusDarkness'||actor.defDownBonus>0||ability.effect==='koyori_shock'){
-        applyLaplusAttackEffects(actor,target,ability.effect==='koyori_shock'?(ability.defDownPct||0):0,actor.charId==='laplusDarkness'&&ability.effect==='laplus_plant_weakness');
+        applyLaplusAttackEffects(actor,target,ability.effect==='koyori_shock'?(ability.defDownPct||0):0,actor.charId==='laplusDarkness'&&ability.effect==='laplus_remove_element');
       }
       if(ability.effect==='koyori_shock'&&target.hp>0){
         applyDamageOverTime(target,actor,ability.burnStacks||1);
@@ -2508,6 +2588,11 @@ async function executeAbility(actor, abKey, targetId){
   else if(ability.target==='ally'){
     const target = b.allies.find(a=>a.charId===targetId);
     if(!target || target.hp<=0) return;
+    if(actor.singleAllyDamageBuff&&(abKey==='skill'||abKey==='ult')){
+      addTimedAllyBuff(target,'Patto del Guardiano','damage',0.15,2,true);
+      target._fx={variant:'buff',label:'+15% DMG'};
+      logMsg(`${actor.name} attiva Patto del Guardiano: ${target.name} infligge +15% danni per 2 round.`);
+    }
     if(ability.effect==='elizabeth_shield_taunt'){
       b.allies.filter(ally=>ally.tauntSource===actor.charId).forEach(ally=>{
         ally.tauntRounds=0;
@@ -2811,7 +2896,33 @@ async function finishRound(){
     }
     if(enemy.vulnerableRounds>0){
       enemy.vulnerableRounds--;
-      if(enemy.vulnerableRounds===0) enemy.vulnerableToElement=null;
+      if(enemy.vulnerableRounds===0){
+        enemy.vulnerableToElement=null;
+        if(enemy.laplusRemovedElement){
+          if(enemy.laplusRemovedWeaknessWasPresent){
+            const elements=enemy.elements||(enemy.elements=[enemy.element]);
+            if(!elements.includes(enemy.laplusRemovedElement)){
+              const restoreIndex=Number.isInteger(enemy.laplusRemovedElementIndex)
+                ? clamp(enemy.laplusRemovedElementIndex,0,elements.length)
+                : elements.length;
+              elements.splice(restoreIndex,0,enemy.laplusRemovedElement);
+            }
+          }
+          enemy.laplusRemovedElement=null;
+          enemy.laplusRemovedWeaknessWasPresent=false;
+          enemy.laplusRemovedElementIndex=null;
+        }
+        if(enemy.laplusAddedElement){
+          const elements=enemy.elements||(enemy.elements=[enemy.element]);
+          if(enemy.laplusAddedElementWasAbsent){
+            const addedIndex=elements.indexOf(enemy.laplusAddedElement);
+            if(addedIndex>=0) elements.splice(addedIndex,1);
+          }
+          enemy.laplusAddedElement=null;
+          enemy.laplusAddedElementWasAbsent=false;
+          enemy.laplusAddedElementIndex=null;
+        }
+      }
     }
   });
 
@@ -2820,6 +2931,7 @@ async function finishRound(){
     if(a.activeBuffs?.length){
       tickTimedAllyBuffs(a,'atk');
       tickTimedAllyBuffs(a,'dotDamage');
+      tickTimedAllyBuffs(a,'damage');
       tickTimedAllyBuffs(a,'maxHp');
     }
     if(a.hitStacks?.length){ a.hitStacks.forEach(s=>s.r--); a.hitStacks=a.hitStacks.filter(s=>s.r>0); }
@@ -3285,13 +3397,11 @@ function upgradeArtifactMainStat(artifact){
     artifact.mainStat.value+=0.005;
   }
 }
-function levelUpArtifact(uid){
-  const it = findArtifactByUid(uid);
-  if(!it) return;
+function applyArtifactLevelUp(it){
   const level = it.level||0;
-  if(level>=ARTIFACT_MAX_LEVEL) return;
+  if(level>=ARTIFACT_MAX_LEVEL) return false;
   const cost = getArtifactLevelUpCost(level);
-  if(state.credits<cost) return;
+  if(state.credits<cost) return false;
   state.credits -= cost;
   it.level = level+1;
   upgradeArtifactMainStat(it);
@@ -3306,7 +3416,28 @@ function levelUpArtifact(uid){
       sub.value += bonus;
     }
   }
+  return true;
+}
+function levelUpArtifact(uid){
+  const it = findArtifactByUid(uid);
+  if(!it || !applyArtifactLevelUp(it)) return;
   render();
+}
+function levelArtifactToMax(uid){
+  const it=findArtifactByUid(uid);
+  if(!it) return;
+  let upgraded=false;
+  while(applyArtifactLevelUp(it)) upgraded=true;
+  if(upgraded) render();
+}
+function getArtifactMaxUpgradeAction(it){
+  const level=it.level||0;
+  const nextCost=getArtifactLevelUpCost(level);
+  return {
+    label:'⏫ Potenzia al massimo',
+    onClick:()=>levelArtifactToMax(it.uid),
+    disabled:level>=ARTIFACT_MAX_LEVEL||state.credits<nextCost,
+  };
 }
 function sellArtifact(uid){
   const idx = state.inventory.findIndex(i=>i.uid===uid);
@@ -3347,25 +3478,64 @@ function unequipWeapon(charId){
 const WEAPON_MAX_LEVEL = 20;
 const WEAPON_MAX_ASCENSION = 5;
 
-/* ---- Auto equip: picks the best weapon and artifacts among unequipped ones + the hero's current gear ---- */
+/* ---- Auto equip: prioritizes stats and set bonuses that match the hero's kit ---- */
 function getAutoEquipProfile(charId){
   const c=CHAR_DB[charId];
-  const hpScaler=!!(c.basic.hpBased||c.ult.hpBased);
-  const defScaler=!!(c.basic.defBased||c.skill.defBased||c.ult.defBased);
-  const tank=/Tank/.test(c.role);
-  const w = tank ? {hp:0.5,def:1.5,atk:0.2,speed:2}
-    : defScaler ? {hp:0.3,atk:0.2,def:1.2,speed:2}
-    : hpScaler ? {hp:1,atk:0.05,def:0.3,speed:2}
-    : /Supporto/.test(c.role) ? {atk:0.6,hp:0.3,def:0.3,speed:5}
-    : {atk:1,hp:0.1,def:0.3,speed:2};
-  return {w, heal:['heal','heal_all'].includes(c.skill.effect)?1:0, shield:tank?0.5:0, burn:c.dotName?0.6:0, hpDamage:hpScaler?1:0};
+  const abilities=[c.basic,c.skill,c.ult];
+  const damagingAbilities=abilities.filter(ability=>ability.mult>0&&['enemy','enemy_adjacent','enemies_all'].includes(ability.target));
+  const hpDamageAbilities=damagingAbilities.filter(ability=>ability.hpBased);
+  const defDamageAbilities=damagingAbilities.filter(ability=>ability.defBased);
+  const atkDamageAbilities=damagingAbilities.filter(ability=>!ability.hpBased&&!ability.defBased);
+  const tank=/Tank|Shielder/i.test(c.role);
+  const support=/Supporto|Buffer/i.test(c.role);
+  const healer=abilities.some(ability=>ability.effect?.includes('heal'));
+  const shielder=abilities.some(ability=>ability.shieldDefMult!==undefined||ability.shieldPct!==undefined||ability.effect?.includes('shield'));
+  const buffs=abilities.some(ability=>ability.buffPct||ability.defBuffPct||ability.maxHpBuffPct||ability.effect==='extra_attack_buff');
+  const grantsSp=abilities.some(ability=>ability.spGrant);
+  const debuffs=abilities.some(ability=>ability.defDownPct)||!!c.passiveEnemySpeedDown;
+  const singleAllyTarget=abilities.some(ability=>ability.target==='ally');
+  const dps=/DPS/i.test(c.role)||damagingAbilities.length>0;
+  const needsEnergy=c.ultChargeMode!=='debuffs';
+  return {
+    hp:hpDamageAbilities.length?1.15:tank?0.85:support?0.45:0.3,
+    atk:atkDamageAbilities.length?1.25:dps?0.75:0.2,
+    def:defDamageAbilities.length?1.25:tank?1.0:support?0.35:0.25,
+    speed:support?1.05:0.65,
+    damage:damagingAbilities.length?1.15:0.25,
+    basic:damagingAbilities.includes(c.basic)?0.45:0,
+    skill:damagingAbilities.includes(c.skill)?0.65:0,
+    ult:damagingAbilities.includes(c.ult)?0.9:0,
+    hpDamage:hpDamageAbilities.length?1.2:0,
+    heal:healer?1.25:0,
+    shield:shielder?1.0:0,
+    dot:c.dotName?1.0:0,
+    energy:needsEnergy?0.4:0.15,
+    startEnergy:needsEnergy?0.65:0,
+    buff:buffs?1.0:0,
+    sp:grantsSp?0.25:0,
+    defDown:debuffs?0.6:0,
+    weakness:damagingAbilities.length?0.35:0,
+    dynamicSkill:c.skillFreeUses||c.skill.mult===0?0.15:0,
+    dynamicAbsent:dps?0.1:0,
+    hitStacks:dps?0.12:0,
+    singleAllyBuff:singleAllyTarget?0.18:0,
+    energyMax:c.base.energyMax,
+    base:c.base,
+  };
 }
 function scoreAutoEquip(eff,p){
-  const base=eff.hp*p.w.hp+eff.atk*p.w.atk+eff.def*p.w.def+eff.speed*p.w.speed;
-  const mult=1+(eff.healMult-1)*p.heal+(eff.shieldMult-1)*p.shield+(eff.burnMult-1)*p.burn+(eff.dotDamageMult-1)*p.burn
-    +(eff.energyGainMult-1)*0.3+(eff.damageMult-1)+(eff.basicDamageMult-1)*0.4+(eff.skillDamageMult-1)*0.5
-    +eff.weaknessBonus*0.4+(eff.hpDamageMult-1)*p.hpDamage+eff.buffPctBonus*0.5;
-  return base*mult;
+  const base=p.base;
+  const stats=(eff.hp/base.hp)*p.hp+(eff.atk/base.atk)*p.atk+(eff.def/base.def)*p.def+(eff.speed/base.speed)*p.speed;
+  const effects=(eff.damageMult-1)*p.damage+(eff.basicDamageMult-1)*p.basic
+    +(eff.skillDamageMult-1)*p.skill+(eff.ultDamageMult-1)*p.ult
+    +(eff.hpDamageMult-1)*p.hpDamage+(eff.healMult-1)*p.heal+(eff.shieldMult-1)*p.shield
+    +(eff.burnMult-1)*p.dot+(eff.dotDamageMult-1)*p.dot
+    +(eff.energyGainMult-1)*p.energy+eff.startEnergyBonus/p.energyMax*p.startEnergy
+    +eff.buffPctBonus*p.buff+eff.spGrantBonus*p.sp+eff.defDownBonus*p.defDown
+    +eff.weaknessBonus*p.weakness+(eff.formDamageMult-1)*p.damage
+    +(eff.fxSkillSp?p.dynamicSkill:0)+(eff.fxAbsent?p.dynamicAbsent:0)+(eff.fxHitStack?p.hitStacks:0)
+    +(eff.singleAllyDamageBuff?p.singleAllyBuff:0);
+  return stats+effects;
 }
 function autoEquip(charId){
   const entry=state.roster[charId];
@@ -3447,6 +3617,21 @@ function upgradeWeapon(uid){
   weapon.mainStat.value += Math.max(1,Math.round(weapon.baseAtk*0.04));
   render();
 }
+function upgradeWeaponToMax(uid){
+  const found=findWeapon(uid);
+  if(!found) return;
+  const weapon=normalizeWeapon(found.weapon);
+  let upgraded=false;
+  while(weapon.level<WEAPON_MAX_LEVEL){
+    const cost=getWeaponUpgradeCost(weapon.level);
+    if(state.credits<cost) break;
+    state.credits-=cost;
+    weapon.level++;
+    weapon.mainStat.value+=Math.max(1,Math.round(weapon.baseAtk*0.04));
+    upgraded=true;
+  }
+  if(upgraded) render();
+}
 function ascendWeapon(uid){
   const found = findWeapon(uid);
   if(!found) return;
@@ -3482,6 +3667,7 @@ function getWeaponManagementActions(weapon,opts={}){
   const actions=[];
   if(opts.onUnequip) actions.push({label:'Rimuovi arma',onClick:opts.onUnequip});
   actions.push({label:level>=WEAPON_MAX_LEVEL?'Livello massimo':`⬆ Potenzia (${cost} 🪙)`,onClick:()=>upgradeWeapon(weapon.uid),disabled:level>=WEAPON_MAX_LEVEL||state.credits<cost});
+  actions.push({label:'⏫ Potenzia al massimo',onClick:()=>upgradeWeaponToMax(weapon.uid),disabled:level>=WEAPON_MAX_LEVEL||state.credits<cost});
   actions.push({label:ascension>=WEAPON_MAX_ASCENSION?'Ascensione massima':hasDuplicate?`✦ Ascendi ${ascension+1}/${WEAPON_MAX_ASCENSION} (doppione)`:'✦ Ascendi (serve un doppione)',onClick:()=>ascendWeapon(weapon.uid),disabled:ascension>=WEAPON_MAX_ASCENSION||!hasDuplicate});
   actions.push({label:`💰 Vendi (+${getWeaponSellValue(weapon)} 🪙)`,onClick:()=>sellWeapon(weapon.uid)});
   return actions;
@@ -3503,6 +3689,19 @@ function movePartyMember(charId,targetIndex){
   if(sourceIndex<0||targetIndex<0||targetIndex>=state.party.length||sourceIndex===targetIndex) return;
   const [moved]=state.party.splice(sourceIndex,1);
   state.party.splice(targetIndex,0,moved);
+  render();
+}
+function savePartyPreset(index){
+  if(index<0||index>=4) return;
+  state.teamPresets[index]=state.party.slice();
+  render();
+}
+function loadPartyPreset(index){
+  const preset=state.teamPresets[index];
+  if(!Array.isArray(preset)) return;
+  const members=[...new Set(preset)].filter(id=>CHAR_DB[id] && state.roster[id]?.unlocked).slice(0,4);
+  if(members.length===0) return;
+  state.party=members;
   render();
 }
 function setTownTab(tab){ state.townTab=tab; render(); }
@@ -4019,6 +4218,27 @@ function renderPersonaggiTab(){
   wrap.appendChild(el(`<div class="screen-title"><span class="eyebrow">Roster completo</span><h2>Cambia Personaggi</h2></div>`));
   wrap.appendChild(el(`<div class="hint" style="margin-bottom:14px;">Scegli quali eroi sbloccati portare in squadra (fino a 4). I personaggi bloccati verranno sbloccati in futuro.</div>`));
 
+  wrap.appendChild(el(`<div class="roster-section-title">Preset squadra</div>`));
+  wrap.appendChild(el(`<div class="hint" style="margin-bottom:10px;">Salva fino a 4 composizioni e applicale tutte insieme quando vuoi.</div>`));
+  const presetGrid=el(`<div class="team-preset-grid"></div>`);
+  state.teamPresets.forEach((preset,index)=>{
+    const isCurrent=preset.length===state.party.length&&preset.every((id,memberIndex)=>id===state.party[memberIndex]);
+    const names=preset.map(id=>CHAR_DB[id]?.name).filter(Boolean);
+    const card=el(`<div class="hud-panel team-preset-card ${isCurrent?'active':''}">
+      <div class="team-preset-title">Preset ${index+1}${isCurrent?'<span>IN USO</span>':''}</div>
+      <div class="team-preset-members">${names.length?names.join(' · '):'Nessuna squadra salvata'}</div>
+      <div class="team-preset-actions">
+        <button class="small primary" type="button" ${names.length?'':'disabled'}>Carica</button>
+        <button class="small" type="button">Salva squadra attuale</button>
+      </div>
+    </div>`);
+    const [loadButton,saveButton]=card.querySelectorAll('button');
+    loadButton.onclick=()=>loadPartyPreset(index);
+    saveButton.onclick=()=>savePartyPreset(index);
+    presetGrid.appendChild(card);
+  });
+  wrap.appendChild(presetGrid);
+
   const selectedIds = state.party;
   const benchIds = Object.keys(CHAR_DB).filter(id=>!state.party.includes(id));
 
@@ -4178,12 +4398,12 @@ function effectLabel(ability){
     case 'suisei_guard': return `Sacrifica il 50% dei PV correnti e riduce del 40% i danni subiti per 3 round. I nemici sono costretti ad attaccare Susei per 2 round (Provocazione). Durante la postura la Skill è bloccata e il Basic viene potenziato.`;
     case 'suisei_set_half_hp': return `Dopo il colpo porta i PV di Susei esattamente al 50%: cura se è sotto, sacrifica PV se è sopra.`;
     case 'laplus_def_down': return `Riduce la DIF del nemico del 15% per 2 round. Il debuff si accumula fino al 75%.`;
-    case 'laplus_plant_weakness': return `Riduce la DIF del 15% e rende il bersaglio vulnerabile all'elemento del primo eroe in squadra per 2 round.`;
+    case 'laplus_remove_element': return `Riduce la DIF del 15% e per 2 round rimuove dalla lista delle debolezze del bersaglio l'elemento del primo eroe in squadra, se presente, aggiungendo quello contrapposto.`;
     case 'laplus_ultimate': return `Colpisce tutti i nemici, riduce la DIF del 30% per 2 round e rinnova il debuff.`;
     case 'ina_mark': return `Marca un nemico: quando viene colpito, Ina esegue un follow-up e rigenera 10 energia se a colpire è un alleato. Disponibili 3 cariche, recuperate con la Ultimate.`;
     case 'ina_ultimate': return `Colpisce tutti i nemici, esegue un follow-up su un bersaglio casuale e recupera tutte le cariche.`;
     case 'selen_skill': return `Danno ${Math.round(ability.mult*100)}% ATK; ${Math.round(ability.weakMult*100)}% ATK se il nemico è debole all'Electro.`;
-    case 'selen_ult': return `Se il nemico è debole all'Electro (anche per il debuff di Laplus) lo Stordisce per 2 turni: salta le sue azioni.`;
+    case 'selen_ult': return `Se il nemico è debole all'Electro lo Stordisce per 2 turni: salta le sue azioni.`;
     default: return '';
   }
 }
@@ -4262,6 +4482,7 @@ function renderInventarioTab(){
       const maxed=(it.level||0)>=ARTIFACT_MAX_LEVEL;
       const card=renderArtifactCard(it,{actions:[
         {label:maxed?'Livello massimo':`⬆ Potenzia (${cost} 🪙)`,onClick:()=>levelUpArtifact(it.uid),disabled:maxed||state.credits<cost},
+        getArtifactMaxUpgradeAction(it),
         {label:`💰 Vendi (+${getArtifactSellValue(it)} 🪙)`,onClick:()=>sellArtifact(it.uid)},
       ]});
       const set=ARTIFACT_SETS[it.setId];
@@ -4821,6 +5042,7 @@ function renderViewArtifactModal(){
     const maxed = (it.level||0)>=ARTIFACT_MAX_LEVEL;
     box.appendChild(renderArtifactCard(it, {actions:[
       {label: maxed ? 'Livello massimo' : `⬆ Potenzia (${cost} 🪙)`, onClick:()=>levelUpArtifact(it.uid), disabled: maxed || state.credits<cost},
+      getArtifactMaxUpgradeAction(it),
       {label:'Rimuovi manufatto', onClick:()=>{ unequipItem(charId,slotIdx); closeViewArtifact(); }},
     ]}));
   }
@@ -4956,7 +5178,7 @@ function renderBattle(){
         const affinityLabel=affinity==='element-strong'?'Forte contro questo nemico':'Non forte contro questo nemico';
         return `<span class="element-tag ${affinity}" title="${activeAllyElement?`${affinityLabel} · ${ELEMENT_DATA[activeAllyElement].label}`:`Elemento ${ELEMENT_DATA[element]?.label||element}`} ">${ELEMENT_DATA[element]?.label||element}</span>`;
       }).join('')}</div>
-      ${(e.defDownRounds>0||e.vulnerableRounds>0||e.koyoriSlowApplied)?`<div class="enemy-status-tags">${e.defDownRounds>0?`<span class="enemy-defdown">DIF -${Math.round(e.defDownPct*100)}%</span>`:''}${e.koyoriSlowApplied?`<span class="enemy-speeddown">VEL -${Math.round(e.koyoriSlowPct*100)}%</span>`:''}${e.vulnerableRounds>0&&e.vulnerableToElement?`<span class="enemy-vulnerability">Vulnerabile a ${ELEMENT_DATA[e.vulnerableToElement].label}</span>`:''}</div>`:''}
+      ${(e.defDownRounds>0||e.koyoriSlowApplied)?`<div class="enemy-status-tags">${e.defDownRounds>0?`<span class="enemy-defdown">DIF -${Math.round(e.defDownPct*100)}%</span>`:''}${e.koyoriSlowApplied?`<span class="enemy-speeddown">VEL -${Math.round(e.koyoriSlowPct*100)}%</span>`:''}</div>`:''}
       <div class="bar-track"><div class="bar-fill hp-fill" style="width:${(e.hp/e.maxHp*100)}%"></div></div>
       ${e.isBoss&&e.phase<(e.maxPhases||2)?'<div class="bar-track" style="height:4px;margin-top:2px;opacity:.55;"><div class="bar-fill hp-fill" style="width:100%"></div></div>':''}
       <div class="mini-lbl"><span>${e.hp}/${e.maxHp}</span></div>
@@ -4976,7 +5198,7 @@ function renderBattle(){
   const spPanel = el(`<div class="hud-panel" style="padding:12px;display:flex;flex-direction:column;justify-content:center;gap:8px;">
     <div class="mini-lbl" style="font-size:10px;">PUNTI ABILITÀ</div>
     <div style="display:flex;gap:6px;" id="spPips"></div>
-    <div class="mini-lbl" style="font-size:10px;margin-top:8px;">${b.mode==='pf'?`TURNO ${b.round}/${PF_ROUNDS} · PUNTI ${b.pf.score}`:b.mode==='apoc'?`TURNO ${b.round}/${getModeGrade(b.apoc.grade).roundLimit}`:b.mode==='su'?`ONDATA ${state.su.wave}/${SU_WAVES}${b.suFight?' · SCONTRO':''} · ROUND ${b.round}`:`ROUND ${b.round}`}</div>
+    <div class="mini-lbl" style="font-size:10px;margin-top:8px;">${b.mode==='pf'?`TURNO ${b.round}/${PF_ROUNDS} · PUNTI ${b.pf.score}`:b.mode==='apoc'?`TURNO ${b.round}/${getModeGradeById(b.apoc.grade).roundLimit}`:b.mode==='su'?`ONDATA ${state.su.wave}/${SU_WAVES}${b.suFight?' · SCONTRO':''} · ROUND ${b.round}`:`ROUND ${b.round}`}</div>
   </div>`);
   const pipsWrap = spPanel.querySelector('#spPips');
   for(let i=0;i<b.spMax;i++){
@@ -5155,6 +5377,30 @@ function renderMemoryOfChaos(){
     if(grade.id==='C'&&teamIndex===1) return;
     const bossName=setup.bosses[teamIndex];
     const panel=el(`<section class="hud-panel moc-team-panel"><h3>Squadra ${teamIndex+1} <span>${team.length}/4</span></h3><div class="moc-team-elements" title="${bossName}">${renderMOCBossElements(bossName)}</div><div class="moc-hero-list"></div></section>`);
+    const presetToolbar=el(`<div class="moc-preset-toolbar"><select aria-label="Preset per la Squadra ${teamIndex+1}"><option value="">Scegli un preset...</option></select><button class="small" type="button" disabled>Carica</button></div>`);
+    const presetSelect=presetToolbar.querySelector('select');
+    const presetLoadButton=presetToolbar.querySelector('button');
+    state.teamPresets.forEach((preset,presetIndex)=>{
+      const option=document.createElement('option');
+      const names=preset.map(id=>CHAR_DB[id]?.name).filter(Boolean);
+      option.value=String(presetIndex);
+      option.textContent=names.length?`Preset ${presetIndex+1} · ${names.join(', ')}`:`Preset ${presetIndex+1} · Vuoto`;
+      option.disabled=names.length===0;
+      presetSelect.appendChild(option);
+    });
+    const updatePresetLoadButton=()=>{
+      if(presetSelect.value===''){
+        presetLoadButton.disabled=true;
+        presetLoadButton.title='';
+        return;
+      }
+      const {reason}=getMocPresetLoadState(teamIndex,Number(presetSelect.value));
+      presetLoadButton.disabled=!!reason;
+      presetLoadButton.title=reason;
+    };
+    presetSelect.onchange=updatePresetLoadButton;
+    presetLoadButton.onclick=()=>loadMocTeamPreset(teamIndex,Number(presetSelect.value));
+    panel.appendChild(presetToolbar);
     const list=panel.querySelector('.moc-hero-list');
     Object.entries(CHAR_DB).filter(([id])=>state.roster[id]?.unlocked).forEach(([id,char])=>{
       const selected=team.includes(id);

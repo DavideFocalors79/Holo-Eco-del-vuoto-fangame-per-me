@@ -130,6 +130,14 @@ button.small{padding:5px 10px;font-size:12px;}
 
 /* Roster grid */
 .roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-bottom:20px;}
+.team-preset-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:22px;}
+.team-preset-card{padding:12px;min-width:0;}
+.team-preset-card.active{border-color:var(--cyan);}
+.team-preset-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font:700 16px 'Rajdhani',sans-serif;}
+.team-preset-title span{color:var(--cyan);font:700 9px 'Inter',sans-serif;letter-spacing:.08em;}
+.team-preset-members{min-height:34px;margin:7px 0 10px;color:var(--text-dim);font-size:11px;line-height:1.5;}
+.team-preset-actions{display:flex;flex-wrap:wrap;gap:6px;}
+.team-preset-actions button{flex:1 1 auto;}
 .hero-card{padding:16px;cursor:pointer;position:relative;}
 .hero-card.party-sortable{cursor:grab;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;}
 .hero-card.party-sortable:active,.hero-card.party-sortable.party-dragging{cursor:grabbing;}
@@ -609,6 +617,9 @@ button.small{padding:5px 10px;font-size:12px;}
 .moc-team-panel{min-width:0;padding:14px;}
 .moc-team-panel h3{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 10px;font-size:17px;}
 .moc-team-panel h3 span{color:var(--text-dim);font:600 12px 'Rajdhani',sans-serif;}
+.moc-preset-toolbar{display:flex;gap:6px;margin:0 0 10px;}
+.moc-preset-toolbar select{flex:1;min-width:0;padding:7px 9px;border:1px solid var(--border);border-radius:5px;background:var(--bg-panel-2);color:var(--text);font:11px 'Inter',sans-serif;}
+.moc-preset-toolbar select:focus{outline:1px solid var(--cyan);border-color:var(--cyan);}
 .moc-boss-info{display:flex;align-items:center;gap:8px;}
 .moc-boss-elements,.moc-team-elements{display:flex;align-items:center;gap:4px;}
 .moc-team-elements{margin:-2px 0 8px;}
