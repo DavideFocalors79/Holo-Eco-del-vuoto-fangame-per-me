@@ -80,6 +80,11 @@ const CHAR_DB = {
     basic:{name:'Colpo Tattico', desc:'Danno leggero a un bersaglio.', mult:0.7, target:'enemy', effect:null, energyGain:20},
     skill:{name:'Coordinazione', desc:'Un alleato attacca una volta in più e ottiene +20% ATK.', mult:0, target:'ally', effect:'extra_attack_buff', buffPct:0.20, energyGain:30},
     ult:{name:'Grido di Guerra', desc:'Grande +ATK e energia alla squadra.', mult:0, target:'allies_all', effect:'buff_atk_energy', buffPct:0.4, energyGainAll:25} },
+  albanKnox: {name:'Alban Knox',title:'Tuono della Notte',role:'Supporto Electro',color:'#a78bfa',glyph:'A',rarity:4,element:'electro',animStyle:'arcane',obtainableFromGacha:false,
+    base:{hp:1020,atk:96,def:76,speed:102,energyMax:120},
+    basic:{name:'Colpo Fulmineo',desc:'Un normale attacco Electro contro un nemico.',mult:0.85,target:'enemy',effect:null,energyGain:20},
+    skill:{name:'Scatto Coordinato',desc:'Aumenta l’ATK dell’alleato scelto del 10% per 2 turni e gli concede subito un’azione aggiuntiva.',mult:0,target:'ally',effect:'alban_extra_action',buffPct:0.10,energyGain:30},
+    ult:{name:'Tempesta Sincronizzata',desc:'Aumenta l’ATK di tutta la squadra del 25% e concede a ogni alleato ATK aggiuntivo pari al 10% dell’ATK di Alban, per 2 turni.',mult:0,target:'allies_all',effect:'alban_ultimate',buffPct:0.25,flatAtkPct:0.10} },
   ouroKronii: { name:'Ouro Kronii', title:'Architetta del Tempo', role:'Supporto Punti Abilità', color:'#ffd700', glyph:'O', rarity:5, element:'imaginary', animStyle:'celestial', passiveSpCapBonus:2,
     base:{hp:1150, atk:118, def:78, speed:100, energyMax:140},
     basic:{name:'Impulso Armonico', desc:'Danno a un bersaglio. Genera 2 Punti Abilità invece di 1.', mult:0.8, target:'enemy', effect:null, energyGain:20, spGain:2},
@@ -1334,6 +1339,10 @@ function onMOCBattleWin(){
     claimMOCTiers(day,2,moc.rounds,moc.grade);
     moc.phase='complete';
   }
+  if(moc.phase==='complete'&&!state.roster.albanKnox.unlocked){
+    state.roster.albanKnox.unlocked=true;
+    moc.albanKnoxUnlocked=true;
+  }
   state.battle=null;
   state.autoBattle=false;
   state.screen='moc';
@@ -1479,6 +1488,7 @@ function generateSUBaseEnemies(wave,fight){
 function syncAllyBuffMultipliers(ally){
   const buffs=ally.activeBuffs||[];
   ally.atkBuffMult=1+buffs.filter(buff=>buff.stat==='atk').reduce((sum,buff)=>sum+buff.pct,0);
+  ally.atk=(Number.isFinite(ally.baseAtk)?ally.baseAtk:ally.atk)+buffs.filter(buff=>buff.stat==='atkFlat').reduce((sum,buff)=>sum+buff.pct,0);
   ally.defBuffMult=1+buffs.filter(buff=>buff.stat==='def').reduce((sum,buff)=>sum+buff.pct,0);
   ally.dotDamageBuffMult=1+buffs.filter(buff=>buff.stat==='dotDamage').reduce((sum,buff)=>sum+buff.pct,0);
   ally.damageBuffMult=1+buffs.filter(buff=>buff.stat==='damage').reduce((sum,buff)=>sum+buff.pct,0);
@@ -1714,7 +1724,10 @@ function startBattle(mode,fight){
     ally.atk=Math.round(ally.atk*(1+ally.holoXAtkBonus));
     ally.holoXAtkBonusApplied=true;
   });
-  allies.forEach(ally=>{ if(!Number.isFinite(ally.baseMaxHp)) ally.baseMaxHp=ally.maxHp; });
+  allies.forEach(ally=>{
+    if(!Number.isFinite(ally.baseMaxHp)) ally.baseMaxHp=ally.maxHp;
+    if(!Number.isFinite(ally.baseAtk)) ally.baseAtk=ally.atk;
+  });
   const enemies = pf ? generatePFEnemies() : moc ? generateMOCBoss(state.moc.setup.bosses[state.moc.bossIndex],state.moc.bossIndex) : apoc ? generateApocalypticShadowBoss(state.apoc.setup.boss) : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage,towerCombatRank(state.stage),true,towerHpRank(towerCombatRank(state.stage)));
   const turnOrder = buildTurnOrder(allies,enemies);
   const spMaxBonus = activeParty.reduce((sum,id)=>sum+(CHAR_DB[id].passiveSpCapBonus||0),0);
@@ -2635,6 +2648,12 @@ async function executeAbility(actor, abKey, targetId){
         target.energy = clamp(target.energy+Math.round(20*(target.energyGainMult||1)),0,target.energyMax);
       }
     }
+    if(ability.effect==='alban_extra_action'){
+      addTimedAllyBuff(target,ability.name,'atk',buffPct,2);
+      target._fx={variant:'buff',label:'+10% ATK · +1 AZIONE'};
+      b.turnOrder.splice(b.turnIndex+1,0,{side:'ally',id:target.charId,speed:target.speed,extraAction:true});
+      logMsg(`${actor.name} concede a ${target.name} +10% ATK e un’azione aggiuntiva immediata.`);
+    }
   }
   else if(ability.target==='self'){
     if(ability.effect==='hakos_ultimate'){
@@ -2770,6 +2789,15 @@ async function executeAbility(actor, abKey, targetId){
         a._fx={variant:'buff',label:'+'+Math.round(buffPct*100)+'% ATK / DIF'};
       });
       logMsg(`${actor.name} aumenta ATK e DIF di tutta la squadra del ${Math.round(buffPct*100)}% per 3 turni.`);
+    }
+    if(ability.effect==='alban_ultimate'){
+      const flatAtk=Math.round(effAtk*ability.flatAtkPct);
+      allyTargets().forEach(a=>{
+        addTimedAllyBuff(a,ability.name,'atk',buffPct,2);
+        addTimedAllyBuff(a,ability.name,'atkFlat',flatAtk,2);
+        a._fx={variant:'buff',label:`+25% ATK · +${flatAtk}`};
+      });
+      logMsg(`${actor.name} potenzia tutta la squadra: +25% ATK e +${flatAtk} ATK per 2 turni.`);
     }
   }
 
@@ -3739,7 +3767,7 @@ function drawWeaponBannerWeapon(type){
 }
 
 function grantCharacterOfRarity(rarity, byPity){
-  const lockedIds = Object.keys(CHAR_DB).filter(id=>!state.roster[id].unlocked && CHAR_DB[id].rarity===rarity);
+  const lockedIds = Object.keys(CHAR_DB).filter(id=>!state.roster[id].unlocked && CHAR_DB[id].rarity===rarity && CHAR_DB[id].obtainableFromGacha!==false);
   if(lockedIds.length>0){
     const newId = pick(lockedIds);
     state.roster[newId].unlocked = true;
@@ -4429,6 +4457,8 @@ function effectLabel(ability){
     case 'buff_atk': return `+${Math.round(ability.buffPct*100)}% ATK a tutta la squadra per 2 turni.`;
     case 'buff_atk_energy': return `+${Math.round(ability.buffPct*100)}% ATK per 3 turni e +${ability.energyGainAll} energia a tutta la squadra.`;
     case 'buff_atk_def': return `+${Math.round(ability.buffPct*100)}% ATK e +${Math.round(ability.defBuffPct*100)}% DIF a tutta la squadra per 3 turni.`;
+    case 'alban_extra_action': return `L'alleato scelto ottiene subito un'azione aggiuntiva e +${Math.round(ability.buffPct*100)}% ATK per 2 turni.`;
+    case 'alban_ultimate': return `+${Math.round(ability.buffPct*100)}% ATK a tutti e ATK aggiuntivo pari al ${Math.round(ability.flatAtkPct*100)}% dell'ATK di Alban, per 2 turni.`;
     case 'boost_basic_hits': return `Aumenta di 1 il numero di colpi dell'Attacco Base (fino a un massimo di 10). Non conclude il turno: si può riusare finché ci sono Punti Abilità, poi va chiusa con l'Attacco Base. Le prime 2 Skill della battaglia non costano Punti Abilità.`;
     case 'extra_attack_buff': return `L'alleato scelto attacca subito una volta in più e ottiene +${Math.round(ability.buffPct*100)}% ATK per 2 turni.`;
     case 'grant_sp': return `Dona istantaneamente ${ability.spGrant} Punti Abilità alla squadra (nessun danno).`;
@@ -5381,7 +5411,7 @@ function renderMemoryOfChaos(){
   if(state.moc){
     const phase=state.moc.phase;
     const title=phase==='second'?'Primo boss sconfitto':phase==='complete'?'Memory of Chaos completato':'Squadra sconfitta';
-    const message=phase==='second'?`Ora affronta ${setup.bosses[1]} con la seconda squadra.`:phase==='complete'?`${state.moc.singleTeam?'Boss sconfitto':'Entrambi i boss sconfitti'} in ${state.moc.rounds} round.`:`La sfida si è fermata al boss ${state.moc.bossIndex+1}. Puoi riprovare con le stesse squadre.`;
+    const message=phase==='second'?`Ora affronta ${setup.bosses[1]} con la seconda squadra.`:phase==='complete'?`${state.moc.singleTeam?'Boss sconfitto':'Entrambi i boss sconfitti'} in ${state.moc.rounds} round.${state.moc.albanKnoxUnlocked?'<br>Alban Knox (★★★★) è stato aggiunto alla tua squadra!':''}`:`La sfida si è fermata al boss ${state.moc.bossIndex+1}. Puoi riprovare con le stesse squadre.`;
     wrap.appendChild(el(`<div class="hud-panel section" style="padding:16px;text-align:center;"><div class="eyebrow">${title} · Grado ${state.moc.grade}</div><div class="hero-name" style="font-size:18px;margin:8px 0;">${message}</div><div class="hint">Ricompense giornaliere già ottenute: ${day.claimed.map((claimed,index)=>claimed?getClaimedModeRewardTotal(day,index,MOC_TIERS[index].reward):0).reduce((sum,reward)=>sum+reward,0)} Frammenti</div></div>`));
     if(phase==='second'){
       const button=el(`<div style="text-align:center;margin-top:14px;"><button class="primary" id="mocContinue">Affronta il secondo boss ▶</button></div>`);
