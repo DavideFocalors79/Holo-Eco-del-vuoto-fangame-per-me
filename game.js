@@ -1403,23 +1403,37 @@ function generateApocalypticShadowBoss(name){
 
 /* ============ SIMULATED UNIVERSE (roguelike) ============ */
 const SU_UNLOCK_STAGE = 5; // unlocked once floor 5 is cleared
-const SU_WAVES = 10;
+const SU_FLOORS = 14;
 const SU_REWARD = 1000;
+const SU_FRAGMENT_REWARD = 30;
+const SU_SHOP_PRICE = 40;
+const SU_DIFFICULTIES = [
+  {id:'easy',name:'Facile',enemyMult:0.8,rewardMult:0.75},
+  {id:'normal',name:'Normale',enemyMult:1,rewardMult:1},
+  {id:'hard',name:'Difficile',enemyMult:1.3,rewardMult:1.5},
+];
+const SU_ROOM_TYPES = [
+  {id:'combat',name:'Combattimento',icon:'⚔️',desc:'Una battaglia normale: scegli una Benedizione dopo la vittoria.',weight:34},
+  {id:'elite',name:'Elite',icon:'☠️',desc:'Una battaglia più dura: scegli due Benedizioni dopo la vittoria.',weight:22},
+  {id:'occurrence',name:'Occorrenza',icon:'❔',desc:'Un evento con scelte e possibili ricompense o rischi.',weight:22},
+  {id:'shop',name:'Negozio',icon:'🛒',desc:'Spendi Frammenti Cosmici per acquistare fino a tre Benedizioni.',weight:22},
+  {id:'escapade',name:'Escapade',icon:'✨',desc:'Scegli un potenziamento esclusivo per un personaggio della squadra.',weight:3},
+];
 const SU_BLESSINGS = [
-  {name:'Vigore', desc:'ATK +20%.', apply:a=>{ a.atk=Math.round(a.atk*1.2); }},
-  {name:'Tempra', desc:'PV massimi +25%.', apply:a=>{ const m=Math.round(a.maxHp*1.25); a.hp+=m-a.maxHp; a.maxHp=m; }},
+  {name:'Vigore', desc:'ATK +20%.', apply:a=>{ a.atk=Math.round(a.atk*1.2); if(Number.isFinite(a.baseAtk)) a.baseAtk=Math.round(a.baseAtk*1.2); }},
+  {name:'Tempra', desc:'PV massimi +25%.', apply:a=>{ const m=Math.round(a.maxHp*1.25); a.hp+=m-a.maxHp; a.maxHp=m; if(Number.isFinite(a.baseMaxHp)) a.baseMaxHp=Math.round(a.baseMaxHp*1.25); }},
   {name:'Corazza', desc:'DEF +25%.', apply:a=>{ a.def=Math.round(a.def*1.25); }},
   {name:'Passo Leggero', desc:'VEL +8.', apply:a=>{ a.speed+=8; }},
   {name:'Furia', desc:'Danni inflitti +20%.', apply:a=>{ a.damageMult+=0.2; }},
   {name:'Fonte di Energia', desc:'Energia ottenuta +30%.', apply:a=>{ a.energyGainMult+=0.3; }},
   {name:'Mani Guaritrici', desc:'Cure e scudi +30%.', apply:a=>{ a.healMult+=0.3; a.shieldMult+=0.3; }},
-  {name:'Rigenerazione', desc:'Dopo ogni ondata la squadra recupera il 10% di PV in più.', team:su=>{ su.regen+=0.1; }},
+  {name:'Rigenerazione', desc:'Dopo ogni battaglia la squadra recupera il 10% di PV in più.', team:su=>{ su.regen+=0.1; }},
   {name:'Occhio Acuto', desc:'Danno contro le debolezze +30%.', apply:a=>{ a.weaknessBonus+=0.3; }},
   {name:'Maestria di Base', desc:'Danni degli Attacchi Base +30%.', apply:a=>{ a.basicDamageMult+=0.3; }},
   {name:'Colpi Risolutivi', desc:'Danni di Skill e Ultimate +30%.', apply:a=>{ a.skillDamageMult+=0.3; }},
   {name:'Brace Persistente', desc:'Danni da Sanguinamento +40%.', apply:a=>{ a.burnMult+=0.4; }},
-  {name:'Riserva Tattica', desc:'+1 Punto Abilità iniziale a ogni ondata.', team:su=>{ su.bonusSp+=1; }},
-  {name:'Cuore di Pietra', desc:'PV massimi +15% e DEF +15%.', apply:a=>{ const m=Math.round(a.maxHp*1.15); a.hp+=m-a.maxHp; a.maxHp=m; a.def=Math.round(a.def*1.15); }},
+  {name:'Riserva Tattica', desc:'+1 Punto Abilità iniziale a ogni battaglia.', team:su=>{ su.bonusSp+=1; }},
+  {name:'Cuore di Pietra', desc:'PV massimi +15% e DEF +15%.', apply:a=>{ const m=Math.round(a.maxHp*1.15); a.hp+=m-a.maxHp; a.maxHp=m; if(Number.isFinite(a.baseMaxHp)) a.baseMaxHp=Math.round(a.baseMaxHp*1.15); a.def=Math.round(a.def*1.15); }},
   {name:'Eco di Comando', desc:'Efficacia dei buff ATK +25%.', apply:a=>{ a.buffPctBonus+=0.25; }},
 ];
 const SU_OCCURRENCES = [
@@ -1451,29 +1465,34 @@ const SU_OCCURRENCES = [
 
 function ensureSUDay(){
   const key=pfDateKey();
-  if(!state.suDaily || state.suDaily.date!==key) state.suDaily={date:key,claimed:false,bestWave:0};
+  if(!state.suDaily || state.suDaily.date!==key) state.suDaily={date:key,claimed:false,bestFloor:0};
+  if(!Number.isFinite(state.suDaily.bestFloor)) state.suDaily.bestFloor=state.suDaily.bestWave||0;
   return state.suDaily;
 }
-// Difficulty follows the highest cleared tower floor: wave 1 ~70% of it, wave 9 ~100%, boss at the nearest boss floor.
+// Difficulty follows the highest cleared tower floor, then scales across all 13 pre-boss floors.
 function suClearedFloor(){ return Math.max(3,state.maxStageReached-1); }
-function generateSUEnemies(wave,fight){
-  const enemies=generateSUBaseEnemies(wave,fight);
+function getSUDifficulty(){
+  return SU_DIFFICULTIES.find(difficulty=>difficulty.id===state.su?.difficulty)||SU_DIFFICULTIES[1];
+}
+function generateSUEnemies(floor,fight){
+  const enemies=generateSUBaseEnemies(floor,fight);
   // every Blessing taken makes enemies a bit tougher
   const picked=state.su.blessings.length;
-  const hpMult=1+0.07*picked, atkMult=1+0.04*picked;
-  enemies.forEach(e=>{ e.hp=e.maxHp=Math.round(e.maxHp*hpMult); e.atk=Math.round(e.atk*atkMult); });
+  const difficulty=getSUDifficulty();
+  const hpMult=(1+0.07*picked)*difficulty.enemyMult, atkMult=(1+0.04*picked)*difficulty.enemyMult;
+  enemies.forEach(e=>{ e.hp=e.maxHp=Math.round(e.maxHp*hpMult); e.atk=Math.round(e.atk*atkMult); e.def=Math.round(e.def*difficulty.enemyMult); });
   return enemies;
 }
-function generateSUBaseEnemies(wave,fight){
+function generateSUBaseEnemies(floor,fight){
   const cleared=suClearedFloor();
-  if(wave>=SU_WAVES && !fight){
+  if(floor>=SU_FLOORS && !fight){
     const stage=Math.max(5,Math.ceil(cleared/5)*5);
     const hp=Math.round((1100+stage*190+stage*stage*2.6)*0.65*BOSS_HP_FACTOR);
     const elements=ENEMY_ELEMENT_SETS[state.su.bossName].slice();
     const boss={id:'e0',name:state.su.bossName,hp,maxHp:hp,atk:Math.round((150+stage*24+stage*stage*0.22)*BOSS_ATK_FACTOR),def:Math.round(35+stage*6+stage*stage*0.05),speed:100,element:elements[0],elements,isBoss:true,phase:1,bossTurns:0,role:null,specialTurns:0,rageStacks:0,vulnerableToElement:null,vulnerableRounds:0,defDownPct:0,defDownRounds:0,inaMarked:false,shield:0,dots:[],seasickStacks:0,addsWaveStarted:false,addsWaveResolved:false,addsTurnsRemaining:0,psychoHitCount:0,psychoTriggeredThisRound:false};
     return expandConstructBossParts(boss);
   }
-  let stage=Math.round(cleared*0.7+(Math.min(wave,9)-1)*cleared*0.3/8);
+  let stage=Math.round(cleared*0.7+(Math.min(floor,SU_FLOORS-1)-1)*cleared*0.3/(SU_FLOORS-2));
   if(stage%5===0) stage++;
   const baseStage=Math.max(3,stage);
   const enemies=generateEnemies(baseStage);
@@ -1559,51 +1578,124 @@ function grantRandomSUBlessings(count){
   }
   return names;
 }
-function startSimulatedUniverse(){
+function generateSURoomChoices(){
+  const pool=SU_ROOM_TYPES.slice();
+  const choices=[];
+  while(choices.length<2&&pool.length){
+    const total=pool.reduce((sum,room)=>sum+room.weight,0);
+    let roll=Math.random()*total;
+    let index=pool.findIndex(room=>(roll-=room.weight)<0);
+    if(index<0) index=pool.length-1;
+    choices.push(pool.splice(index,1)[0]);
+  }
+  return choices;
+}
+function suGrantCosmicFragments(){
+  const su=state.su;
+  if(su.roomFragmentsGranted) return 0;
+  const amount=Math.round(SU_FRAGMENT_REWARD*getSUDifficulty().rewardMult);
+  su.cosmicFragments+=amount;
+  su.fragmentsEarned+=amount;
+  su.roomFragmentsGranted=true;
+  return amount;
+}
+function startSimulatedUniverse(difficulty='normal'){
   if(state.maxStageReached<=SU_UNLOCK_STAGE) return;
-  state.su={wave:1,blessings:[],allies:null,bonusSp:0,regen:0,phase:'start',choices:[],startChoices:shuffleArr(SU_BLESSINGS).slice(0,3),pendingStart:null,bossName:pick(BOSS_NAMES),occ:null,result:null,lastOcc:false,seenOcc:[],reward:0,outcome:null};
+  if(!SU_DIFFICULTIES.some(option=>option.id===difficulty)) return;
+  const allies=createBattleAllies(state.party);
+  prepareBattleAllies(allies);
+  state.su={floor:1,completedFloors:0,difficulty,roomType:null,roomChoices:[],roomFragmentsGranted:false,blessings:[],allies,bonusSp:0,regen:0,phase:'start',startChoices:shuffleArr(SU_BLESSINGS).slice(0,3),bossName:pick(BOSS_NAMES),occ:null,result:null,seenOcc:[],reward:0,outcome:null,cosmicFragments:0,fragmentsEarned:0,shopPurchases:0,shopOffers:[],escapades:[]};
   state.screen='su';
   render();
 }
-function startNextSUWave(){
+function startNextSURoom(){
   resetAlliesForWave(state.su.allies);
   state.su.phase=null;
-  startBattle('su');
+  startBattle('su',state.su.roomType==='elite'?'elite':false);
+}
+function suAdvanceFloor(){
+  const su=state.su;
+  su.completedFloors=su.floor;
+  if(su.floor>=SU_FLOORS){
+    endSimulatedUniverse('win');
+    return;
+  }
+  if(su.floor===SU_FLOORS-1){
+    su.floor=SU_FLOORS;
+    su.roomType='boss';
+    su.roomFragmentsGranted=false;
+    startNextSURoom();
+    return;
+  }
+  su.floor++;
+  su.roomType=null;
+  su.roomFragmentsGranted=false;
+  su.roomChoices=generateSURoomChoices();
+  su.phase='roomChoice';
+  state.screen='su';
+  render();
+}
+function suCompleteNonCombatRoom(){
+  suGrantCosmicFragments();
+  suAdvanceFloor();
+}
+function suChooseRoom(index){
+  const su=state.su;
+  const room=su.roomChoices[index];
+  if(!room) return;
+  su.roomType=room.id;
+  if(room.id==='combat'||room.id==='elite'){
+    startNextSURoom();
+  } else if(room.id==='occurrence'){
+    const available=SU_OCCURRENCES.filter(occ=>!su.seenOcc.includes(occ.id));
+    su.occ=pick(available.length?available:SU_OCCURRENCES);
+    if(!su.seenOcc.includes(su.occ.id)) su.seenOcc.push(su.occ.id);
+    su.phase='occurrence';
+    render();
+  } else if(room.id==='shop'){
+    suGrantCosmicFragments();
+    su.shopPurchases=0;
+    su.shopOffers=shuffleArr(SU_BLESSINGS).slice(0,3);
+    su.phase='shop';
+    render();
+  } else if(room.id==='escapade'){
+    suGrantCosmicFragments();
+    su.phase='escapade';
+    render();
+  }
 }
 function onSUWaveClear(){
   const b=state.battle, su=state.su;
   state.autoBattle=false;
   if(b.hakosFormState) restoreHakosUltimate(b);
   su.allies=b.allies;
-  if(b.suFight){
-    const names=grantRandomSUBlessings(1);
-    su.result={text:`Hai vinto lo scontro! Ottieni la Benedizione: ${names.join(', ')}.`,fight:false};
-    su.phase='occurrenceResult';
-    state.screen='su';
+  if(su.floor>=SU_FLOORS&&!b.suFight){
+    suGrantCosmicFragments();
+    su.completedFloors=SU_FLOORS;
+    endSimulatedUniverse('win');
     return;
   }
-  if(su.wave>=SU_WAVES){ endSimulatedUniverse('win'); return; }
+  su.completedFloors=su.floor;
   healAlliesBetweenWaves(0.3+su.regen);
-  su.choices=shuffleArr(SU_BLESSINGS).slice(0,3);
-  su.phase='blessing';
+  suGrantCosmicFragments();
+  su.blessingChoices=shuffleArr(SU_BLESSINGS).slice(0,3);
+  su.blessingPicksRemaining=su.roomType==='elite'?2:1;
+  su.blessingRewardSource=b.suFight?'evento':su.roomType==='elite'?'elite':'combattimento';
+  su.phase='blessingReward';
   state.screen='su';
 }
-function suChooseBlessing(index){
+function suChooseRewardBlessing(index){
   const su=state.su;
-  applySUBlessing(su.choices[index]);
-  su.wave++;
-  const canOccur=!su.lastOcc && su.seenOcc.length<SU_OCCURRENCES.length && Math.random()<0.45;
-  if(canOccur){
-    const occ=pick(SU_OCCURRENCES.filter(o=>!su.seenOcc.includes(o.id)));
-    su.seenOcc.push(occ.id);
-    su.occ=occ;
-    su.lastOcc=true;
-    su.phase='occurrence';
+  const blessing=su.blessingChoices[index];
+  if(!blessing) return;
+  applySUBlessing(blessing);
+  su.blessingChoices.splice(index,1);
+  su.blessingPicksRemaining--;
+  if(su.blessingPicksRemaining>0){
     render();
-  } else {
-    su.lastOcc=false;
-    startNextSUWave();
+    return;
   }
+  suAdvanceFloor();
 }
 function suChooseOccurrence(index){
   const su=state.su;
@@ -1621,20 +1713,69 @@ function suChooseOccurrence(index){
 }
 function suContinueAfterOccurrence(){
   const su=state.su;
-  if(su.result.fight){ startBattle('su',true); return; }
-  startNextSUWave();
+  if(su.result.fight){ startBattle('su','event'); return; }
+  suCompleteNonCombatRoom();
+}
+function suBuyBlessing(index){
+  const su=state.su;
+  const blessing=su.shopOffers[index];
+  if(!blessing||su.shopPurchases>=3||su.cosmicFragments<SU_SHOP_PRICE) return;
+  su.cosmicFragments-=SU_SHOP_PRICE;
+  applySUBlessing(blessing);
+  su.shopPurchases++;
+  su.shopOffers=shuffleArr(SU_BLESSINGS).slice(0,3);
+  render();
+}
+function suChooseEscapade(index){
+  const su=state.su, ally=su.allies[index];
+  if(!ally) return;
+  const character=CHAR_DB[ally.charId];
+  const signature=getSUEscapadeSignature(ally);
+  if(signature){
+    const {abilityKey,ability}=signature;
+    if(ability.hpBased) ally.hpDamageMult=(ally.hpDamageMult||1)+0.65;
+    else if(abilityKey==='basic') ally.basicDamageMult=(ally.basicDamageMult||1)+0.65;
+    else if(abilityKey==='skill') ally.skillDamageMult=(ally.skillDamageMult||1)+0.65;
+    else ally.ultDamageMult=(ally.ultDamageMult||1)+0.65;
+    ally.damageMult=(ally.damageMult||1)+0.25;
+    ally.atk=Math.round(ally.atk*1.15);
+    if(Number.isFinite(ally.baseAtk)) ally.baseAtk=Math.round(ally.baseAtk*1.15);
+    su.escapades.push(`${ally.name}: ${ability.name}`);
+    su.result={text:`${ally.name} risveglia ${ability.name}: i suoi danni specifici aumentano enormemente e il suo ATK cresce del 15%.`,fight:false};
+  } else {
+    ally.buffPctBonus=(ally.buffPctBonus||0)+0.35;
+    ally.healMult=(ally.healMult||1)+0.5;
+    ally.shieldMult=(ally.shieldMult||1)+0.5;
+    ally.energyGainMult=(ally.energyGainMult||1)+0.25;
+    su.escapades.push(`${ally.name}: ${character.ult.name}`);
+    su.result={text:`${ally.name} risveglia ${character.ult.name}: buff, cure e scudi diventano molto più efficaci.`,fight:false};
+  }
+  suGrantCosmicFragments();
+  su.phase='escapadeResult';
+  render();
+}
+function suContinueAfterEscapade(){
+  suCompleteNonCombatRoom();
+}
+function getSUEscapadeSignature(ally){
+  const character=CHAR_DB[ally.charId];
+  return [['basic',character.basic],['skill',character.skill],['ult',character.ult]]
+    .filter(([,ability])=>ability.mult>0)
+    .sort((a,b)=>b[1].mult-a[1].mult)
+    .map(([abilityKey,ability])=>({abilityKey,ability}))[0]||null;
 }
 function endSimulatedUniverse(outcome){
   const su=state.su, day=ensureSUDay();
   state.autoBattle=false;
-  day.bestWave=Math.max(day.bestWave,outcome==='win'?SU_WAVES:su.wave);
+  day.bestFloor=Math.max(day.bestFloor,outcome==='win'?SU_FLOORS:su.floor);
   su.reward=0;
   if(outcome==='win' && !day.claimed){
     day.claimed=true;
-    state.gold+=SU_REWARD;
-    su.reward=SU_REWARD;
+    su.reward=Math.round(SU_REWARD*getSUDifficulty().rewardMult);
+    state.gold+=su.reward;
   }
   if(outcome==='win'){
+    su.completedFloors=SU_FLOORS;
     if(!state.suCleared) su.firstClear=true;
     state.suCleared=true;
   }
@@ -1679,6 +1820,45 @@ function onDomainVictory(){
   state.screen='victory';
 }
 
+function createBattleAllies(activeParty){
+  return activeParty.map(id=>{
+    const eff=getEffectiveStats(id);
+    return {
+      charId:id,name:CHAR_DB[id].name,color:CHAR_DB[id].color,glyph:CHAR_DB[id].glyph,element:CHAR_DB[id].element,
+      hp:eff.hp,maxHp:eff.hp,atk:eff.atk,def:eff.def,speed:eff.speed,
+      energy:clamp(eff.startEnergyBonus,0,eff.energyMax),energyMax:eff.energyMax,
+      energyGainMult:eff.energyGainMult,healMult:eff.healMult,burnMult:eff.burnMult,dotDamageMult:eff.dotDamageMult,shieldMult:eff.shieldMult,
+      damageMult:eff.damageMult,ultDamageMult:eff.ultDamageMult,weaknessBonus:eff.weaknessBonus,sameElementBonus:eff.sameElementBonus,
+      basicDamageMult:eff.basicDamageMult,buffPctBonus:eff.buffPctBonus,spGrantBonus:eff.spGrantBonus,
+      formDamageMult:eff.formDamageMult,defDownBonus:eff.defDownBonus,hpDamageMult:eff.hpDamageMult,skillDamageMult:eff.skillDamageMult,
+      fxSkillSp:eff.fxSkillSp,fxAbsent:eff.fxAbsent,fxHitStack:eff.fxHitStack,turnSkillCount:0,hitStacks:[],
+      shield:0,shieldRounds:0,atkBuffMult:1,damageBuffMult:1,buffRounds:0,
+      defBuffMult:1,defBuffRounds:0,dotDamageBuffMult:1,activeBuffs:[],
+      basicHits:CHAR_DB[id].basic.hits||1,
+      skillFreeUses:CHAR_DB[id].skillFreeUses||0,
+      singleAllyDamageBuff:eff.singleAllyDamageBuff,
+      inaFollowUpsRemaining:CHAR_DB[id].passiveInaFollowUps||0,
+      zetaFollowUpsRemaining:CHAR_DB[id].passiveZetaFollowUps||0,
+      irohaFollowUpsRemaining:CHAR_DB[id].passiveIrohaFollowUps||0,
+      suiseiHpLossEvents:0,suiseiFollowUpReady:false,suiseiGuardRounds:0,suiseiGuardFresh:false,
+      suiseiRevivesRemaining:CHAR_DB[id].revivesPerBattle||0,
+      takaneDebuffCharges:0,
+    };
+  });
+}
+function prepareBattleAllies(allies){
+  const holoXMemberCount=allies.filter(ally=>CHAR_DB[ally.charId].faction==='HoloX').length;
+  allies.filter(ally=>ally.charId==='takaneLui'&&!ally.holoXAtkBonusApplied).forEach(ally=>{
+    ally.holoXAtkBonus=holoXMemberCount*CHAR_DB.takaneLui.holoXAttackPerMember;
+    ally.atk=Math.round(ally.atk*(1+ally.holoXAtkBonus));
+    ally.holoXAtkBonusApplied=true;
+  });
+  allies.forEach(ally=>{
+    if(!Number.isFinite(ally.baseMaxHp)) ally.baseMaxHp=ally.maxHp;
+    if(!Number.isFinite(ally.baseAtk)) ally.baseAtk=ally.atk;
+  });
+}
+
 function startBattle(mode,fight){
   const su = mode==='su';
   const domain = mode==='domain';
@@ -1691,51 +1871,16 @@ function startBattle(mode,fight){
   const activeParty=moc?state.mocTeams[state.moc.bossIndex]:state.party;
   const mocBuffs=moc?state.moc.setup.buffs:null;
   const apocBuffs=apoc?state.apoc.setup.buffs:null;
-  let allies = activeParty.map(id=>{
-    const eff = getEffectiveStats(id);
-    return {
-      charId:id, name:CHAR_DB[id].name, color:CHAR_DB[id].color, glyph:CHAR_DB[id].glyph, element:CHAR_DB[id].element,
-      hp:eff.hp, maxHp:eff.hp, atk:eff.atk, def:eff.def, speed:eff.speed,
-      energy:clamp(eff.startEnergyBonus,0,eff.energyMax), energyMax:eff.energyMax,
-      energyGainMult:eff.energyGainMult, healMult:eff.healMult, burnMult:eff.burnMult, dotDamageMult:eff.dotDamageMult, shieldMult:eff.shieldMult,
-      damageMult:eff.damageMult, ultDamageMult:eff.ultDamageMult, weaknessBonus:eff.weaknessBonus, sameElementBonus:eff.sameElementBonus,
-      basicDamageMult:eff.basicDamageMult, buffPctBonus:eff.buffPctBonus, spGrantBonus:eff.spGrantBonus,
-      formDamageMult:eff.formDamageMult, defDownBonus:eff.defDownBonus, hpDamageMult:eff.hpDamageMult, skillDamageMult:eff.skillDamageMult,
-      fxSkillSp:eff.fxSkillSp, fxAbsent:eff.fxAbsent, fxHitStack:eff.fxHitStack, turnSkillCount:0, hitStacks:[],
-      shield:0, shieldRounds:0, atkBuffMult:1, damageBuffMult:1, buffRounds:0,
-      defBuffMult:1, defBuffRounds:0, dotDamageBuffMult:1, activeBuffs:[],
-      basicHits: CHAR_DB[id].basic.hits||1,
-      skillFreeUses: CHAR_DB[id].skillFreeUses||0,
-      singleAllyDamageBuff:eff.singleAllyDamageBuff,
-      inaFollowUpsRemaining: CHAR_DB[id].passiveInaFollowUps||0,
-      zetaFollowUpsRemaining: CHAR_DB[id].passiveZetaFollowUps||0,
-      irohaFollowUpsRemaining: CHAR_DB[id].passiveIrohaFollowUps||0,
-      suiseiHpLossEvents:0,suiseiFollowUpReady:false,suiseiGuardRounds:0,suiseiGuardFresh:false,
-      suiseiRevivesRemaining:CHAR_DB[id].revivesPerBattle||0,
-      takaneDebuffCharges:0,
-    };
-  });
+  let allies=createBattleAllies(activeParty);
   if(pf) applyPFBuffs(allies,pfBuffs);
   if(moc) applyPFBuffs(allies,mocBuffs);
   if(apoc) applyPFBuffs(allies,apocBuffs);
   if(su){
     if(state.su.allies) allies=state.su.allies;
-    else {
-      state.su.allies=allies;
-      if(state.su.pendingStart){ applySUBlessing(state.su.pendingStart); state.su.pendingStart=null; }
-    }
+    else state.su.allies=allies;
   }
-  const holoXMemberCount=allies.filter(ally=>CHAR_DB[ally.charId].faction==='HoloX').length;
-  allies.filter(ally=>ally.charId==='takaneLui'&&!ally.holoXAtkBonusApplied).forEach(ally=>{
-    ally.holoXAtkBonus=holoXMemberCount*CHAR_DB.takaneLui.holoXAttackPerMember;
-    ally.atk=Math.round(ally.atk*(1+ally.holoXAtkBonus));
-    ally.holoXAtkBonusApplied=true;
-  });
-  allies.forEach(ally=>{
-    if(!Number.isFinite(ally.baseMaxHp)) ally.baseMaxHp=ally.maxHp;
-    if(!Number.isFinite(ally.baseAtk)) ally.baseAtk=ally.atk;
-  });
-  const enemies = pf ? generatePFEnemies() : moc ? generateMOCBoss(state.moc.setup.bosses[state.moc.bossIndex],state.moc.bossIndex) : apoc ? generateApocalypticShadowBoss(state.apoc.setup.boss) : su ? generateSUEnemies(state.su.wave,!!fight) : domain ? generateDomainEnemies() : generateEnemies(state.stage,towerCombatRank(state.stage),true,towerHpRank(towerCombatRank(state.stage)));
+  prepareBattleAllies(allies);
+  const enemies = pf ? generatePFEnemies() : moc ? generateMOCBoss(state.moc.setup.bosses[state.moc.bossIndex],state.moc.bossIndex) : apoc ? generateApocalypticShadowBoss(state.apoc.setup.boss) : su ? generateSUEnemies(state.su.floor,state.su.roomType==='elite'||fight==='event') : domain ? generateDomainEnemies() : generateEnemies(state.stage,towerCombatRank(state.stage),true,towerHpRank(towerCombatRank(state.stage)));
   const turnOrder = buildTurnOrder(allies,enemies);
   const spMaxBonus = activeParty.reduce((sum,id)=>sum+(CHAR_DB[id].passiveSpCapBonus||0),0);
   const spMax = 5+spMaxBonus;
@@ -1758,7 +1903,8 @@ function startBattle(mode,fight){
     summonCounter:pf?5:0,
     mode:pf?'pf':moc?'moc':apoc?'apoc':su?'su':domain?'domain':'tower',
     domainSet:domain?fight:null,
-    suFight:su&&!!fight,
+    suFight:su&&fight==='event',
+    suRoomType:su?state.su.roomType:null,
     pf:pf?{score:0,kills:0,lastSpawn:null,buffs:pfBuffs,grade:pfGrade.id,rank:towerCombatRank(pfGrade.floor),hpRank:towerHpRank(towerCombatRank(pfGrade.floor)),enemyCount:pfGrade.pfEnemies,specialChance:pfGrade.pfSpecialChance,thresholds:getPFScoreThresholds(activeParty.length)}:null,
     mocBossIndex:moc?state.moc.bossIndex:null,
     apoc:apoc?{bossName:state.apoc.setup.boss,grade:state.apoc.grade}:null,
@@ -1775,7 +1921,7 @@ function startBattle(mode,fight){
     : moc
     ? `Memory of Chaos ${state.moc.grade} — Boss ${state.moc.bossIndex+1}/${state.moc.singleTeam?1:2}: ${enemies[0].name}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : su
-    ? `Universo Simulato — Ondata ${state.su.wave}/${SU_WAVES}${fight?' (scontro)':''}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
+    ? `Universo Simulato — Piano ${state.su.floor}/${SU_FLOORS}, ${state.su.floor===SU_FLOORS?'Boss finale':SU_ROOM_TYPES.find(room=>room.id===state.su.roomType)?.name||'Combattimento'}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : domain
     ? `Dominio ${ARTIFACT_SETS[fight].name} — Livello ${domainStage()}. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`
     : `Piano ${state.stage} — Round 1. ${firstActor.name} agisce per primo (${firstActor.speed} VEL).`);
@@ -2021,18 +2167,19 @@ async function performZetaFollowUp(b){
   return true;
 }
 
-async function performIrohaFollowUp(b,target,consumeCharge=true){
+async function performIrohaFollowUp(b,target,consumeCharge=true,sourceAbility=null){
   const iroha=b.allies.find(ally=>ally.charId==='kazamaIroha'&&ally.hp>0);
   if(!iroha||!target||target.hp<=0||b.irohaFollowUpActive) return false;
   if(consumeCharge&&iroha.irohaFollowUpsRemaining<=0) return false;
   if(consumeCharge) iroha.irohaFollowUpsRemaining--;
   b.irohaFollowUpActive=true;
-  const ability=CHAR_DB.kazamaIroha.basic;
+  const ability=CHAR_DB.kazamaIroha.skill;
+  const isFreeFollowUp=sourceAbility==='skill'||sourceAbility==='ult';
   const vulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
   const attack=Math.round(iroha.atk*(iroha.atkBuffMult||1));
-  const damage=calcDamage(attack,ability.mult,getEffectiveEnemyDefense(target),iroha.element,target.elements||target.element,iroha,'basic',vulnerability);
-  const applied=dealDamageToEnemy(target,damage,'basic',true,iroha);
-  iroha._fxAttack='basic';
+  const damage=calcDamage(attack,ability.mult,getEffectiveEnemyDefense(target),iroha.element,target.elements||target.element,iroha,'skill',vulnerability);
+  const applied=dealDamageToEnemy(target,damage,'basic',true,iroha,isFreeFollowUp?'iroha-follow-up':'damage');
+  iroha._fxAttack=isFreeFollowUp?sourceAbility:'basic';
   logMsg(`${iroha.name} esegue un follow-up su ${target.name}: ${applied} danni${consumeCharge?` (${iroha.irohaFollowUpsRemaining} cariche rimaste)`:''}.`);
   render();
   await sleepMs(240);
@@ -2169,7 +2316,7 @@ function triggerSuiseiPsychoFollowUp(boss){
   boss._fx={variant:'heal',label:'+'+healing};
   logMsg(`${boss.name} recupera ${healing} PV.`);
 }
-function dealDamageToEnemy(enemy, dmg, attackType='',countPsychoHit=true,attacker=null){
+function dealDamageToEnemy(enemy, dmg, attackType='',countPsychoHit=true,attacker=null,damageVariant='damage'){
   if(attacker) recordApocalypticShadowHit(enemy,attacker);
   if(isAbissoProtected(enemy)) dmg=Math.max(1,Math.round(dmg*0.1));
   dmg=applyBossDamageReduction(enemy,dmg,attackType);
@@ -2188,7 +2335,7 @@ function dealDamageToEnemy(enemy, dmg, attackType='',countPsychoHit=true,attacke
   const absorbedE = dmg-applied;
   enemy._fx = (enemy.psychoDamageBonus||0)>psychoBonusBefore
     ? {variant:'buff',label:`+30% DANNI · TOTALE +${Math.round(enemy.psychoDamageBonus*100)}%`}
-    : applied>0 ? {variant:'damage', label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbedE};
+    : applied>0 ? {variant:damageVariant, label:'-'+applied} : {variant:'shield', label:'🛡-'+absorbedE};
   return applied;
 }
 
@@ -2631,7 +2778,7 @@ async function executeAbility(actor, abKey, targetId){
         logMsg(`${actor.name} recupera le ${actor.irohaFollowUpsRemaining} cariche di follow-up.`);
       }
       const randomTarget=pick(enemyTargets());
-      if(randomTarget) await performIrohaFollowUp(b,randomTarget,false);
+      if(randomTarget) await performIrohaFollowUp(b,randomTarget,false,ability.effect==='iroha_skill'?'skill':'ult');
     }
   }
   else if(ability.target==='ally'){
@@ -5208,6 +5355,7 @@ const ANIM_TIER_TIMING = {
 const FX_LAYER_PARTS = {heavy:3, arcane:5, swift:3, bleed:5, 'radiant-soft':6, surge:3, celestial:6, menace:3};
 const HIT_ANIM = {
   damage:  d=>`fx-shake ${d}s ease, fx-flash-damage ${d+0.15}s ease`,
+  'iroha-follow-up': d=>`fx-shake ${d}s ease, fx-flash-iroha-follow-up ${d+0.15}s ease`,
   heal:    d=>`fx-flash-heal ${d+0.15}s ease`,
   shield:  d=>`fx-flash-shield ${d+0.15}s ease`,
   buff:    d=>`fx-flash-buff ${d+0.15}s ease`,
@@ -5306,7 +5454,7 @@ function renderBattle(){
   const spPanel = el(`<div class="hud-panel" style="padding:12px;display:flex;flex-direction:column;justify-content:center;gap:8px;">
     <div class="mini-lbl" style="font-size:10px;">PUNTI ABILITÀ</div>
     <div style="display:flex;gap:6px;" id="spPips"></div>
-    <div class="mini-lbl" style="font-size:10px;margin-top:8px;">${b.mode==='pf'?`TURNO ${b.round}/${PF_ROUNDS} · PUNTI ${b.pf.score}`:b.mode==='apoc'?`TURNO ${b.round}/${getModeGradeById(b.apoc.grade).roundLimit}`:b.mode==='su'?`ONDATA ${state.su.wave}/${SU_WAVES}${b.suFight?' · SCONTRO':''} · ROUND ${b.round}`:`ROUND ${b.round}`}</div>
+    <div class="mini-lbl" style="font-size:10px;margin-top:8px;">${b.mode==='pf'?`TURNO ${b.round}/${PF_ROUNDS} · PUNTI ${b.pf.score}`:b.mode==='apoc'?`TURNO ${b.round}/${getModeGradeById(b.apoc.grade).roundLimit}`:b.mode==='su'?`PIANO ${state.su.floor}/${SU_FLOORS}${b.suRoomType==='elite'?' · ELITE':b.suRoomType==='boss'?' · BOSS FINALE':''} · ROUND ${b.round}`:`ROUND ${b.round}`}</div>
   </div>`);
   const pipsWrap = spPanel.querySelector('#spPips');
   for(let i=0;i<b.spMax;i++){
@@ -5627,26 +5775,34 @@ function renderUniversoTab(){
     return wrap;
   }
   const day=ensureSUDay();
-  wrap.appendChild(el(`<div class=\"hint\" style=\"margin-bottom:14px;\">Affronta ${SU_WAVES} ondate di nemici sempre pi\u00f9 forti, con un boss all'ultima. Alla fine di ogni ondata scegli una Benedizione, un potenziamento permanente per la run; a volte ti imbatti in un Evento che pu\u00f2 darti altri benefici, ferirti o portarti a combattere. I PV non si ripristinano del tutto tra un'ondata e l'altra e, se la squadra cade, la run finisce. Puoi rifarla quante volte vuoi, ma la ricompensa si ottiene una sola volta al giorno.</div>`));
+  wrap.appendChild(el(`<div class=\"hint\" style=\"margin-bottom:14px;\">Supera ${SU_FLOORS} piani scegliendo ogni volta tra due stanze: combattimenti, Elite, Occorrenze, Negozi ed Escapade rare. Guadagna Frammenti Cosmici a ogni piano, compra Benedizioni nei Negozi e affronta il boss finale al piano ${SU_FLOORS}. Le difficolt\u00e0 aumentano la forza dei nemici e le ricompense. I PV persistono tra le stanze: se la squadra cade, la run termina.</div>`));
   const info=el(`<div class=\"hud-panel section\" style=\"padding:16px;\">
     <div class=\"eyebrow\">Ricompensa giornaliera</div>
-    <div class=\"stat-row\"><span>Completa tutte le ${SU_WAVES} ondate</span><b style=\"color:${day.claimed?'var(--green)':'var(--amber)'}\">${day.claimed?'\u2713 riscossa':'+'+SU_REWARD+' \ud83d\udca0'}</b></div>
-    <div class=\"stat-row\"><span>Ondata massima di oggi</span><b>${day.bestWave}/${SU_WAVES}</b></div>
+    <div class=\"stat-row\"><span>Completa tutti i ${SU_FLOORS} piani</span><b style=\"color:${day.claimed?'var(--green)':'var(--amber)'}\">${day.claimed?'\u2713 riscossa':`fino a +${Math.round(SU_REWARD*SU_DIFFICULTIES[2].rewardMult)} \ud83d\udca0`}</b></div>
+    <div class=\"stat-row\"><span>Piano massimo di oggi</span><b>${day.bestFloor}/${SU_FLOORS}</b></div>
     <div class=\"hint\" style=\"margin-top:6px;text-align:left;\">Reset tra <b id=\"suTimer\"></b></div>
   </div>`);
   startPFTimer(info.querySelector('#suTimer'));
   wrap.appendChild(info);
-  const startRow=el(`<div style=\"text-align:center;margin-top:14px;\"><button class=\"primary\" id=\"suStart\" style=\"padding:12px 26px;font-size:15px;\">Avvia Universo Simulato \u25b6</button></div>`);
-  startRow.querySelector('#suStart').onclick=()=>startSimulatedUniverse();
-  wrap.appendChild(startRow);
+  const difficultyGrid=el(`<div class=\"su-difficulties\"></div>`);
+  SU_DIFFICULTIES.forEach(difficulty=>{
+    const btn=el(`<button class=\"su-difficulty ${difficulty.id}\"><span class=\"su-difficulty-name\">${difficulty.name}</span><span>Nemici ${Math.round(difficulty.enemyMult*100)}%</span><span>Ricompensa +${Math.round(SU_REWARD*difficulty.rewardMult)} \ud83d\udca0</span><b>Avvia run \u25b6</b></button>`);
+    btn.onclick=()=>startSimulatedUniverse(difficulty.id);
+    difficultyGrid.appendChild(btn);
+  });
+  wrap.appendChild(difficultyGrid);
   return wrap;
 }
 
 const SU_BLESSING_ICONS = {'Vigore':'\u2694','Tempra':'\u2764','Corazza':'\ud83d\udee1','Passo Leggero':'\ud83d\udca8','Furia':'\ud83d\udd25','Fonte di Energia':'\u26a1','Mani Guaritrici':'\u271a','Rigenerazione':'\ud83c\udf3f','Occhio Acuto':'\ud83d\udc41','Maestria di Base':'\ud83d\udde1','Colpi Risolutivi':'\ud83d\udca5','Brace Persistente':'\ud83e\ude78','Riserva Tattica':'\u2666','Cuore di Pietra':'\ud83e\udea8','Eco di Comando':'\ud83d\udce3'};
 
 function suChooseStart(index){
-  state.su.pendingStart=state.su.startChoices[index];
-  startBattle('su');
+  const su=state.su, blessing=su.startChoices[index];
+  if(!blessing) return;
+  applySUBlessing(blessing);
+  su.roomChoices=generateSURoomChoices();
+  su.phase='roomChoice';
+  render();
 }
 function suCancelStart(){
   state.su=null;
@@ -5660,28 +5816,28 @@ function renderSUScreen(){
   const win=ended&&su.outcome==='win';
   const wrap=el(`<div class="hud-panel su-screen ${win?'win':ended?'lose':''}"></div>`);
 
-  // waves already cleared decide how the progress track is drawn
-  const cleared=win?SU_WAVES:su.phase==='blessing'?su.wave:su.wave-1;
-  const pips=Array.from({length:SU_WAVES},(_,i)=>{
+  const cleared=su.completedFloors||0;
+  const pips=Array.from({length:SU_FLOORS},(_,i)=>{
     const n=i+1;
-    const cls=n<=cleared?'done':(!ended&&n===cleared+1)?'current':'';
-    return `<span class="su-pip ${cls} ${n===SU_WAVES?'boss':''}">${n===SU_WAVES?'\u2620':n}</span>`;
+    const cls=n<=cleared?'done':(!ended&&n===su.floor)?'current':'';
+    return `<span class="su-pip ${cls} ${n===SU_FLOORS?'boss':''}">${n===SU_FLOORS?'\u2620':n}</span>`;
   }).join('');
   wrap.appendChild(el(`<div class="su-progress">${pips}</div>`));
 
   const head=(eyebrow,title,text)=>wrap.appendChild(el(`<div class="su-head"><div class="eyebrow">${eyebrow}</div><h2>${title}</h2><p>${text}</p></div>`));
+  const difficulty=getSUDifficulty();
+  wrap.appendChild(el(`<div class="su-wallet"><span>Piano ${su.floor}/${SU_FLOORS}</span><span>Difficolt\u00e0: <b>${difficulty.name}</b></span><span>Frammenti Cosmici: <b>${su.cosmicFragments}</b> \u2726</span></div>`));
 
   const team=el(`<div class="su-team"></div>`);
-  const members=su.allies||state.party.map(id=>({name:CHAR_DB[id].name,color:CHAR_DB[id].color,glyph:CHAR_DB[id].glyph,hp:null}));
-  members.forEach(a=>{
-    const hpBlock=a.hp===null?'':`<div class="bar-track"><div class="bar-fill hp-fill" style="width:${Math.max(0,a.hp)/a.maxHp*100}%"></div></div><div class="su-ally-hp">${Math.max(0,a.hp)}/${a.maxHp} PV</div>`;
-    team.appendChild(el(`<div class="su-ally ${a.hp!==null&&a.hp<=0?'down':''}"><div class="su-ally-glyph" style="background:${a.color}">${a.glyph}</div><div class="su-ally-info"><div class="su-ally-name">${a.name}</div>${hpBlock}</div></div>`));
+  su.allies.forEach(a=>{
+    const hpBlock=`<div class="bar-track"><div class="bar-fill hp-fill" style="width:${Math.max(0,a.hp)/a.maxHp*100}%"></div></div><div class="su-ally-hp">${Math.max(0,a.hp)}/${a.maxHp} PV</div>`;
+    team.appendChild(el(`<div class="su-ally ${a.hp<=0?'down':''}"><div class="su-ally-glyph" style="background:${a.color}">${a.glyph}</div><div class="su-ally-info"><div class="su-ally-name">${a.name}</div>${hpBlock}</div></div>`));
   });
 
-  const choiceGrid=(list,onPick)=>{
+  const choiceGrid=(list,onPick,cta='Scegli')=>{
     const grid=el(`<div class="su-choices"></div>`);
     list.forEach((bl,i)=>{
-      const card=el(`<button class="su-choice"><span class="su-choice-icon">${SU_BLESSING_ICONS[bl.name]||'\u2728'}</span><span class="su-choice-name">${bl.name}</span><span class="su-choice-desc">${bl.desc}</span><span class="su-choice-cta">Scegli</span></button>`);
+      const card=el(`<button class="su-choice"><span class="su-choice-icon">${SU_BLESSING_ICONS[bl.name]||'\u2728'}</span><span class="su-choice-name">${bl.name}</span><span class="su-choice-desc">${bl.desc}</span><span class="su-choice-cta">${cta}</span></button>`);
       card.onclick=()=>onPick(i);
       grid.appendChild(card);
     });
@@ -5689,15 +5845,25 @@ function renderSUScreen(){
   };
 
   if(su.phase==='start'){
-    head('Inizio run','Scegli la Benedizione iniziale','Ti accompagner\u00e0 per tutta la run, insieme a quelle che sceglierai dopo ogni ondata.');
+    head('Inizio run','Scegli la Benedizione iniziale','Il potenziamento rester\u00e0 attivo per tutti i 14 piani.');
     wrap.appendChild(team);
     wrap.appendChild(choiceGrid(su.startChoices,suChooseStart));
-  } else if(su.phase==='blessing'){
-    head(`Ondata ${su.wave} superata`,'Scegli una Benedizione',`La squadra recupera un po' di PV. Il potenziamento durer\u00e0 fino alla fine della run${su.wave+1===SU_WAVES?" \u2014 la prossima ondata \u00e8 il boss!":'.'}`);
+  } else if(su.phase==='roomChoice'){
+    head('Percorso disponibile',`Piano ${su.floor}: scegli una stanza`,'Le Escapade sono rare; l’ultimo piano sarà sempre il boss finale.');
     wrap.appendChild(team);
-    wrap.appendChild(choiceGrid(su.choices,suChooseBlessing));
+    const rooms=el(`<div class="su-room-choices"></div>`);
+    su.roomChoices.forEach((room,index)=>{
+      const card=el(`<button class="su-room-choice ${room.id}"><span class="su-choice-icon">${room.icon}</span><span class="su-choice-name">${room.name}</span><span class="su-choice-desc">${room.desc}</span><span class="su-choice-cta">Entra nel piano</span></button>`);
+      card.onclick=()=>suChooseRoom(index);
+      rooms.appendChild(card);
+    });
+    wrap.appendChild(rooms);
+  } else if(su.phase==='blessingReward'){
+    head(`Piano ${su.floor} completato`,`${su.blessingRewardSource==='elite'?'Scegli due Benedizioni':'Scegli una Benedizione'}`,`${su.blessingPicksRemaining} scelta${su.blessingPicksRemaining===1?'':'e'} rimanente${su.blessingPicksRemaining===1?'':'i'} · hai ottenuto Frammenti Cosmici.`);
+    wrap.appendChild(team);
+    wrap.appendChild(choiceGrid(su.blessingChoices,suChooseRewardBlessing));
   } else if(su.phase==='occurrence'){
-    head('Evento',su.occ.title,su.occ.text);
+    head(`Occorrenza · Piano ${su.floor}`,su.occ.title,su.occ.text);
     wrap.appendChild(team);
     const list=el(`<div class="su-options"></div>`);
     su.occ.choices.forEach((ch,i)=>{
@@ -5707,26 +5873,61 @@ function renderSUScreen(){
     });
     wrap.appendChild(list);
   } else if(su.phase==='occurrenceResult'){
-    head('Evento',su.occ?su.occ.title:'Evento','');
+    head(`Occorrenza · Piano ${su.floor}`,su.occ?su.occ.title:'Evento','');
     wrap.appendChild(el(`<div class="su-result">${su.result.text}</div>`));
     wrap.appendChild(team);
     const btn=el(`<button class="primary su-continue">${su.result.fight?'Combatti \u25b6':'Continua \u25b6'}</button>`);
     btn.onclick=()=>suContinueAfterOccurrence();
     wrap.appendChild(btn);
+  } else if(su.phase==='shop'){
+    head(`Negozio · Piano ${su.floor}`,'Acquista Benedizioni',`Ogni acquisto costa ${SU_SHOP_PRICE} Frammenti Cosmici. Puoi comprare fino a ${3-su.shopPurchases} Benedizioni in questo negozio.`);
+    wrap.appendChild(team);
+    const offers=el(`<div class="su-choices"></div>`);
+    su.shopOffers.forEach((bl,index)=>{
+      const card=el(`<button class="su-choice" ${su.cosmicFragments<SU_SHOP_PRICE||su.shopPurchases>=3?'disabled':''}><span class="su-choice-icon">${SU_BLESSING_ICONS[bl.name]||'\u2728'}</span><span class="su-choice-name">${bl.name}</span><span class="su-choice-desc">${bl.desc}</span><span class="su-choice-cta">Acquista · ${SU_SHOP_PRICE} \u2726</span></button>`);
+      card.onclick=()=>suBuyBlessing(index);
+      offers.appendChild(card);
+    });
+    wrap.appendChild(offers);
+    const leave=el(`<button class="primary su-continue">Lascia il negozio \u25b6</button>`);
+    leave.onclick=suCompleteNonCombatRoom;
+    wrap.appendChild(leave);
+  } else if(su.phase==='escapade'){
+    head(`Escapade rara · Piano ${su.floor}`,'Scegli chi potenziare','Ogni personaggio risveglia una tecnica unica, molto pi\u00f9 forte di una Benedizione normale.');
+    wrap.appendChild(team);
+    const choices=el(`<div class="su-room-choices"></div>`);
+    su.allies.forEach((ally,index)=>{
+      const signature=getSUEscapadeSignature(ally);
+      const name=signature?signature.ability.name:CHAR_DB[ally.charId].ult.name;
+      const desc=signature?`Potenziamento esclusivo di ${name}: +65% ai danni specifici, +25% danni e +15% ATK.`:'Buff, cure e scudi pi\u00f9 potenti, con recupero di energia accelerato.';
+      const card=el(`<button class="su-room-choice escapade"><span class="su-choice-icon">${ally.glyph}</span><span class="su-choice-name">${ally.name}</span><span class="su-choice-desc">${desc}</span><span class="su-choice-cta">Risveglia ${name}</span></button>`);
+      card.onclick=()=>suChooseEscapade(index);
+      choices.appendChild(card);
+    });
+    wrap.appendChild(choices);
+  } else if(su.phase==='escapadeResult'){
+    head(`Escapade · Piano ${su.floor}`,'Risveglio completato','Il potenziamento resta attivo fino al termine della run.');
+    wrap.appendChild(el(`<div class="su-result">${su.result.text}</div>`));
+    wrap.appendChild(team);
+    const btn=el(`<button class="primary su-continue">Continua \u25b6</button>`);
+    btn.onclick=suContinueAfterEscapade;
+    wrap.appendChild(btn);
   } else if(ended){
-    head(win?'Vittoria':'Fine della run',win?'Universo Simulato completato!':'Run terminata',win?`Hai sconfitto il boss dell'ondata ${SU_WAVES}.`:`La squadra \u00e8 caduta all'ondata ${su.wave}/${SU_WAVES}.`);
-    wrap.appendChild(el(`<div class="su-result">${su.reward>0?`Ricompensa: +${su.reward} \ud83d\udca0 Frammenti`:win?'Ricompensa giornaliera gi\u00e0 riscossa.':'Completa tutte le ondate per ottenere la ricompensa.'}</div>`));
+    head(win?'Vittoria':'Fine della run',win?'Universo Simulato completato!':'Run terminata',win?`Hai sconfitto ${su.bossName} al piano ${SU_FLOORS}.`:`La squadra \u00e8 caduta al piano ${su.floor}/${SU_FLOORS}.`);
+    wrap.appendChild(el(`<div class="su-result">${su.reward>0?`Ricompensa giornaliera: +${su.reward} \ud83d\udca0 Frammenti`:win?'Ricompensa giornaliera gi\u00e0 riscossa.':'La run non \u00e8 stata completata.'}</div>`));
+    wrap.appendChild(el(`<div class="su-result">Frammenti Cosmici ottenuti: ${su.fragmentsEarned} \u2726 · saldo finale: ${su.cosmicFragments} \u2726</div>`));
   }
 
   if(ended&&su.firstClear){
     wrap.appendChild(el(`<div class="su-result">🎉 Traguardo completato! Vai in Missioni per riscattare <b style="color:${CHAR_DB.finanaRyugu.color}">${CHAR_DB.finanaRyugu.name}</b> (${'★'.repeat(CHAR_DB.finanaRyugu.rarity)}).</div>`));
   }
 
-  if(su.blessings.length>0){
+  if(su.blessings.length>0||su.escapades.length>0){
     const counts={};
     su.blessings.forEach(name=>{ counts[name]=(counts[name]||0)+1; });
     const chips=Object.entries(counts).map(([name,n])=>`<span class="su-chip" title="${(SU_BLESSINGS.find(b=>b.name===name)||{}).desc||''}">${SU_BLESSING_ICONS[name]||'\u2728'} ${name}${n>1?` \u00d7${n}`:''}</span>`).join('');
-    wrap.appendChild(el(`<div class="su-active"><div class="eyebrow">Benedizioni attive</div><div class="su-chips">${chips}</div></div>`));
+    const escapadeChips=su.escapades.map(name=>`<span class="su-chip escapade">${name}</span>`).join('');
+    wrap.appendChild(el(`<div class="su-active"><div class="eyebrow">Potenziamenti della run</div><div class="su-chips">${chips}${escapadeChips}</div></div>`));
   }
 
   if(ended){
