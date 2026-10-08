@@ -100,6 +100,11 @@ const CHAR_DB = {
     basic:{name:'Raggio Disordinato', desc:'Infligge danno a un nemico e ne riduce la DIF del 15% per 2 round.', mult:1.0, target:'enemy', effect:'laplus_def_down', energyGain:20},
     skill:{name:'Marchio del Caos', desc:'Infligge danno, riduce la DIF del 15% e per 2 round rimuove dalla lista delle debolezze del bersaglio l’elemento del primo eroe in squadra, se presente, aggiungendo quello contrapposto.', mult:1.35, target:'enemy', effect:'laplus_remove_element', energyGain:30},
     ult:{name:'Dominio della Disordine', desc:'Danneggia tutti i nemici, riduce la DIF del 30% per 2 round e rinnova il debuff.', mult:1.6, target:'enemies_all', effect:'laplus_ultimate'} },
+  kazamaIroha: {name:'Kazama Iroha',title:'Spadaccina della HoloX',role:'DPS Follow-up',color:'#8b7bdb',glyph:'I',rarity:5,element:'imaginary',animStyle:'swift',faction:'HoloX',passiveIrohaFollowUps:2,
+    base:{hp:1080,atk:144,def:72,speed:103,energyMax:130},
+    basic:{name:'Fendente della Guardia',desc:'Infligge danni leggeri a un singolo nemico.',mult:0.75,target:'enemy',effect:null,energyGain:20},
+    skill:{name:'Carica HoloX',desc:'Infligge danni a un nemico e attiva un follow-up gratuito contro un nemico casuale.',mult:1.4,target:'enemy',effect:'iroha_skill',energyGain:30},
+    ult:{name:'Tecnica Segreta: Lama della Vittoria',desc:'Infligge ingenti danni a un nemico, attiva un follow-up gratuito contro un nemico casuale e ripristina 2 cariche di follow-up.',mult:2.3,target:'enemy',effect:'iroha_ultimate'} },
   ninomaeInaNis: {name:"Ninomae Ina'Nis",title:'Sacerdotessa del Vuoto',role:'DPS Follow-up',color:'#42c9b8',glyph:'I',rarity:4,element:'hydro',animStyle:'radiant-soft',passiveInaFollowUps:3,
     base:{hp:1120,atk:128,def:82,speed:100,energyMax:135},
     basic:{name:'Inchiostro Abissale',desc:'Infligge danno a un singolo nemico, basato sui PV massimi.',mult:0.1,target:'enemy',effect:null,hpBased:true,energyGain:20},
@@ -1527,6 +1532,7 @@ function resetAlliesForWave(allies){
     a.skillFreeUses=c.skillFreeUses||0;
     a.inaFollowUpsRemaining=c.passiveInaFollowUps||0;
     a.zetaFollowUpsRemaining=c.passiveZetaFollowUps||0;
+    a.irohaFollowUpsRemaining=c.passiveIrohaFollowUps||0;
     a.suiseiHpLossEvents=0; a.suiseiFollowUpReady=false; a.suiseiGuardRounds=0; a.suiseiGuardFresh=false; a.tauntRounds=0; a.tauntFresh=false; a.tauntSource=null;
     a.suiseiRevivesRemaining=c.revivesPerBattle||0;
     a.hakosForm=false;
@@ -1703,6 +1709,7 @@ function startBattle(mode,fight){
       singleAllyDamageBuff:eff.singleAllyDamageBuff,
       inaFollowUpsRemaining: CHAR_DB[id].passiveInaFollowUps||0,
       zetaFollowUpsRemaining: CHAR_DB[id].passiveZetaFollowUps||0,
+      irohaFollowUpsRemaining: CHAR_DB[id].passiveIrohaFollowUps||0,
       suiseiHpLossEvents:0,suiseiFollowUpReady:false,suiseiGuardRounds:0,suiseiGuardFresh:false,
       suiseiRevivesRemaining:CHAR_DB[id].revivesPerBattle||0,
       takaneDebuffCharges:0,
@@ -1746,6 +1753,7 @@ function startBattle(mode,fight){
     loot:[],
     inaFollowUpActive:false,
     zetaFollowUpActive:false,
+    irohaFollowUpActive:false,
     suiseiFollowUpActive:false,
     summonCounter:pf?5:0,
     mode:pf?'pf':moc?'moc':apoc?'apoc':su?'su':domain?'domain':'tower',
@@ -2013,6 +2021,25 @@ async function performZetaFollowUp(b){
   return true;
 }
 
+async function performIrohaFollowUp(b,target,consumeCharge=true){
+  const iroha=b.allies.find(ally=>ally.charId==='kazamaIroha'&&ally.hp>0);
+  if(!iroha||!target||target.hp<=0||b.irohaFollowUpActive) return false;
+  if(consumeCharge&&iroha.irohaFollowUpsRemaining<=0) return false;
+  if(consumeCharge) iroha.irohaFollowUpsRemaining--;
+  b.irohaFollowUpActive=true;
+  const ability=CHAR_DB.kazamaIroha.basic;
+  const vulnerability=target.vulnerableRounds>0?target.vulnerableToElement:null;
+  const attack=Math.round(iroha.atk*(iroha.atkBuffMult||1));
+  const damage=calcDamage(attack,ability.mult,getEffectiveEnemyDefense(target),iroha.element,target.elements||target.element,iroha,'basic',vulnerability);
+  const applied=dealDamageToEnemy(target,damage,'basic',true,iroha);
+  iroha._fxAttack='basic';
+  logMsg(`${iroha.name} esegue un follow-up su ${target.name}: ${applied} danni${consumeCharge?` (${iroha.irohaFollowUpsRemaining} cariche rimaste)`:''}.`);
+  render();
+  await sleepMs(240);
+  b.irohaFollowUpActive=false;
+  return true;
+}
+
 async function triggerInaFollowUpAfterHit(b,target,attacker){
   if(attacker?.charId!=='ninomaeInaNis' && target.inaMarked){
     const ina=getInaActor(b);
@@ -2030,6 +2057,7 @@ async function triggerInaFollowUpAfterHit(b,target,attacker){
     if(target) await performInaFollowUp(b,target,true);
   }
   if(attacker?.charId!=='vestiaZeta') await performZetaFollowUp(b);
+  if(attacker?.charId!=='kazamaIroha') await performIrohaFollowUp(b,target,true);
 }
 
 function isEnemyWeakTo(element,enemy){
@@ -2596,6 +2624,14 @@ async function executeAbility(actor, abKey, targetId){
     }
     if(ability.effect==='kobo_seasick'){
       applyKoboSeasick(t);
+    }
+    if(ability.effect==='iroha_skill'||ability.effect==='iroha_ultimate'){
+      if(ability.effect==='iroha_ultimate'){
+        actor.irohaFollowUpsRemaining=CHAR_DB.kazamaIroha.passiveIrohaFollowUps;
+        logMsg(`${actor.name} recupera le ${actor.irohaFollowUpsRemaining} cariche di follow-up.`);
+      }
+      const randomTarget=pick(enemyTargets());
+      if(randomTarget) await performIrohaFollowUp(b,randomTarget,false);
     }
   }
   else if(ability.target==='ally'){
@@ -4371,6 +4407,7 @@ function renderAbilitaTab(){
       ${c.passiveFinanaFollowUp?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: quando un nemico scende al 50% dei PV per la prima volta, Finana lancia un follow-up ad area che infligge danni pari al 3% dei suoi PV massimi per bersaglio (massimo 4 per round).</div>`:''}
       ${c.passiveInaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: marchia il nemico con meno PV. I colpi al marchiato attivano fino a ${c.passiveInaFollowUps} follow-up; la Ultimate ricarica le cariche. Ogni volta che un alleato colpisce il nemico marchiato, Ina rigenera 10 energia.</div>`:''}
       ${c.passiveZetaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: gli attacchi di un alleato diverso da Zeta attivano un follow-up, anche contro nemici senza Sanguinamento. La Ultimate ricarica le ${c.passiveZetaFollowUps} cariche.</div>`:''}
+      ${c.passiveIrohaFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: quando un altro alleato colpisce un nemico, Iroha esegue un follow-up su quel bersaglio e consuma 1 carica. Skill e Ultimate eseguono un follow-up casuale gratuito; la Ultimate ripristina ${c.passiveIrohaFollowUps} cariche.</div>`:''}
       ${c.passiveHpLossFollowUps?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: ogni ${c.passiveHpLossFollowUps} perdite di PV attiva un follow-up ad area e cura il 15% dei PV massimi.</div>`:''}
       ${c.passiveEnemySpeedDown?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: riduce la VEL di tutti i nemici del ${Math.round(c.passiveEnemySpeedDown*100)}% per la battaglia.</div>`:''}
       ${c.revivesPerBattle?`<div class="hint" style="text-align:left;margin-top:4px;">Passiva: può rinascere ${c.revivesPerBattle} volte per battaglia con il 60% dei PV massimi.</div>`:''}
@@ -4459,6 +4496,8 @@ function effectLabel(ability){
     case 'buff_atk_def': return `+${Math.round(ability.buffPct*100)}% ATK e +${Math.round(ability.defBuffPct*100)}% DIF a tutta la squadra per 3 turni.`;
     case 'alban_extra_action': return `L'alleato scelto ottiene subito un'azione aggiuntiva e +${Math.round(ability.buffPct*100)}% ATK per 2 turni.`;
     case 'alban_ultimate': return `+${Math.round(ability.buffPct*100)}% ATK a tutti e ATK aggiuntivo pari al ${Math.round(ability.flatAtkPct*100)}% dell'ATK di Alban, per 2 turni.`;
+    case 'iroha_skill': return `Colpisce un nemico singolo e attiva un follow-up gratuito su un nemico casuale.`;
+    case 'iroha_ultimate': return `Colpisce un nemico singolo, attiva un follow-up gratuito su un nemico casuale e ripristina ${CHAR_DB.kazamaIroha.passiveIrohaFollowUps} cariche.`;
     case 'boost_basic_hits': return `Aumenta di 1 il numero di colpi dell'Attacco Base (fino a un massimo di 10). Non conclude il turno: si può riusare finché ci sono Punti Abilità, poi va chiusa con l'Attacco Base. Le prime 2 Skill della battaglia non costano Punti Abilità.`;
     case 'extra_attack_buff': return `L'alleato scelto attacca subito una volta in più e ottiene +${Math.round(ability.buffPct*100)}% ATK per 2 turni.`;
     case 'grant_sp': return `Dona istantaneamente ${ability.spGrant} Punti Abilità alla squadra (nessun danno).`;
@@ -5308,6 +5347,7 @@ function renderBattle(){
       ${statusMarkup}
       ${a.charId==='ninomaeInaNis'?`<div class="ina-charge-tag">FOLLOW-UP ${a.inaFollowUpsRemaining}/3</div>`:''}
       ${a.charId==='vestiaZeta'?`<div class="ina-charge-tag">FOLLOW-UP ${a.zetaFollowUpsRemaining}/${CHAR_DB.vestiaZeta.passiveZetaFollowUps}</div>`:''}
+      ${a.charId==='kazamaIroha'?`<div class="ina-charge-tag">FOLLOW-UP ${a.irohaFollowUpsRemaining}/${CHAR_DB.kazamaIroha.passiveIrohaFollowUps}</div>`:''}
       ${a.charId==='suiseiHoshimachi'?`<div class="suisei-revive-tag">RINASCITE ${a.suiseiRevivesRemaining}/2</div>`:''}
       ${fx.floatHtml}
     </div>`);
