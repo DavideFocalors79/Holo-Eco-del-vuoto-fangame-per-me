@@ -4084,7 +4084,7 @@ function renderHome(){
 }
 
 function loadCharacterImage(image,charId,onLoad,onError){
-  const extensions=['png','webp','jpg','jpeg'];
+  const extensions=['webp','png','jpg','jpeg'];
   let extensionIndex=0;
   image.addEventListener('load',()=>onLoad?.(),{once:true});
   image.addEventListener('error',()=>{
