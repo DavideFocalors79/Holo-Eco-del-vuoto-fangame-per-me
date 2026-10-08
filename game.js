@@ -105,7 +105,7 @@ const CHAR_DB = {
     basic:{name:'Luce della Cometa',desc:'Attacco singolo basato sui PV massimi.',mult:0.14,target:'enemy',effect:null,hpBased:true,energyGain:20},
     skill:{name:'Stella Cadente',desc:'Sacrifica metà dei PV correnti, riduce del 40% i danni subiti per 3 round, provoca i nemici per 2 round e potenzia il Basic.',mult:0,target:'self',effect:'suisei_guard',energyGain:0},
     ult:{name:'Finale Stellare',desc:'Colpo singolo basato sui PV massimi. Porta i PV di Susei esattamente al 50% dopo il colpo.',mult:0.48,target:'enemy',effect:'suisei_set_half_hp',hpBased:true,energyGain:0} },
-  selenTatsuki: {name:'Selen Tatsuki',title:'Fulmine Sovrano',role:'DPS Electro',color:'#f5d90a',glyph:'S',rarity:4,element:'electro',animStyle:'swift',
+  selenTatsuki: {name:'DokiBird',title:'Fulmine Sovrano',role:'DPS Electro',color:'#f5d90a',glyph:'D',rarity:4,element:'electro',animStyle:'swift',
     base:{hp:1030,atk:130,def:66,speed:100,energyMax:125},
     basic:{name:'Scarica Rapida',desc:'Infligge danno elettrico a un bersaglio.',mult:0.95,target:'enemy',effect:null,energyGain:20},
     skill:{name:'Arco Voltaico',desc:'Danno elevato; molto più forte se il nemico è debole all\'Electro.',mult:1.9,weakMult:2.8,target:'enemy',effect:'selen_skill',energyGain:30},
@@ -1039,13 +1039,13 @@ const PF_GENERAL_BUFFS = [
 // Team-wide for everyone, but each only pays off fully for a specific playstyle/hero.
 const PF_THEME_BUFFS = [
   {name:'Eco Vitale', desc:'Danni basati sui PV massimi +35%, cure +20%.', hint:'Susei, Cecilia', apply:a=>{ a.hpDamageMult+=0.35; a.healMult+=0.2; }},
-  {name:'Nemici Instabili', desc:'Il danno contro le debolezze elementali aumenta del 50%.', hint:'Selen, Mona, Laplus', apply:a=>{ a.weaknessBonus+=0.5; }},
+  {name:'Nemici Instabili', desc:'Il danno contro le debolezze elementali aumenta del 50%.', hint:'DokiBird, Mona, Laplus', apply:a=>{ a.weaknessBonus+=0.5; }},
   {name:'Frenesia', desc:'Danni degli Attacchi Base +40%.', hint:'Mumei, Ina, Hakos', apply:a=>{ a.basicDamageMult+=0.4; }},
   {name:'Sangue Caldo', desc:'Danni da Sanguinamento +60%.', hint:'Vestia', apply:a=>{ a.burnMult+=0.6; }},
   {name:'Segno Persistente', desc:'+2 cariche di follow-up iniziali.', hint:'Ina', apply:a=>{ if(a.inaFollowUpsRemaining>0) a.inaFollowUpsRemaining+=2; }},
   {name:'Scudi Rinforzati', desc:'Forza degli scudi +60%.', hint:'Kaela', apply:a=>{ a.shieldMult+=0.6; }},
   {name:'Eco di Comando', desc:'Efficacia dei buff ATK +30%, le Skill che donano PA ne danno 1 in più.', hint:'IRyS, Kronii', apply:a=>{ a.buffPctBonus+=0.3; a.spGrantBonus+=1; }},
-  {name:'Colpi Risolutivi', desc:'Danni di Skill e Ultimate +35%.', hint:'Selen, Mona, Laplus', apply:a=>{ a.skillDamageMult+=0.35; }},
+  {name:'Colpi Risolutivi', desc:'Danni di Skill e Ultimate +35%.', hint:'DokiBird, Mona, Laplus', apply:a=>{ a.skillDamageMult+=0.35; }},
 ];
 
 function pfDateKey(){
@@ -4083,13 +4083,50 @@ function renderHome(){
   return wrap;
 }
 
+function loadCharacterImage(image,charId,onLoad,onError){
+  const extensions=['png','webp','jpg','jpeg'];
+  let extensionIndex=0;
+  image.addEventListener('load',()=>onLoad?.(),{once:true});
+  image.addEventListener('error',()=>{
+    if(extensionIndex<extensions.length){
+      image.src=`resources/${charId.toLowerCase()}.${extensions[extensionIndex++]}`;
+    } else {
+      image.remove();
+      onError?.();
+    }
+  });
+  image.src=`resources/${charId.toLowerCase()}.${extensions[extensionIndex++]}`;
+}
+
+const characterArtworkImages=new Map();
+
+function addCharacterCardArtwork(card,charId){
+  let image=characterArtworkImages.get(charId);
+  if(!image){
+    image=document.createElement('img');
+    image.className='hero-card-art';
+    image.alt='';
+    image.setAttribute('aria-hidden','true');
+    image.loading='lazy';
+    image.decoding='async';
+    characterArtworkImages.set(charId,image);
+    loadCharacterImage(
+      image,
+      charId,
+      ()=>image.parentElement?.classList.add('has-art'),
+      ()=>characterArtworkImages.delete(charId)
+    );
+  }
+  card.prepend(image);
+  if(image.complete&&image.naturalWidth>0) card.classList.add('has-art');
+}
+
 function renderHeroCard(charId){
   const c = CHAR_DB[charId];
   const unlocked = state.roster[charId].unlocked;
   if(!unlocked){
-    return el(`<div class="hud-panel hero-card locked-card">
+    const card=el(`<div class="hud-panel hero-card locked-card">
       <div class="hero-head">
-        <div class="hero-portrait" style="background:#333;filter:grayscale(1);opacity:0.5;">${c.glyph}</div>
         <div>
           <div class="hero-name" style="opacity:0.55;">${c.name}</div>
           <div class="hero-title" style="opacity:0.45;">${c.title}</div>
@@ -4100,12 +4137,13 @@ function renderHeroCard(charId){
       </div>
       <div class="locked-tag">🔒 Bloccato</div>
     </div>`);
+    addCharacterCardArtwork(card,charId);
+    return card;
   }
   const eff = getEffectiveStats(charId);
   const selected = state.party.includes(charId);
   const card = el(`<div class="hud-panel hero-card ${selected?'selected':''}">
     <div class="hero-head">
-      <div class="hero-portrait" style="background:${c.color}">${c.glyph}</div>
       <div>
         <div class="hero-name">${c.name}</div>
         <div class="hero-title">${c.title}</div>
@@ -4123,6 +4161,7 @@ function renderHeroCard(charId){
     <div class="set-bonus-list" id="setbonus-${charId}"></div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><button class="small ${selected?'danger':''}" id="toggle-${charId}">${selected?'Rimuovi dalla squadra':'Aggiungi alla squadra'}</button><button class="small" id="auto-${charId}">⚙ Equip automatico</button></div>
   </div>`);
+  addCharacterCardArtwork(card,charId);
   const weapon = state.roster[charId].weapon;
   const wslot = card.querySelector(`#wslot-${charId}`);
   const wEl = el(weapon
@@ -5227,7 +5266,6 @@ function renderBattle(){
     const statusMarkup=getAllyBattleStatusMarkup(a);
     const card = el(`<div class="hud-panel ally-card ${isActive?'active-turn':''} ${dead?'dead':''} ${isTargetable?'selectable-target':''}" style="--char-glow:${hexToRgba(a.color,0.85)};--fx-scale:${fx.scale};${isActive?'border-color:'+a.color+';box-shadow:0 0 0 1px '+a.color+' inset;':''}position:relative;${fx.animation?'animation:'+fx.animation+';':''}">
       <div class="ally-top">
-        <div class="ally-portrait" style="background:${a.color}">${a.glyph}</div>
         <div><div class="ally-name">${a.name}</div><div class="element-tag">${ELEMENT_DATA[a.element]?.label||a.element}</div>${a.hakosForm?`<div class="hakos-form-tag">FORMA CAOTICA · ${a.hakosFormTurns}/10</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiGuardRounds>0?`<div class="suisei-posture-tag">POSTURA STELLARE · ${a.suiseiGuardRounds}/3</div>`:''}${a.tauntRounds>0?`<div class="suisei-posture-tag">PROVOCAZIONE · ${a.tauntRounds}</div>`:''}${a.charId==='suiseiHoshimachi'&&a.suiseiFollowUpReady?'<div class="suisei-posture-tag">FOLLOW-UP PRONTO</div>':''}</div>
       </div>
       <div class="mini-lbl"><span>PV</span><span>${a.hp}/${a.maxHp}</span></div>
@@ -5243,6 +5281,7 @@ function renderBattle(){
       ${a.charId==='suiseiHoshimachi'?`<div class="suisei-revive-tag">RINASCITE ${a.suiseiRevivesRemaining}/2</div>`:''}
       ${fx.floatHtml}
     </div>`);
+    addCharacterCardArtwork(card,a.charId);
     if(isTargetable) card.onclick=()=>playerChooseTarget(a.charId);
     allyRow.appendChild(card);
   });
